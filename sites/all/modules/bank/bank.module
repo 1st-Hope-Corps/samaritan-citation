@@ -1,0 +1,970 @@
+<?php
+// $Id$
+
+/**
+* Display help and module information
+* @param $sPath		- which path of the site we're displaying help
+* @param $aArg array- holds the current path as would be returned from arg() function
+* @return help		- text for the path
+*/
+function bank_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#bank":
+			$sOutput = '<p>'. t("Hope Development Bank module integration.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+* Valid permissions for this module
+* @return array	- An array of valid permissions for the bank module
+*/
+
+function bank_perm(){
+	return array('access bank', 'access bank content', 'administer bank');
+}
+
+/**
+* Generate HTML for Hope Dev Bank Block
+* @param $sOperation	- the operation from the URL
+* @param $iDelta		- offset
+* @return $aBlock array	- HTML
+*/
+function bank_block($sOperation='list', $iDelta=0){
+	if ($sOperation == "list") {
+		$aBlock[0]["info"] = t('Hope Dev Bank Module');
+		return $aBlock;
+	}
+}
+
+function bank_init(){
+	
+}
+
+function bank_menu(){
+	$aItems = array();
+	
+	$aItems['admin/settings/bank'] = array(
+		'title' => 'Hope Dev Bank Settings',
+		'description' => "Sets the Key and Pass pair to use for Hope Dev Bank access.",
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('bank_admin'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['hopebank'] = array(
+		'title' => 'My Bank Account',
+		'page callback' => 'bank_details',
+		'access arguments' => array('access bank content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	if (user_access('administer')){
+		$aItems['hopebank/create'] = array(
+			'title' => 'Create Money',
+			'page callback' => 'bank_create',
+			'access arguments' => array('administer bank'),
+			'weight' => 0,
+			'type' => MENU_NORMAL_ITEM
+		);
+		
+		$aItems['hopebank/borrower'] = array(
+			'title' => 'Borrowers',
+			'page callback' => 'bank_borrower',
+			'access arguments' => array('administer bank'),
+			'weight' => 1,
+			'type' => MENU_NORMAL_ITEM
+		);
+	}
+	
+	$aItems['hopebank/send'] = array(
+		'title' => 'Send Money',
+		'page callback' => 'bank_give',
+		'access arguments' => array('administer bank'),
+		'weight' => 2,
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['hopebank/statement'] = array(
+		'title' => 'Statement',
+		'page callback' => 'bank_history',
+		'access arguments' => array('access content'),
+		'weight' => 3,
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['hopebank/callback/details'] = array(
+		'page callback' => 'bank_callback_details',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['hopebank/callback/send'] = array(
+		'page callback' => 'bank_callback_send',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['hopebank/callback/statement'] = array(
+		'page callback' => 'bank_callback_statement',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+function bank_callback_details(){
+	$oBank = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oBank->account_number, "pass" => $oBank->account_pass));
+	
+	echo json_encode(array("ACCOUNT" => $oBank->account_number, "BALANCES" => $aBalances["RETURN"]));
+	
+	exit;
+}
+
+function bank_callback_send(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	$mBankTrueCafeRate = variable_get("bank_truecafe_rate", 1);
+	$mAmount = number_format($mAmount, 2);
+	$mRealMoney = number_format($mAmount * $mBankTrueCafeRate, 2);
+	$oBankDetails = _bank_account();
+	
+	$aReqParam = array(
+					"key" => $oBankDetails->account_number, 
+					"pass" => $oBankDetails->account_pass, 
+					"amount" => $mAmount, 
+					"recipient" => $sAccount
+				);
+	
+	if ($bForTrueCafe == 1){
+		$sModule = "truecafe";
+		$aReqParam["realmoney"] = $mRealMoney;
+		$sDescriptor = $mAmount." (Real Money = ".$mRealMoney.")";
+	}else{
+		$sModule = "send";
+		$sDescriptor = $mAmount;
+	}
+	
+	$aBankReply = _bank_post($sModule, $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		$aResult = array("STATUS" => "Success", "RETURN" => "The amount ".$sDescriptor." was sent successfully to Account Number ".$sAccount." with Reference Number ".$aBankReply["RETURN"]["REF"].".");
+	}else{
+		$aResult = array("STATUS" => "Fail", "RETURN" => $aBankReply["ERR_MSG"]);
+	}
+	
+	echo json_encode($aResult);
+	
+	exit;
+}
+
+function bank_callback_statement(){
+	$oBankDetails = _bank_account();
+	$aReqParam = array(
+					"key" => $oBankDetails->account_number, 
+					"pass" => $oBankDetails->account_pass
+				);
+	
+	$aBankReply = _bank_post("history", $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		$aResult = $aBankReply;
+	}else{
+		$aResult = array("STATUS" => "Fail", "RETURN" => $aBankReply["ERR_MSG"]);
+	}
+	
+	echo json_encode($aResult);
+	
+	exit;
+}
+
+function bank_admin(){
+	$aForm['bank_key'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Access Key'),
+		'#default_value' => variable_get("bank_key", ""),
+		'#size' => 41,
+		'#maxlength' => 32,
+		'#description' => t("The access key that was given by Hope Dev Bank."),
+		'#required' => TRUE,
+	);
+	
+	$aForm['bank_pass'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Access Pass'),
+		'#default_value' => variable_get("bank_pass", ""),
+		'#size' => 41,
+		'#maxlength' => 40,
+		'#description' => t("The access pass that was given by Hope Dev Bank."),
+		'#required' => TRUE,
+	);
+	
+	$aForm['bank_rate'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Conversion Rate(Hopeful)'),
+		'#default_value' => variable_get("bank_rate", "0.00"),
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t("The Conversion rate for approved hour for civic duties to Valiants. Formula: Approved Hour x Conversion Rate = Valiants"),
+		'#required' => TRUE
+	);
+	
+	$aForm['volunteer_bank_rate'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Conversion Rate(Volunteer)'),
+		'#default_value' => variable_get("volunteer_bank_rate", "0.00"),
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t("The Conversion rate for approved hour for civic duties to Valiants. Formula: Approved Hour x Conversion Rate = Valiants"),
+		'#required' => TRUE
+	);
+	
+	$aForm['bank_truecafe_rate'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Conversion Rate (TrueCafe)'),
+		'#default_value' => variable_get("bank_truecafe_rate", "0.00"),
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t("The Conversion rate for Valiants to True Money that will be used in TrueCafe. Formula: Valiants x Conversion Rate = True Money"),
+		'#required' => TRUE
+	);
+
+	return system_settings_form($aForm);
+}
+
+function bank_admin_validate($oForm, &$aFormState){
+	$sBankKey = trim($aFormState['values']['bank_key']);
+	$sBankPass = trim($aFormState['values']['bank_pass']);
+	$mBankRate = trim($aFormState['values']["bank_rate"]);
+	$mvBankRate = trim($aFormState['values']["volunteer_bank_rate"]);
+	$mBankTrueCafeRate = trim($aFormState['values']["bank_truecafe_rate"]);
+	
+	if ($sBankKey == ""){
+		form_set_error('bank_key', t('You must specify the access key.'));
+	}elseif (strlen($sBankKey) < 32){
+		form_set_error('bank_key', t('Invalid character count for the Access Key. It should have 32 characters.'));
+	}
+	
+	if ($sBankPass == ""){
+		form_set_error('bank_pass', t('You must specify the access pass.'));
+	}elseif (strlen($sBankPass) < 40){
+		form_set_error('bank_pass', t('Invalid character count for the Access Pass. It should have 40 characters.'));
+	}
+	
+	if (!is_numeric($mBankRate) || $mBankRate == ""){
+		form_set_error("bank_rate", t("You must specify a numeric value for the 'Conversion Rate' field."));
+	}elseif ($mBankRate <= 0){
+		form_set_error("bank_rate", t("The Conversion Rate should be greater than zero."));
+	}
+	
+	if (!is_numeric($mvBankRate) || $mvBankRate == ""){
+		form_set_error("volunteer_bank_rate", t("You must specify a numeric value for the 'Conversion Rate' field."));
+	}elseif ($mvBankRate <= 0){
+		form_set_error("volunteer_bank_rate", t("The Conversion Rate should be greater than zero."));
+	}
+	
+	if (!is_numeric($mBankTrueCafeRate) || $mBankTrueCafeRate == ""){
+		form_set_error("bank_truecafe_rate", t("You must specify a numeric value for the 'Conversion Rate (TrueCafe)' field."));
+	}elseif ($mBankTrueCafeRate <= 0){
+		form_set_error("bank_truecafe_rate", t("The Conversion Rate (TrueCafe) should be greater than zero."));
+	}
+}
+
+function bank_details(){
+	$aTrail = array(
+					l("Home", "<front>"),
+					l("Children's Portal", "node/20"),
+					l("My Community", "community"),
+					l("My Bank Account", "hopebank")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	$oDetails = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oDetails->account_number, "pass" => $oDetails->account_pass));
+	
+	$sPageContent = '<table>
+						<tr>
+							<th style="width:150px;">Account Number</th>
+							<th>Balances</th>
+							<th>Bank Name</th>
+						</tr>
+						<tr>
+							<td style="vertical-align:top;">'.$oDetails->account_number.'</td>
+							<td style="width:270px;">
+								<table style="width:250px;">
+									<tr style="font-weight:bold;">
+										<td style="width:110px;">Balance</td>
+										<td style="text-align:right;">'.number_format($aBalances["RETURN"]["BALANCE"], 2).'</td>
+									</tr>
+									<tr>
+										<td>Pending</td>
+										<td style="text-align:right;">'.number_format($aBalances["RETURN"]["PENDING"], 2).'</td>
+									</tr>
+									<tr>
+										<td>Turnover</td>
+										<td style="text-align:right;">'.number_format($aBalances["RETURN"]["TURNOVER"], 2).'</td>
+									</tr>
+								</table>
+							</td>
+							<td style="vertical-align:top;">Hope Development Bank</td>
+						</tr>
+					</table>';
+	
+	return $sPageContent;
+}
+
+function bank_create(){
+	return drupal_get_form("bank_create_form");
+}
+
+function bank_create_form($aFormState){
+	$aForm['sAccount'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Account Number'),
+		'#default_value' => '',
+		'#size' => 20,
+		'#maxlength' => 20,
+		'#description' => t("The account number of the child/recipient in this format XXXX-##########. e.g. ABCD-1234567890"),
+		'#required' => TRUE
+	);
+	
+	$aForm['Details'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Details'),
+		'#collapsible' => FALSE,
+		'#collapsed' => TRUE,
+		'#description' => t("<b>Only one of the fields below should be filled up.</b> If both fields have values, the Approved Time field has the priority.")
+	);
+	
+	$aForm['Details']['sTime'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Approved Time'),
+		'#default_value' => '00:00',
+		'#size' => 5,
+		'#maxlength' => 5,
+		'#attributes' => array("style" => "text-align:center;"),
+		'#description' => t("The approved time that the child have done for his/her civic duty in this format HH:MM. e.g. 02:30"),
+		'#required' => FALSE
+	);
+	
+	$aForm['Details']['sMoney'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Approved Money'),
+		'#default_value' => '0.00',
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t("The approved money that you think is equivalent to the user/member's donation or civic duty."),
+		'#required' => FALSE
+	);
+	
+	$aForm['bLoan'] = array(
+		'#type' => 'checkbox',
+		'#title' => t("This transaction is a Loan."),
+		'#default_value' => '',
+	);
+	
+	$aForm['sDescription'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Description'),
+		'#default_value' =>  '',
+		'#cols' => 30,
+		'#rows' => 5,
+		'#description' => t('The description that pertains to what this transaction is for. Please be descriptive as much as possible.'),
+		'#required' => TRUE
+	);
+	
+	$aForm['btnCreate'] = array("#type" => "submit", "#value" => t("Create"));
+	
+	return $aForm;
+}
+
+function bank_create_form_validate($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$sTime = trim($aFormVal["sTime"]);
+	$mMoney = trim($aFormVal["sMoney"]);
+	
+	if (trim($aFormVal["sAccount"]) == "" || strlen($aFormVal["sAccount"]) < 15){
+		form_set_error("sAccount", t("You must specify a valid account number."));
+	}
+	
+	if ($sTime != "" && $sTime != "00:00"){
+		$aTime = explode(":", $sTime);
+		
+		if (count($aTime) == 2){
+			if (!is_numeric($aTime[0]) || strlen($aTime[1]) < 2 || !is_numeric($aTime[1]) || $aTime[1] > 60){
+				form_set_error("sTime", t("You must specify a valid time."));
+			}else{
+				$mBankRate = variable_get("bank_rate", 5);
+				$iMinsFromHour = $aTime[0] * 60;
+				$iTotalMins = $iMinsFromHour + $aTime[1];
+				$iMinToDec = $iTotalMins/60;
+				
+				$aFormState["values"]["sMoney"] = number_format($iMinToDec * $mBankRate, 2);
+			}
+		}else{
+			form_set_error("sTime", t("You must specify a valid time."));
+		}
+	}elseif ($mMoney != "0.00"){
+		if (!is_numeric($mMoney) || $mMoney == ""){
+			form_set_error("sMoney", t("You must specify a numeric value for the 'Money' field."));
+		}elseif ($mMoney <= 0){
+			form_set_error("sMoney", t("The money to create should be greater than zero."));
+		}
+	}else{
+		form_set_error("", t("Either 'Approved Time' OR 'Approved Money' field should  be filled up."));
+	}
+}
+
+function bank_create_form_submit($oForm, &$aFormState){
+	$oDetails = _bank_account();
+	$aFormVal = $aFormState["values"];
+	$mAmount = number_format($aFormVal["sMoney"], 2);
+	$sModule = ($aFormVal["bLoan"] == 1) ? "loan":"create";
+	$sDescriptor = ($aFormVal["bLoan"] == 1) ? "loaned successfully to":"created successfully for";
+	
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass, 
+						"amount" => $mAmount,
+						"time" => $aFormVal["sTime"],
+						"recipient" => $aFormVal["sAccount"],
+						"description" => _bank_escape($aFormVal["sDescription"])
+					);
+	
+	$aBankReply = _bank_post($sModule, $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		drupal_set_message(t("The amount ".$mAmount." was ".$sDescriptor." Account Number ".$aFormVal["sAccount"]." with Reference Number ".$aBankReply["RETURN"]["REF"]).".");
+	}else{
+		drupal_set_message(t($aBankReply["ERR_MSG"]), "error");
+	}
+}
+
+function bank_borrower(){
+	return drupal_get_form("bank_borrower_form");
+}
+
+function bank_borrower_form(){
+	$aBankReply = _bank_post("loanlist", array());
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		$aBorrowers = $aBankReply["RETURN"];
+		$iRecordCount = count($aBorrowers);
+		
+		if ($iRecordCount > 0){
+			$aForm['sPageHeader'] = array(
+				'#value' => '<table style="font-size:1em;">
+							<tr>
+								<th style="width:25px;"></th>
+								<th style="width:175px;">Usernname</th>
+								<th>Reference / Description</th>
+								<th style="width:140px;">Date</th>
+								<th style="width:125px; text-align:right">Loaned Amount</th>
+								<th style="width:125px; text-align:right;">Current Balance</th>
+							</tr>'
+			);
+			
+			for ($x = 0; $x < $iRecordCount; $x++){
+				$sBgColor = (bcmod($x, 2) == 0) ? "#F8F8F8":"";
+				$mBalance = $aBorrowers[$x]["mBalance"];
+				$mLoanAmount = $aBorrowers[$x]["mTransactAmount"];
+				
+				$aForm['sEntryHeader'.$x] = array(
+					'#value' => '<tr style="background-color:'.$sBgColor.'; padding-top:1px; padding-bottom:1px;"><td>'
+				);
+				
+				$aForm['iTransactId'.$x] = array(
+					'#type' => 'checkbox',
+					'#default_value' => '',
+					'#return_value' => $aBorrowers[$x]["iTransactId"],
+					'#attribute' => array("style" => ($mBalance < $mLoanAmount) ? "disabled:true;":"")
+				);
+				
+				$aForm['sEntryFooter'.$x] = array(
+					'#value' => '</td>
+									<td style="vertical-align:top;">'.$aBorrowers[$x]["sUserFName"].'</td>
+									<td style="vertical-align:top;">'.$aBorrowers[$x]["sReference"].'<br />'.stripslashes($aBorrowers[$x]["sTransactDesc"]).'</td>
+									<td style="vertical-align:top;">'.$aBorrowers[$x]["dTransactTime"].'</td>
+									<td style="vertical-align:top; text-align:right">'.$mLoanAmount.'</td>
+									<td style="vertical-align:top; text-align:right">'.$mBalance.'</td>
+								</tr>'
+				);
+			}
+			
+			$aForm['sPageFooter'] = array(
+				'#value' => '</table>'
+			);
+			
+			$aForm['btnPaid'] = array("#type" => "submit", "#value" => t("Flag as Paid"));
+		
+			return $aForm;
+		}else{
+			drupal_set_message(t("No borrowers to list, yet."));
+		}
+	}else{
+		drupal_set_message(t($aBankReply["ERR_MSG"]), "error");
+	}
+}
+
+function bank_borrower_form_validate($oForm, &$aFormState){
+	$iCheckCount = 0;
+	
+	foreach ($aFormState["values"] as $sKey => $sVal){
+		if (substr($sKey, 0, 11) == "iTransactId" && $sVal != 0) $iCheckCount++;
+	}
+	
+	if ($iCheckCount == 0) form_set_error("", t("You must select, at least, one borrower to Flag as Paid."));
+}
+
+function bank_borrower_form_submit($oForm, &$aFormState){
+	$aTransactId = array();
+	$iTransactCount = 0;
+	
+	foreach ($aFormState["values"] as $sKey => $sVal){
+		if (substr($sKey, 0, 11) == "iTransactId" && $sVal != 0){
+			$aTransactId[] = $sVal;
+			$iTransactCount++;
+		}
+	}
+	
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass, 
+						"amount" => $mAmount, 
+						"recipient" => $aFormVal["sAccount"]
+					);
+	
+	$aBankReply = _bank_post("loandebit", array("transactid" => $aTransactId));
+	
+	if ($aBankReply["STATUS"] == "Error"){
+		drupal_set_message(t($aBankReply["ERR_MSG"]), "error");
+	}else{
+		drupal_set_message(t($aBankReply["RETURN"]));
+	}
+}
+
+function bank_give(){
+	$aTrail = array(
+					l("Home", "<front>"),
+					l("Children's Portal", "node/20"),
+					l("My Community", "community"),
+					l("My Bank Account", "hopebank"),
+					l("Send Money", "hopebank/send")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	return drupal_get_form("bank_give_form");
+}
+
+function bank_give_form($aFormState){
+	$aForm['mAmount'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Amount'),
+		'#default_value' => '0.00',
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#description' => t("The amount to send to the recipient."),
+		'#attributes' => array("style" => "text-align:right;"),
+		'#required' => TRUE
+	);
+	
+	$aForm['sAccount'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Account Number'),
+		'#default_value' => '',
+		'#size' => 20,
+		'#maxlength' => 20,
+		'#description' => t("The account number of the recipient in this format XXXX-##########. e.g. ABCD-1234567890"),
+		'#required' => TRUE
+	);
+	
+	$aForm['bForTrueCafe'] = array(
+		'#type' => 'checkbox',
+		'#title' => t("Funds for TrueCafe usage."),
+		'#default_value' => '',
+	);
+	
+	$aForm['mRealMoney'] = array('#type' => 'hidden', '#value' => "");
+	$aForm['btnSend'] = array("#type" => "submit", "#value" => t("Send"));
+	
+	return $aForm;
+}
+
+function bank_give_form_validate($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$oDetails = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oDetails->account_number, "pass" => $oDetails->account_pass));
+	$mBalance = (float)$aBalances["RETURN"]["BALANCE"];
+	
+	if (!is_numeric($aFormVal["mAmount"]) || trim($aFormVal["mAmount"]) == ""){
+		form_set_error("mAmount", t("You must specify a numeric value for the 'Amount' field."));
+	}elseif ($aFormVal["mAmount"] <= 0){
+		form_set_error("mAmount", t("The amount to send should be greater than zero."));
+	}elseif ($aFormVal["mAmount"] > $mBalance){
+		form_set_error("mAmount", t("The amount to send (".number_format($aFormVal["mAmount"], 2).") is greater than your current balance (".number_format($mBalance, 2).")."));
+	}else{
+		$mBankTrueCafeRate = variable_get("bank_truecafe_rate", 1);
+		$mRealMoney = number_format($aFormVal["mAmount"] * $mBankTrueCafeRate, 2);
+		
+		$aFormState["values"]["mRealMoney"] = $mRealMoney;
+	}
+	
+	if (trim($aFormVal["sAccount"]) == "" || strlen($aFormVal["sAccount"]) < 15){
+		form_set_error("sAccount", t("You must specify a valid account number."));
+	}
+}
+
+function bank_give_form_submit($oForm, &$aFormState){
+	$oDetails = _bank_account();
+	$aFormVal = $aFormState["values"];
+	$mAmount = number_format($aFormVal["mAmount"], 2);
+	$mRealMoney = number_format($aFormVal["mRealMoney"], 2);
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass, 
+						"amount" => $mAmount, 
+						"recipient" => $aFormVal["sAccount"]
+					);
+	
+	if ($aFormVal["bForTrueCafe"] == 1){
+		$sModule = "truecafe";
+		$aReqParam["realmoney"] = $mRealMoney;
+		$sDescriptor = $mAmount." (Real Money = ".$mRealMoney.")";
+	}else{
+		$sModule = "send";
+		$sDescriptor = $mAmount;
+	}
+	
+	$aBankReply = _bank_post($sModule, $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		drupal_set_message(t("The amount ".$sDescriptor." was sent successfully to Account Number ".$aFormVal["sAccount"]." with Reference Number ".$aBankReply["RETURN"]["REF"]).".");
+	}else{
+		drupal_set_message(t($aBankReply["ERR_MSG"]), "error");
+	}
+}
+
+function bank_history(){
+	global $user;
+	
+	$aTrail = array(
+					l("Home", "<front>"),
+					l("Children's Portal", "node/20"),
+					l("My Community", "community"),
+					l("My Bank Account", "hopebank"),
+					l("Statement", "hopebank/statement")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	$oDetails = _bank_account();
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass
+					);
+	$aBankReply = _bank_post("history", $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		$aStatement = $aBankReply["RETURN"];
+		$iRecordCount = count($aStatement);
+		$sPageHeader = '<table>
+							<tr>
+								<th style="width:150px;">Date</th>
+								<th style="width:75px;">Type</th>
+								<th>Description</th>
+								<th style="text-align:right;">Amount</th>
+							</tr>';
+		$sPageContent = "";
+		$mStatementTotal = 0;
+		$mCreatedMoney = 0;
+		$mTotalLoan = 0;
+		
+		for ($x = 0; $x < $iRecordCount; $x++){
+			$sTransactType = strtoupper($aStatement[$x]["sTransactType"]);
+			$mTransactAmount = $aStatement[$x]["mTransactAmount"];
+			
+			if ($sTransactType == "CREATE"){
+				if (user_access('administer')) $mCreatedMoney += $mTransactAmount;
+				$mTransactAmount = "<em>(".$mTransactAmount.")</em>";
+			}elseif ($sTransactType == "LOAN"){
+				$mTotalLoan += $mTransactAmount;
+			}else{
+				$mStatementTotal += $mTransactAmount;
+			}
+			
+			$sBgColor = (bcmod($x, 2) == 0) ? "#F8F8F8":"";
+			
+			$sPageContent .= '<tr style="background-color:'.$sBgColor.';">
+									<td style="vertical-align:top;">'.$aStatement[$x]["dTransactTime"].'</td>
+									<td style="vertical-align:top;">'.$sTransactType.'</td>
+									<td>'.nl2br(stripslashes($aStatement[$x]["sTransactDesc"]))." (Ref: ".$aStatement[$x]["sReference"].")".'</td>
+									<td style="vertical-align:top; text-align:right;">'.$mTransactAmount.'</td>
+							</tr>';
+		}
+		
+		$sPageContent .= '<tr style="font-weight:bold;">
+							<td style="text-align:right; padding-right:50px;" colspan="3">Total</td>
+							<td style="text-align:right; border-top:1px solid black;">'.number_format($mStatementTotal, 2).'</td>
+						</tr>';
+		
+		if (user_access('administer')){
+			$sPageContent .= '<tr style="font-style:italic;">
+								<td style="text-align:right; padding-right:50px;" colspan="3">Total Created Money</td>
+								<td style="text-align:right;">'.number_format($mCreatedMoney, 2).'</td>
+							</tr>
+							<tr style="font-style:italic;">
+								<td style="text-align:right; padding-right:50px;" colspan="3">Total Loaned Money</td>
+								<td style="text-align:right;">'.number_format($mTotalLoan, 2).'</td>
+							</tr>';
+		}
+		
+		$sPageContent = ($iRecordCount == 0) ? "No transactions for user ".$user->name.", yet.":$sPageHeader.$sPageContent."</table>";
+		
+		return $sPageContent;
+	}else{
+		drupal_set_message(t($aBankReply["ERR_MSG"]), "error");
+		
+		return "";
+	}
+}
+
+function bank_user($sOperation, &$aFormVals, &$oUser, $sCategory=NULL){
+	switch ($sOperation){
+		case "login":
+			# Get the HopeBank details of the user
+			$oDetails = _bank_account();
+			
+			if (isset($oDetails->account_number)){
+				# Include the bank account number in the user object
+				user_save($oUser, array("bank_account" => $oDetails->account_number));
+			}
+			
+			
+			# Change database to OpenSim
+			db_set_active('opensim');
+			
+			# Retrieve the OpenSim UUID
+			$sqlGetUUID = "SELECT PrincipalID FROM UserAccounts WHERE Email = '%s'";
+			$sOpenSimUUID = db_result(db_query($sqlGetUUID, $oUser->mail));
+			
+			
+			# Change back to the default drupal database
+			db_set_active('default');
+			
+			if ($sOpenSimUUID != ''){
+				# Include the OpenSim UUID in the user object
+				user_save($oUser, array("opensim_uuid" => $sOpenSimUUID));
+			}			
+			
+			break;
+			
+		case "insert":
+
+			# Get the custom profile data of the user
+			$aProfile = _bank_get_details($oUser->uid);
+			
+			$aDOB = unserialize($aProfile["profile_dob"]);
+			$dDOB = $aDOB["year"]."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			
+			$sFirstName = ucwords($aProfile["profile_first_name"]);
+			$sLastName = ucwords($aProfile["profile_last_name"]);
+			$sUsername = $oUser->name;
+			$sUserMail = $oUser->mail;
+			
+			$aVarFields = array(
+								"fname" => $sFirstName, 
+								"mname" => "", 
+								"lname" => $sLastName, 
+								"dob" => "2019-06-12",//$dDOB, 
+								"email" => $sUserMail
+							);
+			# Register the user for Hope Bank
+			$aBankReply = _bank_post("register", $aVarFields);
+			
+			if ($aBankReply["STATUS"] == "Success"){
+				$sBankAcct = $aBankReply["RETURN"]["ACCT"];
+				$sBankPass = $aBankReply["RETURN"]["PASS"];
+				$dDateCreated = date('Y-m-d H:i:s');
+				
+				$sqlInsert = "INSERT INTO {bank_users} VALUES(NULL, %d, '%s', '%s', '%s')";
+				
+				# Store the bank details of the user
+				db_query($sqlInsert, $oUser->uid, $sBankAcct, $sBankPass, $dDateCreated);
+				
+				/**
+				# Create an OpenSim user
+				require drupal_get_path('module', 'bank').'/class_OpenSim_RemoteAdmin.php';
+				
+				$sOpenSim_URL	= 'opensim.hopecybrary.org';
+				$iOpenSim_Port	= 9000;
+				$sOpenSim_Pass	= 'FieCup1024';
+				
+				$oOpenSim_RA = new RemoteAdmin($sOpenSim_URL, $iOpenSim_Port, $sOpenSim_Pass);
+				
+				$aOpenSimUser = explode(' ', $sUsername);
+				$sOpenSim_First = (count($aOpenSimUser) == 2) ? $aOpenSimUser[0]:$sFirstName;
+				$sOpenSim_Last = (count($aOpenSimUser) == 2) ? $aOpenSimUser[1]:$sLastName;
+				
+				$aUserParam = array(
+									'user_firstname'	=> $sOpenSim_First,
+									'user_lastname'		=> $sOpenSim_Last,
+									'user_password'		=> $aFormVals['pass'],
+									'start_region_x'	=> (int)0,
+									'start_region_y'	=> (int)0,
+									'user_email'		=> $sUserMail
+								);
+				
+				$aOpenSim_RAResponse = $oOpenSim_RA->SendCommand('admin_create_user', $aUserParam);
+				if ($aOpenSim_RAResponse['success']){
+					$sOpenSimUUID = $aOpenSim_RAResponse['avatar_uuid'];
+					
+					# Change database to Money Adapter
+					db_set_active('money_adapter');
+					
+					$sqlBalance = "INSERT INTO Balances VALUES('%s', %d)";
+					$sqlHopeBank = "INSERT INTO HopeBank VALUES('%s', '%s', '%s', '%s')";
+					
+					# Create an entry for the user in Money Adapter
+					db_query($sqlBalance, $sOpenSimUUID, 0);
+					
+					# Store the My eBank details in Money Adapter
+					db_query($sqlHopeBank, $sOpenSimUUID, $sBankAcct, $sBankPass, $dDateCreated);
+					
+					
+					# Change back to the default drupal database
+					db_set_active('default');
+				}else{
+					$sErrMsg = (isset($aOpenSim_RAResponse['error']['message'])) ? $aOpenSim_RAResponse['error']['message']:'Unknown error. Check OpenSim\'s logs for further details.';
+					
+					watchdog('opensim', $sErrMsg, array(), WATCHDOG_ERROR);
+				}**/
+			}
+			
+			break;
+		
+		case "delete":
+			$oDetails = _bank_account($oUser->uid);
+			
+			db_query("DELETE FROM {bank_users} WHERE uid = %d", $oUser->uid);
+			_bank_post("delete", array("key" => $oDetails->account_number, "pass" => $oDetails->account_pass));
+			
+			break;
+	}
+}
+
+function bank_form_user_register_alter(&$form, $form_state){
+	array_unshift($form['#validate'], '_two_word_username');
+}
+
+function _two_word_username($form, &$form_state){
+	$aUsername = explode(' ', trim($form_state['values']['name']));
+	$iUsernameCount = count($aUsername);
+	
+	if ($iUsernameCount != 2){
+		form_set_error('name', t('You should specify a two-word username.'));
+	}
+}
+
+function bank_profile_alter(&$account){
+	$oDetails = _bank_account($account->uid);
+	$aBankAccount = array(
+						"#type" => "user_profile_item",
+						"#title" => "Bank Account #",
+						"#weight" => -10,
+						"#value" => $oDetails->account_number,
+						"#attributes" => array("class" => "profile-profile_bank_account"),
+					);
+	
+	$account->content["Personal Info"]["profile_bank_account"] = $aBankAccount;
+}
+
+
+/**
+ * Reusable functions/callbacks
+ **/
+function _bank_get_details($iUserId){
+	$sqlProfile = "SELECT B.uid, A.name, B.value 
+					FROM {profile_fields} A INNER JOIN {profile_values} B ON A.fid = B.fid 
+					WHERE B.uid = %d";
+	
+	$oQueryResult = db_query($sqlProfile, $iUserId);
+	$aDetails = array();
+	
+	while ($oDetails = db_fetch_object($oQueryResult)){
+		$aDetails[$oDetails->name] = $oDetails->value;
+	}
+	
+	return $aDetails;
+}
+
+function _bank_account($iUserId = NULL){
+	if (is_null($iUserId)){
+		global $user;
+		$iUserId = $user->uid;
+	}
+	
+	$sBankQuery = "SELECT account_number, account_pass, account_creation 
+					FROM {bank_users} 
+					WHERE uid = %d";
+	
+	$oQueryResult = db_query($sBankQuery, $iUserId);
+	$oDetails = db_fetch_object($oQueryResult);
+	
+	return $oDetails;
+}
+
+function _bank_escape($sString, $bNoHTML=TRUE){
+	$sOutput = (get_magic_quotes_gpc()) ? stripslashes($sString):$sString;
+	$sOutput = addslashes(trim($sOutput));
+	
+	if ($bNoHTML) $sOutput = strip_tags($sOutput);
+	
+	return $sOutput;
+}
+
+function _bank_post($sModule, $aVarFields){
+
+	global $base_url;
+
+	$aRequest = array(
+					"key" => variable_get("bank_key", ""), 
+					"pass" => variable_get("bank_pass", ""),
+					"module" => $sModule, 
+					"vars" => $aVarFields
+				);
+	
+	$sRequestJSON = json_encode($aRequest);
+	
+	# Initialize cURL
+	$oCURL = curl_init();
+
+	curl_setopt($oCURL, CURLOPT_URL, $base_url."/bank/gateway.php");
+	curl_setopt($oCURL, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
+	curl_setopt($oCURL, CURLOPT_POST, 1);
+	curl_setopt($oCURL, CURLOPT_POSTFIELDS, "q=".$sRequestJSON);
+	
+	# Setting CURLOPT_RETURNTRANSFER variable to 1 will force cURL not to print out the results of 
+	# its query. Instead, it will return the results as a string return value from curl_exec() 
+	# instead of the usual true/false.
+	curl_setopt($oCURL, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($oCURL, CURLOPT_SSL_VERIFYPEER, false);
+	
+	$sResponse = curl_exec($oCURL);
+
+	return json_decode($sResponse, true);
+}

@@ -1,0 +1,878 @@
+                                                                     
+                                                                     
+                                                                     
+                                             
+# $Id: marketplace.fr.po,v 1.2 2009/01/08 21:03:55 matslats Exp $
+#
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  transactions.inc: n/a
+#  transactions.module,v 1.10 2008/10/04 19:17:48 matslats
+#  cc_custom.module: n/a
+#  includes/transactions.views.inc: n/a
+#  transactions.stats.inc: n/a
+#  cc_import.module: n/a
+#  offers_wants.module: n/a
+#  offers_wants.install: n/a
+#  transactions.install: n/a
+#  cc_custom.info: n/a
+#  cc_import.info: n/a
+#  offers_wants.info: n/a
+#  transactions.info: n/a
+#  extensions/uid_login.info: n/a
+#  includes/offers_wants.views.inc: n/a
+#  includes/views_handler_field_transactions_payer_uid.inc: n/a
+#  includes/views_handler_field_transactions_payee_uid.inc: n/a
+#  includes/views_handler_filter_trader_current.inc: n/a
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2008-10-20 19:38+0100\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: transactions.inc:7
+msgid "No currency defined in variables table"
+msgstr "L'unité d'échanges n'est pas définie dans la table des variables"
+
+#: transactions.inc:12
+msgid "Default Currency Name"
+msgstr "L'unité d'échanges par default"
+
+#: transactions.inc:16
+msgid "If there is more than one currency on the system, this currency, known as currency-0 will never be seen or used. Otherwise this name will be available as a variable for use in styling quantities. You should use the plural form of the noun"
+msgstr "Si il-y-as plus q'un unité d'échange dans le système, cet unité d'échange connu comme unité-0 ne serais jamais utilisé. Autrement, ce nom sera disponible comme variable pour le mise en style de quantités. Vous devriez utilisé la forme pluriel du nom"
+
+#: transactions.inc:20
+msgid "Maximum Balance"
+msgstr "Solde maximum toléré"
+
+#: transactions.inc:24
+msgid "Transactions will be declined by the system if the balance of the seller would go above this number. Up to six digits. Leave blank for no limit(not reccomended). (This feature works independently of the maximum balance for each additional currency defined by the currencies module.)"
+msgstr " Si le solde du bénéficiare seras supériere à ce montant, l'échange vas  être refusé. Jusqu'a 6 chiffres. Laissez en blanc pour aucune limite  (deconseillé). Cette fonctionnalité  est pour chaque unité d'échange  definie par le module currencies"
+
+#: transactions.inc:28
+msgid "Minimum Balance"
+msgstr "Solde minimum toléré"
+
+#: transactions.inc:32
+msgid "Transactions will be declined by the system if the balance of the payer would go below this number. Up to seven digits, including minus sign. Leave blank for no limit (not reccomended). (This feature works independently of the minimum balance for each additional currency defined by the currencies module.)"
+msgstr " Si le solde de la personne qui verse seras inferieur à ce montant,  l'échange vas être refusé. Jusqu'a 7 chiffres, sigle du moins inclus.  Laissez en blanc pour aucune limite (deconseillé). Cette  fonctionnalité  est pour chaque unité d'échange definie par le module  currencies"
+
+#: transactions.inc:36
+msgid "Minimum number of words to describe a transaction"
+msgstr "Nombre de mots minimum pour la déscription"
+
+#: transactions.inc:40
+msgid "Your community will be richer if users take a few seconds more to describe the transaction in more detail. It will also make the transaction easier to categorise, and easier for the participants to remember. Suggested value is 4."
+msgstr " Tout le monde en bénéficie, si les membres prennent le temps de  décrire l'échange. "
+
+#: transactions.inc:45
+msgid "The name of the zero (balancing) account"
+msgstr "le nom du compte qui vas vous servir pour équilibrer l'ensemble, par exemple Compte zéro"
+
+#: transactions.inc:49
+msgid "The @balancing_account is very useful for transactions not between two members. It enables the importing of 'Carried forward' balances if the system isn't starting from scratch. It also potentially enables transactions with outside systems. This account num is zero."
+msgstr "The @balancing_account est utile pour des échanges qui ne sont pas entre deux membres. Le compte permets l'importation de soldes de votre système actuel si nécessaire. Ceci permets également l'importation de données d'autres systèmes."
+
+#: transactions.inc:50;738
+msgid "Balancing account"
+msgstr "Compte 100"
+
+#: transactions.inc:60;104
+msgid "Submit"
+msgstr "Enregistrer"
+
+#: transactions.inc:68
+msgid "Maximum balance must be an integer larger than zero and minimum balance"
+msgstr "Le solde maximale doit être un chiffre plus grand que zéro ainsi que le solde minimale"
+
+#: transactions.inc:71
+msgid "Minimum balance must not be larger than 0"
+msgstr ""
+
+#: transactions.inc:74
+msgid "Minimum number of words must be a positive integer"
+msgstr "Le nombre de mots doit être un chiffre positive"
+
+#: transactions.inc:100
+msgid "Traders can earn a reputation when their customers rate them highly. Use this field to list the words used to describe the quality of transactions, from worst to best, one on each line. Example:<br />Bad<br />As expected<br />Great<br />Note that changing the number of rating options after transactions have been entered will distort the averages. I wonder if there is a drupal ratings module which could do this more effectively? Probably not because only buyers can rate. This feature therefore needs a lot more work to make it attractive and interesting."
+msgstr " Les membres donnent une appréciation de l'échange. Utilisez ce champs pour faire une liste qui décrit la qualité de l'échange. En commençant  par le pire, un mot par ligne. Example:<br />Mauvais<br />Bon<br  />Excellent<br />. Un autre module chez Drupal conviens peut être  mieux adapté, mais necessite intégration"
+
+#: transactions.inc:137
+msgid "Transaction has been rejected as it would take !username below the minimum balance of !quantity"
+msgstr " Cet échange est refusé car le membre !username seras en dessous du solde minimale de !quantity"
+
+#: transactions.inc:143
+msgid "Transaction has been rejected as it would take !username above the maximum balance of !quantity"
+msgstr "Cet échange est refusé car le membre !username seras au dessus du solde maximale de !quantity"
+
+#: transactions.inc:167
+msgid "This user has no completed transactions"
+msgstr "Ce membre n'as pas échanges comptabilisé"
+
+#: transactions.inc:172;177
+msgid "Edit"
+msgstr "Modifier"
+
+#: transactions.inc:197 transactions.module:123
+msgid "My Statement"
+msgstr "Mon decompte"
+
+#: transactions.inc:200
+msgid "@username's Statement"
+msgstr ""
+
+#: transactions.inc:203 cc_custom.module:193
+msgid "There are no transactions to display"
+msgstr "Aucun échange à afficher"
+
+#: transactions.inc:208
+msgid "Date"
+msgstr "Date"
+
+#: transactions.inc:209
+msgid "Category"
+msgstr "Catégorie"
+
+#: transactions.inc:210
+msgid "Description"
+msgstr "Description"
+
+#: transactions.inc:211
+msgid "With Whom?"
+msgstr "Avec"
+
+#: transactions.inc:212 includes/transactions.views.inc:95;212
+msgid "Amount"
+msgstr "Unités"
+
+#: transactions.inc:213 includes/transactions.views.inc:88
+msgid "Rating"
+msgstr "Appréciation"
+
+#: transactions.inc:214;285
+msgid "Income"
+msgstr "Unités reçues"
+
+#: transactions.inc:215
+msgid "Receipts"
+msgstr ""
+
+#: transactions.inc:216
+msgid "Running Total"
+msgstr ""
+
+#: transactions.inc:217
+msgid "Completed?"
+msgstr "Confirmé?"
+
+#: transactions.inc:218
+msgid ""
+msgstr ""
+
+#: transactions.inc:264
+msgid "Purchases"
+msgstr "Reçevoir"
+
+#: transactions.inc:266
+msgid "Sales"
+msgstr "Donner"
+
+#: transactions.inc:282
+msgid "Expenditure"
+msgstr "Unités donnés"
+
+#: transactions.inc:339
+msgid "There are no pending transactions"
+msgstr "Aucun échange à confirmer"
+
+#: transactions.inc:346
+msgid "This transaction is yet to be confirmed by !other_person"
+msgstr ""
+
+#: transactions.inc:353
+msgid "Transactions for !who to complete"
+msgstr "Echanges pour !who à confirmer"
+
+#: transactions.inc:369
+msgid "Transactions !who started"
+msgstr "Echange initié par !who"
+
+#: transactions.inc:379
+msgid "There are no transactions to complete"
+msgstr "Il n'y as pas d'échange à confirmer"
+
+#: transactions.inc:382
+msgid "!name is paying you !amount"
+msgstr "!name vous donne !amount"
+
+#: transactions.inc:393
+msgid "Payed"
+msgstr "Grains donné"
+
+#: transactions.inc:394
+msgid "will pay"
+msgstr "Grains à donné"
+
+#: transactions.inc:403
+msgid "!payer @verb !payee !amount for '@transaction'"
+msgstr "!payer @verb !payee !amount pour '@transaction'"
+
+#: transactions.inc:411
+msgid "The sale was graded '@quality'."
+msgstr "L'appréciation de l'échange:'@quality'"
+
+#: transactions.inc:447 includes/transactions.views.inc:122
+msgid "Balance"
+msgstr "Solde"
+
+#: transactions.inc:453
+msgid "Pending"
+msgstr "à confirmer"
+
+#: transactions.inc:459 includes/transactions.views.inc:136
+msgid "Turnover"
+msgstr "Totale Unités positifs"
+
+#: transactions.inc:464 cc_custom.module:268 transactions.module:132
+msgid "Balances"
+msgstr "Soldes"
+
+#: transactions.inc:546 transactions.stats.inc:80 cc_import.module:127
+msgid "Carried forward"
+msgstr "solde reporté"
+
+#: transactions.inc:577
+msgid "Transaction type"
+msgstr "Type d'échange"
+
+#: transactions.inc:586
+msgid "What was paid for?"
+msgstr "Description de l'échange"
+
+#: transactions.inc:591
+msgid "Minimum @int words"
+msgstr "@int mots minimum"
+
+#: transactions.inc:598
+msgid "Who is being paid?"
+msgstr "La personne qui vas recevoir les grains"
+
+#: transactions.inc:608
+msgid "Who is paying?"
+msgstr "La personne qui vas donner des grains"
+
+#: transactions.inc:625
+msgid "Initiator, if not you"
+msgstr "Si ce n'est pas vous même"
+
+#: transactions.inc:655
+msgid "With whom did you transact?"
+msgstr "Qui est votre partenaire ?"
+
+#: transactions.inc:670
+msgid "Quantity"
+msgstr "Grains"
+
+#: transactions.inc:682 includes/transactions.views.inc:102;220
+msgid "Currency"
+msgstr "Unité"
+
+#: transactions.inc:696
+msgid "Rate the quality of what was paid for"
+msgstr "Appréciation de la qualité de l'échange"
+
+#: transactions.inc:705
+msgid "Transaction is completed (not awaiting confirmation)."
+msgstr "L'échange ne nécessite pas de confirmation"
+
+#: transactions.inc:724 transactions.module:349
+msgid "Confirm"
+msgstr "Confirmer"
+
+#: transactions.inc:892
+msgid "submit"
+msgstr "Enregistrer"
+
+#: transactions.inc:903
+msgid "Delete"
+msgstr "Supprimer"
+
+#: transactions.inc:920
+msgid "Are you sure you want to delete this transaction?"
+msgstr "Etes-vous sur de vouloir effacer cet échange ?"
+
+#: transactions.inc:940
+msgid "Transaction '%description' has been deleted. Balances have been recalculated"
+msgstr "L'échange '%description' était effacé, les Soldes recalculés."
+
+#: transactions.inc:971
+msgid "You have a transaction to confirm"
+msgstr "Vous avez un échange à confirmer"
+
+#: transactions.inc:973
+msgid "Email template variable not found, blank sent"
+msgstr ""
+
+#: transactions.inc:974 transactions.module:605
+msgid "completer"
+msgstr "la personne qui confirme"
+
+#: transactions.inc:975 transactions.module:606
+msgid "starter"
+msgstr "la personne qui initie"
+
+#: transactions.inc:976 transactions.module:607
+msgid "summary"
+msgstr "aperçu"
+
+#: transactions.inc:977 transactions.module:608
+msgid "reason"
+msgstr "raison"
+
+#: transactions.inc:978 transactions.module:609
+msgid "transaction"
+msgstr "échange"
+
+#: transactions.inc:979 transactions.module:611
+msgid "statement"
+msgstr "échanges"
+
+#: transactions.inc:980 transactions.module:610
+msgid "unsubscribe"
+msgstr "se désinscrire"
+
+#: transactions.stats.inc:120
+msgid "Now"
+msgstr "Aujourd'hui"
+
+#: transactions.stats.inc:121
+msgid "Account balance over time"
+msgstr "Evolution du Solde"
+
+#: transactions.stats.inc:126
+msgid "@user's balance over time"
+msgstr "Evolution du solde de @user"
+
+#: cc_custom.module:281
+msgid "Usernumber"
+msgstr "Numero de membre"
+
+#: cc_custom.module:282
+msgid "Status"
+msgstr "Statut"
+
+#: cc_custom.module:283
+msgid "Roles"
+msgstr "Rôles"
+
+#: cc_custom.module:284
+msgid "Last access"
+msgstr "Dernier visite"
+
+#: cc_custom.module:285
+msgid "Operations"
+msgstr "Opérations"
+
+#: cc_custom.module:301
+msgid "No users available."
+msgstr "Aucun utilisateur disponible."
+
+#: cc_import.module:6
+msgid "Provides advice and a simple text box to paste csv style data from your existing spreadsheets. This is a work in progress"
+msgstr "Fourni du conseil et une boîte de texte pour pouvoir coller des données csv de vos feuilles de calculs. Ce travail est en cours"
+
+#: cc_import.module:16
+msgid "Import Tools"
+msgstr "Des outils pour l'importation"
+
+#: cc_import.module:25
+msgid "Import Balances"
+msgstr "Soldes à importer"
+
+#: cc_import.module:30
+msgid "Import Offers"
+msgstr "importer offres"
+
+#: cc_import.module:38
+msgid "Import Wants"
+msgstr "importer demandes"
+
+#: cc_import.module:55
+msgid "This page allows you to import users' balances and gross incomes for users already on the system. To import users, see the !import_user module."
+msgstr ""
+
+#: cc_import.module:60
+msgid "Paste paste 2 or 3 comma separated columns into the field below, the first column should be the uid or username, the second column the current balance, and optionally the third column should be the user's gross income until now (turnover). This tools assumes there is only one currency in the system. The second column SHOULD add up to 0 for LETS and other zero balance systems, but this is not checked."
+msgstr ""
+
+#: cc_import.module:78
+msgid "to import balances you need a balancing account. Specify the account number at !admin/settings/marketplace"
+msgstr ""
+
+#: cc_import.module:87
+msgid "balance (second item) on row @num is not an integer"
+msgstr ""
+
+#: cc_import.module:93
+msgid "gross income (third item) on row @rownum must be a positive integer"
+msgstr ""
+
+#: cc_import.module:95
+msgid "gross income (third item) on row @rownum cannot be less than 0"
+msgstr ""
+
+#: cc_import.module:118
+msgid "Gross income to date"
+msgstr ""
+
+#: cc_import.module:121
+msgid "Gross expenditure to date"
+msgstr ""
+
+#: cc_import.module:193
+msgid "The description on row @rownum is more than 128 characters"
+msgstr "Le descriptif depasse 128 characters, veuillez reduire le texte"
+
+#: cc_import.module:214
+msgid "This page allows you to import users' @type for users already on the system. There are other ways of doing this, but this is simple and maintained along with the rest of the Complementary Currencies module.\n  <br />\n  <br />Use a spreadsheet tool to prepare a list of user ids, or names, and their @type in one line. For aesthetic reasons, there is a 128 character limit on each description. Each line should look like this:<blockquote><strong>\"userID\",\"Description of @type\",\"categories(optional)\"</strong></blockquote>"
+msgstr ""
+
+#: cc_import.module:224
+msgid "no data entered"
+msgstr ""
+
+#: cc_import.module:253
+msgid "user (first item) on row @rownum is not a user"
+msgstr ""
+
+#: offers_wants.module:15
+msgid "Defines two contentTypes called Offer and Wants which are created and edited by each user and which are compiled to make a directory."
+msgstr " Definie deux contentTypes appelé Offres et Demandes qui sont ajouté et  modifié par les membres, et qui font l'objet d'une liste"
+
+#: offers_wants.module:27
+msgid "Offer"
+msgstr "Offre"
+
+#: offers_wants.module:29
+msgid "An entry in the offers directory."
+msgstr "Une inscription sur la liste des Offres"
+
+#: offers_wants.module:31
+msgid "Product or service you want to sell"
+msgstr "Service, Savoir ou Bien (objet) que vous voulez offrir"
+
+#: offers_wants.module:36
+msgid "Want"
+msgstr "Demande"
+
+#: offers_wants.module:38
+msgid "An entry in the wants directory."
+msgstr "Une inscription sur la liste des Demandes"
+
+#: offers_wants.module:40
+msgid "Product or service you want to buy"
+msgstr "Service, Savoir ou Bien (objet) que vous voulez demander"
+
+#: offers_wants.module:89
+msgid "Offer categories"
+msgstr "Catégories des Offres"
+
+#: offers_wants.module:90
+msgid "A list of categories in the offers directory"
+msgstr "une liste de catégories des offres"
+
+#: offers_wants.module:95
+msgid "offers"
+msgstr "offres"
+
+#: offers_wants.module:99;198
+msgid "Want categories"
+msgstr "Catégories des Demandes"
+
+#: offers_wants.module:100
+msgid "A list of categories in the wants directory"
+msgstr "une liste de catégories des demandes"
+
+#: offers_wants.module:105
+msgid "wants"
+msgstr "Demandes"
+
+#: offers_wants.module:107
+msgid "and"
+msgstr "et"
+
+#: offers_wants.module:109
+msgid "Directory"
+msgstr "Liste des Offres/Demandes"
+
+#: offers_wants.module:110
+msgid "All the @types from a particular user"
+msgstr ""
+
+#: offers_wants.module:118;327
+msgid "My Directory"
+msgstr "Mes Offres/Demandes"
+
+#: offers_wants.module:119
+msgid "All your @types"
+msgstr "Tout vos @types"
+
+#: offers_wants.module:183
+msgid "@offer_or_want categories"
+msgstr "catégories @offer_or_want"
+
+#: offers_wants.module:193
+msgid "Offer Categories"
+msgstr ""
+
+#: offers_wants.module:330
+msgid "@username's Directory"
+msgstr "@username"
+
+#: offers_wants.module:380
+msgid "offer"
+msgstr "offre"
+
+#: offers_wants.module:381
+msgid "want"
+msgstr "demande"
+
+#: offers_wants.module:401
+msgid "Click here to !addanew to the directory"
+msgstr "Créer une !addanew"
+
+#: offers_wants.module:406
+msgid "View a !printable directory"
+msgstr "Voir une version !printable"
+
+#: transactions.module:30
+msgid "Defines a contentType called transactions, extends the user profile to store balances."
+msgstr " Définie un contentType échanges, et permets le stockage des soldes  chez le membre"
+
+#: transactions.module:49 includes/transactions.views.inc:33
+msgid "Transaction"
+msgstr "Echange"
+
+#: transactions.module:51
+msgid "A transaction is a movement of a quantity of a currency between one user and another. It also has a description and sometimes a rating"
+msgstr ""
+
+#: transactions.module:53
+msgid "Description of entity traded"
+msgstr "Description de l'Unité"
+
+#: transactions.module:72
+msgid "Marketplace"
+msgstr "Place du Marché"
+
+#: transactions.module:73
+msgid "Default currency, transaction ratings and directory settings"
+msgstr "Unité d'change, appréciation de l'échange et Listes par défaut"
+
+#: transactions.module:81
+msgid "Default Currency"
+msgstr "Unité d'échange par défaut"
+
+#: transactions.module:86
+msgid "Transaction ratings"
+msgstr "Appréciation de l'échange"
+
+#: transactions.module:94
+msgid "Balance Sheet"
+msgstr "Soldes"
+
+#: transactions.module:104
+msgid "My balance Sheet"
+msgstr "Mon Compte"
+
+#: transactions.module:113
+msgid "Statement"
+msgstr "Mes Echanges"
+
+#: transactions.module:142
+msgid "My balances"
+msgstr "Mes Soldes"
+
+#: transactions.module:161
+msgid "Pending transactions"
+msgstr "Echanges à confirmer"
+
+#: transactions.module:172
+msgid "Start new transaction"
+msgstr "Saisir un échange"
+
+#: transactions.module:268
+msgid "Start payment"
+msgstr "Saisir un échange"
+
+#: transactions.module:274
+msgid "Transactions awaiting my confirmation"
+msgstr "Echanges attendant ma confirmation"
+
+#: transactions.module:278
+msgid "Balances for user"
+msgstr "Soldes du membre"
+
+#: transactions.module:282
+msgid "Previous month statistics"
+msgstr "Les richesses du mois écoulé :"
+
+#: transactions.module:299
+msgid "New Transaction with !name"
+msgstr "Je saisis cet échange avec : !name"
+
+#: transactions.module:310
+msgid "Transactions awaiting confirmation"
+msgstr "Echanges en attente de confirmation"
+
+#: transactions.module:321
+msgid "@user's balances"
+msgstr "solde de @user "
+
+#: transactions.module:330
+msgid "Last month"
+msgstr "Le mois passé"
+
+#: transactions.module:350
+msgid "Are you sure you want to complete this transaction?"
+msgstr "Voulez-vous confirmer cet échange ?"
+
+#: transactions.module:354
+msgid "Editing transaction"
+msgstr "Vous pouvez modifier l'échange"
+
+#: transactions.module:358
+msgid "Are you sure you want to create the transaction?"
+msgstr "Voulez-vous créer cet échange ?"
+
+#: transactions.module:360
+msgid "Transaction created"
+msgstr "Date de l'échange"
+
+#: transactions.module:365
+msgid "Initiating transaction"
+msgstr "Initie un échange"
+
+#: transactions.module:455
+msgid "Please describe the transaction in more detail"
+msgstr "Veuillez décrire l'échange en détail (@int mots minimum)"
+
+#: transactions.module:458
+msgid "You must enter a positive amount"
+msgstr "Veuillez mettre un montant positif"
+
+#: transactions.module:589
+msgid "Mail anyone who needs to complete a transaction"
+msgstr "Envoyer quelq'un qui as besoin de confirmer un échange"
+
+#: transactions.module:618
+msgid "You can't send an empty email"
+msgstr "Vous ne pouvez pas envoyer un email vide"
+
+#: transactions.module:634;687
+msgid "User @id"
+msgstr "Membre @id"
+
+#: transactions.module:642
+msgid "Receive email notification when someone initiates a transaction with you?"
+msgstr "Voulez-vous recevoir un email quand un-e membre initie un échange avec vous ? "
+
+#: transactions.module:644
+msgid "no"
+msgstr "non"
+
+#: transactions.module:644
+msgid "yes"
+msgstr "oui"
+
+#: offers_wants.install:13
+msgid "The offers_wants contentTypes are installed. Now go to !link make a vocabulary control one or both of them."
+msgstr "Les offers_wants contentTypes sont installé. Cliquez ici !link afin de créer des vocabulaires afin de les organisé."
+
+#: transactions.install:4
+msgid "Hello %completer\n\n%starter has initiated a transaction with you:\n\n%summary\n\nYou can go to go to the transaction and complete it here:\n%transaction\n\nIf you don't want to receive these notifications from Sel Du Lac, you can unsubscribe here:\n%unsubscribe"
+msgstr ""
+
+#: transactions.install:25
+msgid "invoice"
+msgstr "Je demande"
+
+#: transactions.install:26
+msgid "proffer"
+msgstr "Je donne"
+
+#: transactions.install:27
+msgid "take"
+msgstr "Je prends"
+
+#: transactions.install:28
+msgid "give"
+msgstr "Je fait cadeaux"
+
+#: transactions.install:43
+msgid "Transaction module is installed. Set the default currency at !link"
+msgstr "Le module Echange est installé. Définir l'unité d'échange ici  !link"
+
+#: transactions.install:50
+msgid "Now go to the blocks page and set the 'new payment' block to appear only on pages 'user*', and place it in a region."
+msgstr "Procédez à la page Blocks et ajoutez l'affichage et l'emplacement du  Block 'nouvelle versement' sur les pages des 'membres*'"
+
+#: cc_custom.info:0
+msgid "Cc custom"
+msgstr ""
+
+#: cc_custom.info:0
+msgid "Allows architectural adjustments to complementary currencies This should not be overwritten in an upgrade!"
+msgstr "Permets d'ajuster les unités d'échange. Ne devrait pas être écrasé  lors d'une mise à jour"
+
+#: cc_custom.info:0 cc_import.info:0 offers_wants.info:0 transactions.info:0 extensions/uid_login.info:0
+msgid "Complementary Currencies"
+msgstr "Unités d'échanges"
+
+#: cc_import.info:0
+msgid "Cc Import"
+msgstr ""
+
+#: cc_import.info:0
+msgid "Import Offers, Wants and 'carried forward' balances"
+msgstr ""
+
+#: offers_wants.info:0
+msgid "Offers/Wants"
+msgstr "Offres/Demandes"
+
+#: offers_wants.info:0
+msgid "Allows users to contribute to a directory of offers and wants."
+msgstr "Permets aux utilisateurs de contribuer à la liste des offres et demandes"
+
+#: transactions.info:0
+msgid "transactions"
+msgstr "échanges"
+
+#: transactions.info:0
+msgid "Makes a contentType called transactions and manages the way that users create and view this content."
+msgstr "Crée a contentType Echanges et gère comment les membres creant des  échanges et les affiches"
+
+#: extensions/uid_login.info:0
+msgid "Uid Login"
+msgstr ""
+
+#: extensions/uid_login.info:0
+msgid "Alters the login function so that users login with their uid, and usernames are not necessarily unique"
+msgstr ""
+
+#: includes/offers_wants.views.inc:656
+msgid "Want Categories"
+msgstr "Catégories des Demandes"
+
+#: includes/transactions.views.inc:30
+msgid "Transactions"
+msgstr "Echanges"
+
+#: includes/transactions.views.inc:34
+msgid "Money flows between users."
+msgstr "Les unités d'échange circulent entre les membres"
+
+#: includes/transactions.views.inc:44;62;170;185
+msgid "Purchaser"
+msgstr "Reçu par"
+
+#: includes/transactions.views.inc:46
+msgid "The user id who spent currency in the transaction."
+msgstr "Le membre qui as versé des unités d'échange"
+
+#: includes/transactions.views.inc:50
+msgid "Show only transactions where the current user paid"
+msgstr "Afficher les échanges versé par le membre actuel"
+
+#: includes/transactions.views.inc:54;58
+msgid "The user who spent currency in the transaction."
+msgstr "Le membre qui as versé des unités d'échange"
+
+#: includes/transactions.views.inc:66;84;194
+msgid "Seller"
+msgstr "Versé par"
+
+#: includes/transactions.views.inc:68
+msgid "The user id who received currency in the transaction."
+msgstr "Le membre qui as reçu des unités d'échange"
+
+#: includes/transactions.views.inc:72
+msgid "Show only transactions where the current user was paid"
+msgstr "Afficher les échanges reçu par le membre actuel"
+
+#: includes/transactions.views.inc:76;80
+msgid "The user who received currency in the transaction."
+msgstr "Le membre qui as reçu des unités d'échange"
+
+#: includes/transactions.views.inc:90
+msgid "Quality of the transaction according to the payer"
+msgstr "Appréciation de l'échange selon le"
+
+#: includes/transactions.views.inc:97
+msgid "Number of units of currency transferred"
+msgstr "Unités d'échange transferé"
+
+#: includes/transactions.views.inc:104
+msgid "The currency that the transaction was conducted in"
+msgstr "L'unité d'échange employé"
+
+#: includes/transactions.views.inc:112
+msgid "User Balance"
+msgstr "Solde"
+
+#: includes/transactions.views.inc:113
+msgid "Balances of users."
+msgstr "Soldes des membres"
+
+#: includes/transactions.views.inc:124
+msgid "The user's total cleared income minus total cleared expenditure"
+msgstr "Unités d'échange reçus, moins les unités versés"
+
+#: includes/transactions.views.inc:129
+msgid "Pending Balance"
+msgstr "à confirmer"
+
+#: includes/transactions.views.inc:131
+msgid "The sum of the user's incomplete transactions"
+msgstr "La somme des échanges du membre qui restent à confirmer"
+
+#: includes/transactions.views.inc:138
+msgid "The user's total cleared income ever"
+msgstr "Totalité des Unités d'échange reçus"
+
+#: includes/transactions.views.inc:203
+msgid "Trade"
+msgstr "Echange"
+
+#: includes/transactions.views.inc:339
+msgid "Transactions by user"
+msgstr "Echanges par membre"
+
+#: includes/transactions.views.inc:341
+msgid "You haven't completed any transactions yet"
+msgstr "Vous n'avez pas encore d'échange confirmé"
+
+#: includes/views_handler_field_transactions_payer_uid.inc:23
+msgid "Link this field to its user, the purchaser's profile"
+msgstr "Lier ce champs au membre, le profile de la personne qui as versé"
+
+#: includes/views_handler_field_transactions_payee_uid.inc:24
+msgid "Link this field to its user, the seller's profile"
+msgstr "Lier ce champs au membre, le profile de la personne qui as reçu"
+
+#: includes/views_handler_filter_trader_current.inc:6
+msgid "Is the logged in user"
+msgstr "Est l'utilisateur connecté"
+

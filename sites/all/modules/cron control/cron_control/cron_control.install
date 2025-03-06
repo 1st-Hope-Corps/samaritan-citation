@@ -1,0 +1,79 @@
+<?php
+// $Id: cron_control.install,v 1.6 2011/01/29 14:46:19 mkalkbrenner Exp $
+
+/**
+ * @file
+ *   Install hooks for cron_control.
+ *
+ * @see cron_control.module
+ *
+ * @author
+ *   Markus Kalkbrenner | Cocomore AG
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function cron_control_install() {
+  // Create tables.
+  drupal_install_schema('cron_control');
+
+  // set cron_control to be the first hook_cron to be called
+  require_once('cron_control.module');
+  cron_control_adjust_module_weight();
+
+  // inform the user that he has to configure cron control
+  drupal_set_message(st('Right after the installation of <em>Cron Control</em> all cron jobs are disabled! See the !link page for more information.', array('!link' => l(st('cron control configuration'), 'admin/settings/cron_control'))), 'warning');
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function cron_control_enable() {
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function cron_control_schema() {
+  $schema = array();
+
+  $schema['cron_control_jobs'] = array(
+    'description' => t('Stores which cron jobs are enabled on which server.'),
+    'fields' => array(
+      'module' => array(
+        'description' => t('Module name.'),
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'server_addr' => array(
+        'description' => t("Server's IP address."),
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ),
+      'active' => array(
+        'description' => t('Boolean to indicate if job is active on a server'),
+        'type' => 'int',
+        'length' => 1,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+    ),
+    'primary key' => array('module', 'server_addr'),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function cron_control_uninstall() {
+  // Remove tables.
+  drupal_uninstall_schema('cron_control');
+}
+

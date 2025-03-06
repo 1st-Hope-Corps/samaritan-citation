@@ -1,0 +1,101 @@
+<?php
+// $Id$
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function livecam_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#livecam":
+			$sOutput = '<p>'. t("LiveCam module.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+ * Generate HTML for LiveCam Block
+ * @param $sOperation		- the operation from the URL
+ * @param $iDelta			- offset
+ * @return $aBlock array	- HTML
+ **/
+function livecam_block($sOperation='list', $iDelta=0, $aEdit = array()){
+	if ($sOperation == "list") {
+		$aBlock[0]["info"] = t('Cybrary Live WebCam');
+		return $aBlock;
+		
+	}elseif ($sOperation == "view"){
+		$iCamToUse = variable_get('livecam_number', 1);
+		
+		$sOutput = '<script type="text/javascript">
+					var iErrorCount = 0;
+					var sCamServer = "http://hopecybrary.dlinkddns.com:8080";
+					
+					function livecam_LoadImage(){
+						iUnique = Math.random();
+						document.images.CamContainer.src = sCamServer+"/cam_'.$iCamToUse.'.jpg?i="+iUnique;
+					}
+					
+					function livecam_RefreshCam() {
+						window.setTimeout("livecam_LoadImage();", 1000);
+					}
+					
+					function livecam_OnError(){
+						iErrorCount++;
+						document.images.CamContainer.src = "http://'.$_SERVER["HTTP_HOST"].'/misc/under_construction.png";
+						
+						if (iErrorCount > 0){
+							document.images.CamContainer.onload = "";
+						}else{
+							livecam_LoadImage();
+						}
+					}
+					</script>
+					
+					<center style="padding-top:7px;"><img src="http://'.$_SERVER["HTTP_HOST"].'/misc/loading.gif" id="CamContainer" onload="livecam_RefreshCam()" onerror="livecam_OnError()" width="132" height="99" alt="Live Stream" /></center>';
+		$sOutput .= '<div style="padding-top:7px; text-align:center;"><a href="'.base_path().'node/7" style="color:#2E3531; font-weight:bold;">Visit HopeNet Now</a></div>';
+		
+		$aBlock["subject"] = t("Live WebCam #".$iCamToUse);
+		$aBlock["content"] = $sOutput;
+		
+		return $aBlock;
+	}
+}
+
+function livecam_menu(){
+	$aItems = array();
+	
+	$aItems['admin/settings/livecam'] = array(
+		'title' => 'Cybrary Live WebCam Settings',
+		'description' => "Sets which WebCam to use at the left side of the header.",
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('livecam_admin'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	return $aItems;
+}
+
+function livecam_admin(){
+	$aForm['livecam_number'] = array(
+		'#type' => 'select',
+		'#title' => t('Select the WebCam to display'),
+		'#default_value' => variable_get('livecam_number', 1),
+		'#options' => array(
+							'1' => t('WebCam 1'),
+							'2' => t('WebCam 2'),
+							'3' => t('WebCam 3'),
+							'4' => t('WebCam 4')
+						),
+		'#description' => t('The selected WebCam will be displayed at the left side of the header.')
+	);
+	
+	return system_settings_form($aForm);
+}

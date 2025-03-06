@@ -1,0 +1,917 @@
+<?php
+define("SPONSOR_REC_PER_PAGE", 25);
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function sponsor_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#sponsor":
+			$sOutput = '<p>'. "Sponsor module.".'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function sponsor_perm(){
+	return array('access sponsor content', 'access sponsor child content', 'administer sponsor');
+}
+
+function sponsor_menu(){
+	$aItems = array();
+	
+	$aItems['sponsor'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_dashboard',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['sponsor/dashboard'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_dashboard',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['mystudies/getinvolved/sponsor'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_selection',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);  
+	
+	$aItems['mystudies/getinvolved/adopt/school/select'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_select_school',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aItems['mystudies/getinvolved/adopt/school/%'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_school_dashboard',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['mystudies/getinvolved/adopt/school/invest-teams'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_invest_teams',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['adopt-team/%'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_adopt_team',
+		'page arguments' => array(1),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+        
+    $aItems['mystudies/getinvolved/adopt/school/invest-teams/%'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_invest_teams_dashboard',
+		'page arguments' => array(5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['create-team'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_invest_teams_save',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['sponsor/checkaccount'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_invest_check_account',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['sponsor/getteamurl'] = array(
+		'title' => 'Get Involved - Sponsor',
+		'page callback' => 'sponsor_get_team_url',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+function sponsor_get_team_url(){
+
+	$team_user_query_kickappsid = $_POST['teamid'];
+
+	$team_user_query_get_url = db_result(db_query("SELECT url FROM invest_team WHERE kickappsteam_id = '" . $team_user_query_kickappsid . "'"));
+	
+	exit(json_encode(array("STATUS" => "1","RETURN" => $team_user_query_get_url)));
+}
+
+function sponsor_invest_check_account(){
+	global $user;
+	
+	$res = db_query("SELECT uid 
+						FROM users 
+						WHERE 
+							name = '" . $user->name . "'");
+	$row = db_fetch_object($res);
+	
+	$res = 0;
+	$result = db_query('SELECT r.rid, r.name FROM {role} r INNER JOIN {users_roles} ur ON ur.rid = r.rid WHERE ur.uid = %d', $row->uid);
+	while ($role = db_fetch_object($result)) {
+	  if($role->rid == '7'){
+	  $res = 1;
+	  }
+	}
+	
+	if ($res == 0) {
+		$type = $_POST['type'];
+		$teamid = $_POST['teamid'];
+		if($type == 'join'){
+
+		$sqlOptin = "INSERT INTO {hope_teamusers}
+						VALUES(
+							NULL,
+							'".$teamid."',
+							'".$user->uid."',
+							1,
+							NULL
+						)";
+		
+		$sqlOptin2 = "INSERT INTO {users_roles}
+						VALUES(
+							'".$user->uid."',
+							'7'
+						)";
+		
+		db_query($sqlOptin);
+		db_query($sqlOptin2);
+		}
+	
+		exit(json_encode(array("RETURN" => 'notasponsor')));
+	} else {
+		$type = $_POST['type'];
+		$teamid = $_POST['teamid'];
+		if($type == 'join'){
+		$sqlOptin = "INSERT INTO {hope_teamusers}
+						VALUES(
+							NULL,
+							'".$teamid."',
+							'".$user->uid."',
+							1,
+							NULL
+						)";
+						
+		db_query($sqlOptin);
+		}
+		exit(json_encode(array("RETURN" => 'sponsor')));
+	}
+}
+
+function sponsor_invest_random_ids(){
+
+$teamquery_int =db_query("SELECT kickappsteam_id FROM invest_team");
+
+$arr_new = array();
+while($teamq_res = db_fetch_object($teamquery_int)){
+	array_push($arr_new, $teamq_res->kickappsteam_id);
+}
+
+//$team_int = db_result(db_query("SELECT team_id FROM hope_team_kickapps WHERE team_id not in (" . implode(', ', $arr_new) . ") ORDER BY RAND()"));
+
+//temp fix
+$team_int = db_result(db_query("SELECT team_id FROM hope_team_kickapps ORDER BY RAND()"));
+//temp fix
+
+return $team_int;
+}
+
+function sponsor_invest_teams_save(){
+	global $user;
+		foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+		}
+		
+		
+		if($tm_name){
+			$photoname = $_FILES["tm_photo"]["name"];
+
+				//$bpath = $_SERVER['DOCUMENT_ROOT'].'/sites/all/modules/sponsor';
+				
+				if($photoname !== ''){
+					$photosize = intval($_FILES["tm_photo"]["size"] / 1024);
+					
+					if($photosize > 1000){
+						$html = '<div id="cbrect">
+							<div class="cbb">
+								<div class="left-border">
+									<div class="right-border">
+										Sorry you have uploaded a maximum of 1MB file. Redirecting to the previous page
+									</div>
+								</div>
+							</div>
+						</div>';
+						
+						$urlredirect = 'http://www.hopecybrary.org/'.$prevurl;
+						header('Refresh:3 ; URL='.$urlredirect);
+					} else{
+					$image = chunk_split(base64_encode(file_get_contents($_FILES["tm_photo"]["tmp_name"])));
+					}
+				}
+				
+				if($tm_url !== ''){
+				$tm_url = str_replace(' ','-',$tm_url);
+				}
+				$kickappsid = sponsor_invest_random_ids();
+				
+				$insert_sql = "INSERT INTO {invest_team} (
+												team_name, 
+												location, 
+												tagline, 
+												description, 
+												website, 
+												url, 
+												photo,
+												datecreated,
+												category,
+												joinstatus,
+												kickappsteam_id
+												) VALUES(
+												'".$tm_name."', 
+												'".$tm_location."', 
+												'".$tm_tag."',
+												'".$tm_desc."',
+												'".$tm_website."',
+												'".$tm_url."',
+												'".$image."',
+												'".time()."',
+												'".$tm_category."',
+												'".$tm_join."',
+												'".$kickappsid."')"; 
+				
+					if (!db_query($insert_sql)){
+					
+						$html = '<div id="cbrect">
+								<div class="cbb">
+									<div class="left-border">
+										<div class="right-border">
+											There was an error saving to the database. Redirecting to the previous page.
+										</div>
+									</div>
+								</div>
+							</div>';
+							
+						$urlredirect = 'http://www.hopecybrary.org/'.$prevurl;
+						header('Refresh:3 ; URL='.$urlredirect);
+					} else{
+					
+						if($user->roles[7] == null){
+							$sqlRoles = db_query("INSERT INTO {users_roles} (
+																	uid,
+																	rid
+																	) VALUES(
+																	'".$user->uid."',
+																	'7')"); 
+						}
+					
+						$insert_sql2 = db_query("INSERT INTO {hope_teamusers} (
+												team_userid,
+												team_id, 
+												uid, 
+												status, 
+												invite
+												) VALUES(
+												NULL,
+												'".$kickappsid."', 
+												'".$user->uid."', 
+												'1',
+												NULL)");							
+												
+						$html = '<div id="cbrect">
+								<div class="cbb">
+									<div class="left-border">
+										<div class="right-border">'."INSERT INTO {hope_teamusers} (
+												team_userid,
+												team_id, 
+												uid, 
+												status, 
+												invite
+												) VALUES(
+												NULL,
+												'".$kickappsid."', 
+												'".$user->uid."', 
+												'1',
+												NULL)".'
+											The Team was successfull created. Please wait for the admin response. Redirecting to your new team page.
+										</div>
+									</div>
+								</div>
+							</div>';
+							
+						$urlredirect = 'http://www.hopecybrary.org/adopt-team/'.$tm_url;
+						header('Refresh:3 ; URL='.$urlredirect);
+					}
+		
+		} else{
+		$html = '<div id="cbrect">
+					<div class="cbb">
+						<div class="left-border">
+							<div class="right-border">
+								Sorry you dont have any access to this page. Redirecting to the home page
+							</div>
+						</div>
+					</div>
+				</div>';
+				
+		header('Refresh:3 ; URL=http://www.hopecybrary.org');
+		}
+		
+		return $html;
+		
+}
+
+function sponsor_adopt_team($team){
+	global $user;
+	
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Sponsor", "mystudies/getinvolved/sponsor"),
+			l("Adopt a School", "mystudies/getinvolved/adopt/school/select"),
+			l("Team", "mystudies/getinvolved/adopt/school/invest-teams"),
+			l(ucfirst(str_replace("-", " ", $team)), "mystudies/getinvolved/adopt-team/".$team),
+		)
+	);
+	
+	drupal_add_js(drupal_get_path("module", "sponsor")."/sponsor-school.js");
+	$sHeader = drupal_eval(_sponsor_load_template('page-sponsor-invest-team-dashboard'));
+	$theme_imgpath = 'http://www.hopecybrary.org/themes/theme2010/images/';
+
+	if($team == 'viewteam'){
+	
+		if(!$user->uid){
+			$html3 = '<div id="cbrect">
+						<div class="cbb">
+							<div class="left-border">
+								<div class="right-border">
+								   You are currently not logged in to view your team.
+								</div>
+							</div>
+						</div>
+					 </div>';
+					
+			return $sHeader.$html3;
+			
+		} else{
+		
+		$team_user_query_int = db_result(db_query("SELECT count(team_userid) 
+													FROM hope_teamusers 
+													WHERE 
+													uid = '" . $user->uid . "'"));
+
+			if($team_user_query_int == 0){	
+			$html3 = '<div id="cbrect">
+						<div class="cbb">
+							<div class="left-border">
+								<div class="right-border">
+								   You currently do not have a team joined yet.
+								</div>
+							</div>
+						</div>
+					 </div>';
+					 
+			return $sHeader.$html3;
+			} else{
+			
+				$team_user_query_kickappsid = db_result(db_query("SELECT team_id
+													FROM hope_teamusers 
+													WHERE 
+													uid = '" . $user->uid . "'"));	
+			
+		
+				$team_user_query_get_url = db_result(db_query("SELECT url FROM invest_team WHERE kickappsteam_id = '" . $team_user_query_kickappsid . "'"));
+
+			    header('Location: http://www.hopecybrary.org/adopt-team/'.$team_user_query_get_url);									
+			}
+			
+		}
+	}
+	
+	if($team == 'jointeam'){
+	$oRSelected = db_result(db_query("SELECT url FROM invest_team ORDER BY RAND()"));
+	header('Location: http://www.hopecybrary.org/adopt-team/'.$oRSelected);
+	}
+	
+	$html = '<div id="cbrect">
+				<div class="cbb">
+					<div class="left-border">
+						<div class="right-border">
+							<div style="margin-left:0px;">';
+
+	$html .= '<div style="padding-left:65px;margin-left:85px;">';
+
+	$sOutput .= '<link rel="stylesheet" type="text/css" href="http://www.hopecybrary.org/themes/theme2010/style.css" />';
+	
+	$sqlSelectedTeamDetails = "SELECT *
+							   FROM invest_team 
+							   WHERE url = '{$team}'";
+							
+	$oSelectedTeamResult = db_query($sqlSelectedTeamDetails);
+	$oSelected = db_fetch_object($oSelectedTeamResult);
+	$skickappsteam_id = $oSelected->kickappsteam_id;
+	$steam_id = $oSelected->team_id;
+	$steam_name = $oSelected->team_name;
+	$stagline = $oSelected->tagline;
+	$slocation = $oSelected->location;
+	$sdatecreated = date('Y', $oSelected->datecreated);
+	
+	if(empty($steam_name)){
+		
+		$sHeader = drupal_eval(_sponsor_load_template('page-sponsor-invest-team-dashboard'));
+		
+		$html2 = '<div id="cbrect">
+				<div class="cbb">
+					<div class="left-border">
+						<div class="right-border">
+							<div style="margin-left:0px;">
+								The Team does not exist.
+							</div>
+						</div>
+					</div>
+				</div>
+				</div>';
+				
+		return $sHeader.$html2;
+	}
+	
+	if(!$user->uid){
+	$html .= '<div style="background:url(/themes/theme2010/images/team-sponsor-button.png);width:132px;height:32px;cursor:pointer;margin-bottom:12px;" id="join_team_login">
+					 <div style="padding-top:8px;"><span style="color:black;cursor:pointer;"><center><b>Join this Team</b></center></span></div>
+			  </div>';
+	} else{
+	
+		$team_user_query_int = db_result(db_query("SELECT count(team_userid) 
+												FROM hope_teamusers 
+												WHERE 
+											    team_id = '".$skickappsteam_id."' and uid = '" . $user->uid . "'"));
+
+		$smemberscount = db_result(db_query("SELECT count(team_userid) 
+												FROM hope_teamusers 
+												WHERE 
+											    team_id = '".$skickappsteam_id."'"));
+												
+		if($team_user_query_int == 0){
+		$html .= '<div>&nbsp;</div><div style="background:url(/themes/theme2010/images/team-sponsor-button.png);width:132px;height:32px;cursor:pointer;margin-bottom:12px;" id="join_team_confirm">
+					 <div style="padding-top:8px;"><span style="color:black;cursor:pointer;"><center><b>Join this Team</b></center></span></div>
+			  </div>';
+		} else{
+		$html .= '<p><b style="color:black;">My Team</b></p><br/>';
+		}
+			  
+	}
+	
+	$html .= '<div style="width:700px;border:1px solid #b3b3b3;"><div style="background-color:#cecece;margin: 0; height:30px;color:black;padding:5px;">&nbsp;<b><span id="team_name">'.ucfirst($steam_name).'</span> <label id="incybrary_block_title"></label></b> </div>
+															<div class="jboxbody">
+																<div class="jboxcontent">
+																	<table width="100%" border="0" cellspacing="0" cellpadding="0" class="meet_info">
+																		<tr>
+																			<td width="350" valign="top" style="padding-top:5px;">
+																				<div style="float:left;"><div style="border:1px solid #b3b3b3;float:left;width:180px;height:105px;font-size:26px;padding-top:20px;background-color:'.$strteam_colr.';"><center><b style="color:'.$strteam_fontcolr.'"><span id="team_image">'.'<img src="http://www.hopecybrary.org/imgdisplay.php?id='.$steam_id.'" width="76" height="78" /></span></b><p><span style="font-size:12px;" id="tagline">Tagline: '.$stagline.'</span></p></center></div></div>
+																				<div style="float:left;">&nbsp;</div>
+																				<div style="float:left;" style="font-size:12px;width:150px;">
+																					<b>'.ucfirst($steam_name).'</b><br/>
+																					<label id="str_memcount">'.$smemberscount.'</label> members<br/>
+																					Based in <label id="str_location">'.ucfirst($slocation).'</label><br/>
+																					Formed in <label id="str_year">'.$sdatecreated.'</label> <br/> 
+																					<b style="font-size:12px;">Kindness Hours: <span id="kindnesstotaltext" style="font-size:12px;">0</span></b> <br/> 
+																					<b style="font-size:12px;"><span id="investedtotal" style="font-size:12px;">0</span> Invested</b></div>
+																			</td>
+																			<td style="padding-top:5px;">
+																				<div style="float:left;"><img id="incybrary_avatar" src="" style="cursor:pointer;"/></div>
+																				<div style="float:left;">&nbsp;</div>
+																			    <div style="float:left;">
+																				<div id="incybrary_hopeful_details"></div>
+																				</div>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td colspan="2"><hr style="padding-top:20px; width:100%" class="divider" /></td>
+																		</tr>
+																		<tr>
+																			<td colspan="2">
+																				<table width="100%" border="0" cellspacing="0" cellpadding="2" style="float: left;padding: 5px;text-align: center;">
+																				  <tr>
+																					<td style="width:160px;padding-left:5px;">
+																						<a id="button_children_online_volunteer" href="javascript:void(0);"><img src="'.$theme_imgpath.'meet_inthecybrarynow.gif" border="0" /></a><br />
+																						<a id="button_children_24_volunteer" href="javascript:void(0);"><img src="'.$theme_imgpath.'meet_inthelast24.gif" border="0" /></a><br />
+																						<a id="button_children_all_volunteer" href="javascript:void(0);"><img src="'.$theme_imgpath.'meet_alteammembers.gif'.'" border="0" /></a><br />
+																					</td>
+																					<td align="center">
+																						<div id="incybrary_hopeful_list"></div>
+																					</td>
+																				  </tr>
+																				</table>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td colspan="2"><hr style="width:100%" class="divider" /></td>
+																		</tr>
+																		<tr>
+																			<td colspan="2" align="right" class="pager">
+																				<!--Pages : <a href="#">1</a> | <a href="#">2</a> | <a href="#">3</a> | -->
+																				<div id="incybrary_hopeful_nav"></div>
+																				<input type="hidden" id="teamid" name="teamid" value="'.$skickappsteam_id.'" />
+																				<!--incybrary_hopeful_nav-->
+																			</td>
+																		</tr>
+																	</table>  
+																</div>
+															</div>
+														</div>
+													';
+	
+	if(!$user->uid){
+	
+	$html .= '<div>&nbsp;</div><div style="background:url(/themes/theme2010/images/team-sponsor-button.png);width:132px;height:32px;cursor:pointer;margin-top:12px;" id="join_team_login2">
+					 <div style="padding-top:8px;"><span style="color:black;cursor:pointer;"><center><b>Join this Team</b></center></span></div>
+			  </div>';
+
+	} else{
+		$team_user_query_int = db_result(db_query("SELECT count(team_userid) 
+												FROM hope_teamusers 
+												WHERE 
+											    team_id = '".$skickappsteam_id."' and uid = '" . $user->uid . "'"));
+
+		if($team_user_query_int == 0){
+		$html .= '<div>&nbsp;</div><div style="background:url(/themes/theme2010/images/team-sponsor-button.png);width:132px;height:32px;cursor:pointer;margin-bottom:12px;" id="join_team_confirm1">
+					 <div style="padding-top:8px;"><span style="color:black;cursor:pointer;"><center><b>Join this Team</b></center></span></div>
+			  </div>';
+		} else{
+		$html .= '<div>&nbsp;</div>';
+		}
+			  
+	}
+	
+	
+	
+	$html .= '				</div>';
+	$html .= '<div>&nbsp;</div>';
+	
+	drupal_add_js(
+		"$(document).ready(
+			function(){
+				jQuery('#mycarousel').jcarousel({
+				//wrap: 'circular'
+				itemFallbackDimension : 210
+				});
+				$('#mycarousel').attr('style','overflow:visible;');
+			}
+		);",
+		"inline"
+	);
+	
+	
+	$invest = db_result(db_query("select SUM(amount) from invest_donations where adopt_team = '".$steam_id."'"));
+											
+	if($invest == ''){
+	$invest = 0;
+	} else{
+	$invest = $invest;
+	}
+	
+	if($invest !== 0){
+	$html .= '
+		    <div style="padding-left:15px;margin-left:135px;width:300px;" align="center">
+			<div style="margin: 0;height:30px;color:black;">&nbsp;<h4>'.ucfirst($steam_name).' Investments</h4></div>
+			<br/><b style="color:black;">Maximo Estrella Elementary School</b>
+			<a href="javascript:void(0);" id="page_btnPopMaximo"><img src="/themes/theme2010/images/programs_nav_hopecybrary.png" /></a>
+			<div>&nbsp;</div>
+			<center style="color:black;">40% Funded - $18,000 to go</center>
+			<div>&nbsp;</div>
+			<div align="center"><div id="barbox" align="left"><div id="bar" align="left" style="width:90px;"></div></div></div>
+			<br/><b style="color:black;">$'.$invest.' Invested by Members</b><br/>
+			<a href="javascript:void(0);" id="investmentdetails">Click here for details</a>
+			<div>&nbsp;</div>
+			</div>';
+	}
+	
+	$html .= '<div id="investmentdetails_Dialog" title="'.ucfirst($steam_name).' Investments - Investment Details" style="display:none;">';
+	
+	$members = db_result(db_query("select count(amount) from invest_donations where adopt_team = '".$steam_id."'"));
+	$html .= '<p><center><h4>Hope Cybrary - Maximo Estrella Elementary School <br/> $'.$invest.' Invested - by '.$members.' members</h4></center></p><hr/>';
+			
+	$html .= '<ul id="mycarousel" class="jcarousel-skin-sponsors-investors" style="overflow:visible;">';
+											
+			$query_teamsusers = db_query("select distinct B.uid, A.adopt_option, B.name, B.picture  from invest_donations A left join users B on B.uid = A.uid where A.adopt_team = '".$steam_id."'");
+				//echo "select B.uid, B.name, B.picture  from invest_donations A left join users B on B.uid = A.uid where A.adopt_team = '".$steam_id."'";
+											$countteamusers = 1;
+											while($set_teamuser = db_fetch_object($query_teamsusers)){
+											$html .= '<li>
+														<img src="http://www.hopecybrary.org/'.$set_teamuser->picture.'" width="100" height="100" /><br/>
+														<center style="color:black;"><b>'.$set_teamuser->name.'</b><br/>';
+											
+											$invest = db_result(db_query("select SUM(amount) from invest_donations where adopt_team = '".$steam_id."' and uid = '".$set_teamuser->uid."'"));
+											
+											if($invest == ''){
+											$invest = 0;
+											} else{
+											$invest = $invest;
+											}
+											
+											$html .= '$'.$invest.' Invested<br/><br/>
+											<b>Adopted Program:</b><br/>
+											'.$set_teamuser->adopt_option.'
+											</center>
+											
+													</li>';
+													
+											$countteamusers++;
+											}
+											
+	$html .= '</ul>';		
+			
+	$html .= '</div>';
+	
+	// announcement team
+	$html .= '<div>&nbsp;</div>
+			<div style="padding-left:15px;margin-left:135px;">
+					<div style="width:700px;border:1px solid #b3b3b3;">
+								<div style="background-color:#cecece;margin: 0; height:30px;">&nbsp;<b>Announcement and News</b></div>
+															<div class="jboxbody">
+																<div class="jboxcontent">
+																	<table style="background-color:#ffffff;" width="100%" height="200" border="0" cellspacing="0" cellpadding="0">
+																		<tr>
+																			<td width="350" valign="top" style="padding-top:5px;">';
+																																		
+									$html .= '<div style="width: 600px;height:198px;overflow: auto;padding:8px;">';
+										
+									$sqlAnnounce = "SELECT teamnews_id, team_id, announce_text, announce_date
+													FROM hope_team_news
+													WHERE team_id = %d
+													ORDER BY teamnews_id DESC
+													";	
+													
+										$oAnnounceResult = db_query($sqlAnnounce, $skickappsteam_id);
+										
+										$html .= '';
+										$Annoucnecount = 0;
+										while ($oAnnounce = db_fetch_object($oAnnounceResult)){
+											$html .= $oAnnounce->announce_text.' <span style="font-size:10px;"><b>'.date("F j, Y, g:i a", $oAnnounce->announce_date).'</b></span><br/><br/>';
+										$Annoucnecount++;
+										}
+										mysqli_free_result($oAnnounceResult);
+										if($Annoucnecount == 0){
+											$html .= "There are no message post yet.";
+										}
+										
+										$html .= '</div>';
+						
+															
+															$html .= '</td>
+																		</tr>
+																	</table>  
+																</div>
+															</div>
+														</div>
+													</div>
+												<div>&nbsp;</div>';
+	
+	// eof announcement team
+	
+	// kickapps
+	$html .= '<div style="margin-left:135px;"><iframe id="communityiframe" scrolling="yes" marginwidth="0" marginheight="0" frameborder="0" vspace="0" hspace="0" style="overflow-x: hidden;overflow-y: hidden;overflow:hidden; width:726px; height: 500px;" src="http://affiliate.kickapps.com/_Hope-Team/group/'.$skickappsteam_id.'/158175.html?css=kickapps_theme2010&invite=yes"></iframe></div>';
+	
+	// eof kickapps
+	
+	$html .= '				</div>	
+						</div>
+					</div>
+				</div>
+			</div>';
+	
+	if($_GET['view'] == 'profile'){
+	drupal_add_js('$(document).ready(function(){ $("#body").attr("style","background-color:white;"); $("#header_teams").hide(); $("#main").attr("style","background-color:white;"); $("#header_image").hide(); $("#footer").hide(); $("#top_nav").hide(); $("#banner").hide(); $("#main_nav").hide(); $("#arrow_nav").hide(); $("#breadcrumb").hide();})', "inline");
+	
+	return '<div id="header_teams">'.$sHeader.'</div>'.$html;
+	
+	} else{
+	return $sHeader.$html;
+	}
+}
+
+function sponsor_invest_teams(){
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Sponsor", "mystudies/getinvolved/sponsor"),
+			l("Adopt a School", "mystudies/getinvolved/adopt/school/select"),
+			l("Select Team", "mystudies/getinvolved/adopt/school/invest-teams"),
+		)
+	);
+	
+	$sHtml = drupal_eval(_sponsor_load_template('page-sponsor-invest-team'));
+	
+	drupal_add_js(
+		"$(document).ready(
+			function(){
+				jQuery('#mycarousel').jcarousel({
+				//wrap: 'circular'
+				itemFallbackDimension : 210
+				});
+			}
+		);",
+		"inline"
+	);
+	
+	return $sHtml;
+}
+
+function sponsor_get_top_sponsors($month){
+
+	$html = '';
+	$query_teams = db_query("select distinct B.team_id, B.team_name, B.photo, A.adopt_team from invest_donations A left join invest_team B on B.team_id = A.adopt_team where A.month_donated = '".$month."' limit 5");
+		
+		$team_top = array();		
+		while($set_teams = db_fetch_object($query_teams)){
+			$sumdonation = db_result(db_query("select SUM(amount) from invest_donations where adopt_team = '".$set_teams->adopt_team."' and month_donated = '".$month."'"));
+			$team_top[$set_teams->adopt_team] = $sumdonation;
+		}
+		arsort($team_top);
+		$pxline = 200;
+		foreach($team_top as $teamid => $donationval) {
+			$team_name = db_result(db_query("select team_name from invest_team where team_id = '".$teamid."'"));
+			$html .= '<div style="clear:both;padding:10px;">';
+			$html .= '<div style="float:left;padding-right:8px;height:58px;width:56px;">';
+			$html .= '<img src="http://www.hopecybrary.org/imgdisplay.php?id='.$teamid.'" width="56" height="58" />';
+			$html .= '</div>';
+			$html .= '<div style="float:left;padding-top:5px;" align="left">';
+			$html .= '<p style="color:#2d8eb1;">'.ucwords($team_name).'</p>';
+			$html .= '<p style="padding:3px;background-color:#aac87e;width:'.$pxline.'px;">$'.$donationval.'</p>';
+			$html .= '</div>';
+			$html .= '</div><div style="clear:both;padding:10px;"><hr style="border:thin dotted #e7e7e7;"></div>';
+			$pxline = $pxline - 30;
+		}
+		
+	return $html;
+}
+
+function sponsor_school_dashboard($school){
+	global $user;
+
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Sponsor", "mystudies/getinvolved/sponsor"),
+			l("Adopt a School", "mystudies/getinvolved/adopt/school/select"),
+			l("Checkout", "mystudies/getinvolved/adopt/school/".$school),
+		)
+	);
+	
+	drupal_add_js(drupal_get_path("module", "sponsor")."/sponsor-school.js");
+	
+	if($school == 'paynow'){
+	
+	if($user->roles[7] == null){
+		$sqlRoles = db_query("INSERT INTO {users_roles} (
+												uid,
+												rid
+												) VALUES(
+												'".$user->uid."',
+												'7')"); 
+						
+	db_query($sqlRoles);
+	}
+	
+	$amount = $_POST['amount'];
+	$adoptoption = $_POST['adoptoption'];
+	$adoptteam = $_POST['adoptteam'];
+	$schoolname = $_POST['schoolname'];
+	$datedonated = time();
+	$monthdonated = date("F",time());
+	
+	$sqlOptin = db_query("INSERT INTO {invest_donations} (
+												donation_id,
+												amount,
+												adopt_option, 
+												uid,
+												adopt_team, 
+												school,
+												date_donated,
+												month_donated
+												) VALUES(
+												NULL,
+												'".$amount."',
+												'".$adoptoption."', 
+												'".$user->uid."', 
+												'".$adoptteam."',
+												'".$schoolname."',
+												'".$datedonated."',
+												'".$monthdonated."')"); 
+						
+	db_query($sqlOptin);
+		
+	$sHtml = drupal_eval(_sponsor_load_template('page-sponsor-invest-team-dashboard'));	
+	
+	$donation = str_replace('-', '.', $school);
+	
+	$sHtml .= '<div id="cbrect">
+						<div class="cbb">
+							<div class="left-border">
+								<div class="right-border">
+								  <b style="color:black;">Thank You. You will be redirected to the school dashboard. '.$donation.'</b>
+								</div>
+							</div>
+						</div>
+					 </div>';
+	
+	header('Refresh:3 ; URL='.$base_url.'/mystudies/getinvolved/adopt/school/select');
+	
+	return $sHtml;
+	}
+	
+	$sHtml = drupal_eval(_sponsor_load_template('page-sponsor-school'));
+	
+	return $sHtml;
+}
+
+function sponsor_select_school(){
+	
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Sponsor", "mystudies/getinvolved/sponsor"),
+			l("Adopt a School", "mystudies/getinvolved/adopt/school/select")
+		)
+	);
+	
+	$sHtml = drupal_eval(_sponsor_load_template('page-sponsor-select'));
+	
+	drupal_add_js(
+		"$(document).ready(
+			function(){
+				jQuery('#mycarousel').jcarousel({
+				//wrap: 'circular'
+				itemFallbackDimension : 210
+				});
+			}
+		);",
+		"inline"
+	);
+	
+	return $sHtml;
+}
+
+function sponsor_init(){
+	//if (_coordinator_in_array($_REQUEST["q"], array("coordinator*"))){
+		//drupal_add_css(drupal_get_path("module", "mystudies")."/redmond/jquery-ui-custom.css");
+		//drupal_add_js(drupal_get_path("module", "mystudies")."/jquery-ui.js");
+		
+		//drupal_add_js(drupal_get_path("module", "coordinator")."/coordinator.js");
+	//}
+}
+
+function _sponsor_load_template($sPage) {
+	return file_get_contents(drupal_get_path('module', 'sponsor') . '/templates/' . $sPage . '.tpl.php');
+}
+
+function sponsor_selection(){
+	
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Sponsor", "mystudies/getinvolved/sponsor"),
+			l("Adopt a School", "mystudies/getinvolved/adopt/school/select")
+		)
+	);
+	
+	drupal_add_js(
+		'$(document).ready(
+			function(){
+				//$("div.main_content h2").remove();
+				//$("td").find(".jboxh").parent().remove();
+			}
+		);',
+		"inline"
+	);
+	
+	//$sOutput = _sponsor_load_template('page-sponsor');
+
+	$sOutput = 'jed';
+	return $sOutput;
+}

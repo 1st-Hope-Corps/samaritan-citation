@@ -1,0 +1,167 @@
+#askeet_cloud{
+	font-size:1.6em;
+}
+
+td.askeet_tag{
+	width:200px;
+	line-height:20px;
+}
+
+h1.askeet_title{
+	color:#7E7E7E;
+	font-family:Verdana;
+	padding-bottom:20px;
+}
+
+h1.askeet_interest{
+	font-size:1.7em;
+	color:#FFFFFF;
+	margin-right:5px;
+	margin-top:1px;
+}
+
+td.askeet_interest_bullet{
+	text-align:right;
+	width:40px;
+	height:26px;
+	/*Image not found */
+	background:transparent url('http://askeet.firsthopecorps.org/images/interested_bubble.gif') no-repeat scroll left top;
+	vertical-align:top;
+}
+
+#askeet_answer_rating{
+	float:left;
+	width:70px;
+}
+
+#askeet_answer_rating_up,
+#askeet_answer_rating_down{
+	display:inline;
+	float:left;
+	font-size:10px;
+	text-align:center;
+	width:35px;
+}
+
+div.askeet_question_container{
+	color:#9C4797;
+	padding-bottom:10px;
+}
+
+div.askeet_question_sub{
+	color:#AAAAAA;
+	padding-top:10px;
+}
+
+td.askeet_spacing{
+	height:10px;
+}
+
+#askeet_post_question,
+#askeet_post_question_desc,
+#askeet_post_answer,
+#askeet_post_question_tags{
+	width:400px;
+	font-family:arial;
+	font-size:1.1em;
+}
+
+td.askeet_post_question_title{
+	text-align:right;
+	width:70px;
+	padding-right:10px;
+}
+
+#askeet_post_question_preview_question{
+	color:#9C4797;
+	font-size:1.6em;
+	line-height:20px;
+	margin-bottom:10px;
+}
+
+#askeet_post_question_preview_question_body{
+	padding-bottom:10px;
+}
+
+#askeet_post_question_preview_buttons{
+	padding-top:15px;
+}
+
+#askeet_post_question_post_status{
+	padding-top:15px;
+	text-align:center;
+}
+
+#askeet_tutor_stat_container{
+	padding-top:20px;
+	padding-bottom:20px;
+}
+
+#askeet_tutor_stat_container{
+	padding-top:0px;
+	padding-bottom:20px;
+}
+
+#askeet_open_questions{
+	color:green;
+}
+
+h1.askeet{
+	color:green;
+}
+
+#askeet_child_and_question{
+	padding-top:10px;
+	padding-bottom:20px;
+}
+
+#askeet_cat_stat_container{
+	padding-bottom:20px;
+}
+
+#askeet_answer_stat_container{
+	padding-bottom:20px;
+}
+
+ul#askeet_tag_cloud{
+	list-style-image:none;
+	list-style-position:outside;
+	list-style-type:none;
+	padding:0px;
+}
+
+ul#askeet_tag_cloud li{
+	display:inline-block;
+	list-style-image:none;
+	list-style-position:outside;
+	list-style-type:none;
+	padding:3px;
+}
+
+ul#askeet_tag_cloud li.askeet_tag_popularity_1{
+	font-size: 0.8em;
+}
+
+ul#askeet_tag_cloud li.askeet_tag_popularity_2{
+	font-size: 1em;
+}
+
+ul#askeet_tag_cloud li.askeet_tag_popularity_3{
+	font-size: 1.3em;
+}
+
+ul#askeet_tag_cloud li.askeet_tag_popularity_4{
+	font-size: 1.6em;
+}
+
+#askeet_close_question{
+	width:110px;
+}
+
+#askeet_tutor_stat_container{
+	padding-top:20px;
+}
+
+#askeet_spacer{
+	height:15px;
+}

@@ -1,0 +1,12 @@
+name = Uid Login
+description = Alters the login function so that users login with their uid, and usernames are not necessarily unique
+version = $Name: DRUPAL-6--1-0-BETA1 $
+core = 6.x
+package = Complementary Currencies
+
+; Information added by drupal.org packaging script on 2009-01-31
+version = "6.x-1.0-beta1"
+core = "6.x"
+project = "marketplace"
+datestamp = "1233420627"
+

@@ -1,0 +1,786 @@
+<?php
+// $Id: transactions.module,v 1.23 2009/01/31 16:34:49 matslats Exp $
+
+  //drupal_rebuild_theme_registry();
+/*
+ * Transactions are stored in the database and balances are cached.
+ * Permitted users can initiate transactions as another user.
+ * The buyer rates the transaction if any ratings are configured.
+ * A hook is implemented for dependent modules to declare their owon transaction types.
+ * Transaction types are named in config rather than creating a new po file for every community.
+ * Transactions are creating using a pre_transaction_form which feeds into the node/add/transaction form
+ * Note the action to mail participants in pending transactions.
+ */
+
+//HOOKS
+
+/*
+ * Custom hook for complementary_currencies package
+ * implementation of hook_payment_types
+ */
+function transactions_transaction_types(){
+  return array(
+    'transactions' => array (
+      'outgoing_confirm' => 'Outgoing payment to be confirmed by the other party',
+      'incoming_confirm' => 'Incoming payment to be confirmed by the other party',
+      'outgoing_direct' => 'Outgoing payment to be completed instantly',
+      'incoming_direct' => 'Incoming payment to be completed instantly',
+    ),
+  );
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_help/6
+ */
+function transactions_help($section) {
+  switch ($section) {
+    case 'admin/help#transaction':
+      return t('Defines a contentType called transactions, extends the user profile to store balances.');
+  }
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_init/6
+ *
+ */
+function transactions_init() {
+  drupal_add_css(drupal_get_path('module', 'transactions') .'/transaction.css');
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_node_info/6
+  * This hook is required for modules to define one or more node types.
+ */
+function transactions_node_info() {
+  return array(
+    'transaction' => array(
+      'name' => t('Transaction'),
+      'module' => 'transactions',
+      'description' => t('A transaction is a movement of a quantity of a currency between one user and another. It also has a description and sometimes a rating'),
+      'has_title' => TRUE,
+      'title_label' => t('Description of entity traded'),
+      'has_body' => FALSE,
+      'status' => FALSE
+    )
+  );
+}
+
+/*
+ * Needed for the views 2 module
+ */
+function transactions_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'transactions') .'/views',
+  );
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_menu/6
+ */
+function transactions_menu() {
+  $items['admin/settings/marketplace'] = array(
+    'title' => t('Marketplace'),
+    'description' => t('Default currency, transaction ratings and directory settings'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('default_currency_config'),
+    'access arguments' => array('configure transactions'),
+    'menu_name' => 'complementary-currencies',
+    'file' => 'transactions.inc'
+  );
+
+  $items['admin/settings/marketplace/currency'] = array(
+    'title' => t('Default Currency'),
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  $items['admin/settings/marketplace/ratings'] = array(
+    'title' => t('Transaction ratings'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('transaction_quality_config'),
+    'access arguments' => array('configure transactions'),
+    'file' => 'transactions.inc',
+    'type' => MENU_LOCAL_TASK
+  );
+  $items['admin/settings/marketplace/transaction_types'] = array(
+    'title' => t('Transaction types'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('transaction_types_config'),
+    'access arguments' => array('configure transactions'),
+    'file' => 'transactions.inc',
+    'type' => MENU_LOCAL_TASK
+  );
+  $items['user/%/balance_sheet'] =array(
+    'title' => t('Balance Sheet'),
+    'page callback' => 'show_purchases_sales',
+    'page arguments' => array(1),
+    'access callback' => 'transactions_access',
+    'access arguments' => array('view', NULL, 1),
+    'file' => 'transactions.inc',
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK
+  );
+  $items['balance_sheet'] =array(
+    'title' => t('My balance Sheet'),
+    'page callback' => 'show_purchases_sales',
+    'access callback' => 'transactions_access',
+    'access arguments' => array('create'),
+    'file' => 'transactions.inc',
+    'menu_name' => 'complementary-currencies',
+    'type' => MENU_SUGGESTED_ITEM,
+    'weight' => 1,
+  );
+  $items['user/%/statement'] =array(
+    'title' => t('Statement'),
+    'page callback' => 'show_statement',
+    'page arguments' => array(1, '20'),
+    'access callback' => 'transactions_access',
+    'access arguments' => array('view', NULL, 1),
+    'file' => 'transactions.inc',
+    'menu_name' => 'complementary-currencies',
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK
+  );
+  $items['statement'] =array(
+    'title' => t('My Statement'),
+    'page callback' => 'show_statement',
+    'access callback' => 'transactions_access',
+    'access arguments' => array('create'),
+    'file' => 'transactions.inc',
+    'menu_name' => 'complementary-currencies',
+    'weight' => 1,
+    'type' => MENU_SUGGESTED_ITEM
+  );
+  $items['user/%/balances'] =array(
+    'title' => t('Balances'),
+    'page callback' => 'show_user_balances',
+    'page arguments' => array(1),
+    'access callback' => 'transactions_access',
+    'access arguments' => array('view', NULL, 1),
+    'file' => 'transactions.inc',
+    'menu_name' => 'complementary-currencies',
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK
+  );
+  $items['balances'] =array(
+    'title' => t('My balances'),
+    'page callback' => 'show_user_balances',
+    'access callback' => 'transactions_access',
+    'access arguments' => array('create'),
+    'file' => 'transactions.stats.inc',
+    'menu_name' => 'complementary-currencies',
+    'weight' => 1,
+    'type' => MENU_SUGGESTED_ITEM
+  );
+  $items['user/%/balance_history'] =array(
+    'title' => t('Balance history'),
+    'page callback' => 'balance_history_chart',
+    'page arguments' => array(1),
+    'access callback' => 'transactions_access',
+    'access arguments' => array('view', NULL, 1),
+    'file' => 'transactions.stats.inc',
+    'menu_name' => 'complementary-currencies',
+    'weight' => 2,
+    'type' => MENU_LOCAL_TASK
+  );
+  $items['balance_history'] =array(
+    'title' => t('My balance history'),
+    'page callback' => 'balance_history_chart',
+    'access callback' => 'transactions_access',
+    'access arguments' => array('create'),
+    'file' => 'transactions.stats.inc',
+    'menu_name' => 'complementary-currencies',
+    'weight' => 1,
+    'type' => MENU_SUGGESTED_ITEM
+  );
+  
+  
+  //check to see if incomplete transactions are enabled
+  if (pending_enabled()) {
+    $items['user/%/pending'] = array(
+      'title' => t('Pending transactions'),
+      'description' => t('A list of the transactions which are not yet complete'),
+      'page callback' => 'pending_transactions',
+      'page arguments' => array(1, 'pending_transactions'),
+      'access callback' => 'transactions_access',
+      'access arguments' => array('view', NULL, 1),
+      'file' => 'transactions.inc',
+      'menu_name' => 'complementary-currencies',
+      'weight' => 1,
+      'type' => MENU_LOCAL_TASK
+    );
+  }
+  $items['transaction/add'] = array(
+    'title' => t('Start new transaction'),
+    'description' => t('The full new transaction form'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pre_transaction_form', TRUE),
+    'access callback' => 'transactions_access',
+    'access arguments' => array('create'),
+    'menu_name' => 'complementary-currencies',
+    'file' => 'transactions.inc',
+    'type' => MENU_NORMAL_ITEM
+  );
+  $items['transaction/stats'] = array(
+    'title' => t('30 day stats'),
+    'description' => t('Default presentation of trading statistics'),
+    'page callback' => 'stats',
+    'page arguments' => array('30 days', 'stats'),
+    'access arguments' => array('access content'),
+    'menu_name' => 'complementary-currencies',
+    'file' => 'transactions.stats.inc',
+    'type' => MENU_NORMAL_ITEM
+  );
+  return $items;
+}
+
+function transactions_menu_alter(&$items) {
+  $items['node/%node/edit']['access callback'] = 'can_edit_transaction_node';
+  $items['node/add/transaction']['type'] = MENU_CALLBACK;
+}
+
+//this function inserts itself (see transactions_menu_alter) before the node_access function because transactions have special node access requirements.
+//completing a transaction involves edit permissions not from everyone or the node owner
+function can_edit_transaction_node($op, $node) {
+  global $user;
+  if ($node->type != 'transaction') return node_access($op, $node);
+  //drupal_set_message('operating on a transaction');
+  if (user_access('edit all transactions')) return TRUE;
+  if ($node->status == FALSE){
+    if ($user->uid == $node->payer_uid || $user->uid == $node->payee_uid) return TRUE;  
+  }
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_access/6
+ * this function is called by node_access
+ */
+function transactions_access($op, $account=NULL, $owner=NULL) {
+  global $user;
+  switch($op) {
+    case 'create':return $user->uid;
+    case 'view':
+      return $owner == $user->uid || user_access('view all transactions');
+    case 'edit':
+    case 'update':
+      return $owner == $user->uid || user_access('edit all transactions');
+    case 'create':
+      echo $user->uid;return $user->uid;
+    case 'delete':
+      return user_access('edit all transactions');
+    default :
+      drupal_set_message("transactions_access doesn't recognise op:".$op);
+  }
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_perm/6
+  * This hook can supply permissions that the module defines,
+ */
+function transactions_perm() {
+  return array('view all transactions','edit all transactions','configure transactions');
+}
+
+
+/** 
+ * http://api.drupal.org/api/function/hook_load/6
+ */
+function transactions_load($node) {
+  require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+  $result = db_query(
+    'SELECT payer_uid, payee_uid, starter_uid, completer_uid, cid, quantity, transaction_type, quality, n.title, n.status
+      FROM {cc_transactions} AS t
+      LEFT JOIN {node} AS n ON n.nid = t.nid
+      WHERE n.nid = %d',
+    $node->nid);
+  while ($fields = db_fetch_array($result)){
+    //join the passed node with the transaction fields
+    foreach ($fields as $key => $value){
+      $node->{$key} = $value;
+    }
+    $t= transaction_load_objects($node);
+    return $t;
+  }
+}
+
+
+/** 
+ * http://api.drupal.org/api/function/hook_block/6
+ */
+function transactions_block($op = 'list', $delta = 0, $edit = array()) {
+  switch($op) {
+    case 'list':
+      $blocks['cc_new_transaction']= array( //This should be set to appear only on pages user
+        'info' => t('Start payment'),
+        'cache' => BLOCK_CACHE_PER_ROLE,
+        'visibility' =>1,
+        'pages' => 'user*'
+      );
+      $blocks['cc_my_pending'] = array(
+        'info' => t('Transactions awaiting my confirmation'),
+        'cache' => BLOCK_CACHE_PER_USER
+      );
+      $blocks['cc_user_balances'] = array(
+        'info' => t('Balances for user'),
+        'cache' => BLOCK_CACHE_PER_USER
+      );
+      $blocks['cc_stats_last_month'] = array(
+        'info' => t("Previous month statistics"),
+        'cache' => BLOCK_CACHE_GLOBAL,
+        'visibility' =>1,
+        'pages' => '<front>'
+      );
+      return $blocks;
+    case 'view':
+      require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+      global $user;
+      switch ($delta) {
+        case 'cc_new_transaction':
+          //this block precedes the node/add form
+          //only visible when viewing other users' profiles
+          if ($user && arg(1) != $user->uid) {
+            $otherperson = user_load(arg(1));
+            // Restore title, which will have been overridden.
+            return array(
+              'subject' => t('New Transaction with !name', array('!name' => $otherperson->name)),
+              'content' => drupal_get_form('pre_transaction_form'),
+              'visibility' => 1,
+              'pages' => 'user/*'
+            );
+          } return;
+        case 'cc_my_pending':
+          global $user;
+          $pending = pending_transactions($user->uid, 'pending_short');
+          if (count($pending['for_this_user'])){
+            return array(
+              'subject' => t('Transactions awaiting confirmation'),
+              'content' => $pending
+              );
+          } return;
+        case 'cc_user_balances':
+          if ($user){
+            if (arg(0) == 'user' && $uid = arg(1)){
+              $this_user = user_load(array('uid' => $uid));
+          } else $this_user = $user;
+          $balances = get_balances(array($this_user->uid));
+            return array(
+              'subject' => t("@user's balances", array('@user' => $this_user->name)),
+              'content' => theme('user_balances', $balances[$this_user->uid])
+            );
+          }
+        case 'cc_stats_last_month':
+          require_once(drupal_get_path('module', 'transactions').'/transactions.stats.inc');
+          return array(
+            'subject' => t('Last month'),
+            'content' => stats('1 month', 'stats')
+          );
+      }
+  }
+}
+
+
+/** 
+ * http://api.drupal.org/api/function/hook_form/6
+ */
+//This is the all purpose transaction create / edit form.
+//It also handles the array coming in from the pre-transaction form.
+function transactions_form(&$node, $form_state) { 
+  require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+  global $user;
+  $full_form=TRUE;
+  if ($node->nid ) {// this is for node/$nid/edit - either confirming or editing a transaction
+    $transaction=node_load(array('nid' => $node->nid));
+    if ($_POST['op'] == t('Confirm')) {
+      drupal_set_title (t('Are you sure you want to complete this transaction?'));
+      $transaction->status = TRUE;
+      $full_form=FALSE;
+    } elseif ($_POST['op'] == 'Edit' || arg(2)== 'edit'){
+    drupal_set_title (t('Editing @type', array('@type' => 'transaction')));
+    }
+  } elseif ($form_state['post']) { // rececived POST from pre_transaction form, validating manually
+    if ($form_state['post']['form_id'] == 'pre_transaction_form') {
+      drupal_set_title(t('Are you sure you want to create the transaction?'));
+    } elseif ($form_state['post']['form_id'] == 'transaction_node_form') {
+      drupal_set_title (t('Transaction created'));
+    }
+    $transaction=infer_transaction_from_array($form_state['post']);
+    transactions_validate($transaction);
+  } else { //for a new transaction, without the pre_transaction_form
+    drupal_set_title (t('Initiating transaction'));
+  }
+
+  if ($transaction) {
+    //first we calculate the dependent transactions
+    //$dependent_transactions = get_dependent_transactions($transaction);
+  }
+  if (!form_get_errors() && $form_state['post']['title'] ) {
+    $full_form=FALSE;
+  }
+  //most of the form is built in transaction_base_form(), which is called from several places.
+  $form=transaction_base_form($transaction, $full_form);
+
+  //put in a redirect
+  //careful when redirecting the node_form because it overrides the delete_confirm
+  if (!form_get_errors()) {
+    //these might be changed by hook_form_alter
+    if ($transaction->status) {
+      $form['#redirect'] = 'user/'.$user->uid.'/balance_sheet';
+    } else {
+      $form['#redirect'] = 'user/'.$user->uid.'/pending';
+    }
+  }
+
+  if (!$full_form) {
+    $desc = theme('verbal_transaction_summary', $transaction);
+    $form['description'] = array(
+      '#value' => $desc,
+      '#weight' => -10
+    );
+  }
+  if ($form['quality']) {
+    if (user_access('edit all transactions') || $user->uid == $transaction->payer_uid) {
+      $form['quality']['#type']='select';
+    }
+  }
+
+  //'status' checkbox can only be seen by the transaction completer or the accountant.
+  if (!user_access('edit all transactions') && !$user->uid != $transaction->completer_uid){
+    //would prefer if this was value but then it doesn't come through to hook_update in the presence of the cck/date module on transactions, for some reason...
+    $form['status']['#type']= 'hidden';
+  }
+  return $form;
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_form_alter/6
+ */
+function transactions_form_alter(&$form, $form_state, $form_id) {
+  if ($form_id == 'transaction_node_form') {
+    $form['comment_settings']['#type'] = 'value';
+    unset($form['options']);
+    unset ($form['buttons']['preview']);
+    unset($form['menu']);
+    unset($form['attachments']);
+    unset($form['path']);
+    unset($form['revision_information']);
+    unset($form['options']);
+    if ($form['buttons']['delete']) unset ($form['#redirect']);
+  }
+  elseif ($form_id == 'user_admin_perm') {
+    $form['#submit'][] = 'menu_rebuild';
+  }
+}
+
+//this is a bit unusual because it's a node_hook, but is also called specifically to validate the pre-transaction node form.
+//The so called node here, actually comes from the POST, and hasn't passed through node_load, and loaded up the sub_objects
+function transactions_validate($node=NULL, $form=NULL){
+  global $user;
+  require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+  //generate the transaction object, though data is coming in three different formats, as a node through the post from the preform, as a form from the nodeadd(confirmation page) form, and from the edit form as a form. With each of these we make a transaction object and validate that.
+  if ($node) {
+    if ($node->nid) {
+      $transaction = transactions_load($node);
+    } elseif (!$node->starter_obj) {
+    $transaction = transaction_load_objects($node);
+    } else {
+      $transaction = $node;
+    }
+  } elseif ($form) {
+    $submitted_values = $form['nid']['#post'];
+    if ($form['nid']['#value']) {
+      $submitted_values['nid'] = $form['nid']['#value'];
+    }
+    $transaction = infer_transaction_from_array($submitted_values);
+  }
+
+  if (str_word_count($transaction->title) < variable_get('cc_description_min_words', 4)) {
+    form_set_error('title', t('Please describe the transaction in more detail'));
+  }
+  if ($transaction->quantity <= 0 && $transaction->division <=0) {
+    form_set_error('quantity', t('You must enter a positive amount'));
+  }
+  //accountants are not impeded by the balance limit checks to follow
+  if (user_access('edit all transactions'))return;
+  //any transaction with an exempt account will not have balance checks
+  $exempts = variable_get('cc_exempt_accounts', array());
+  if (in_array($transaction->payer_uid, $exempts))return;
+  if (in_array($transaction->payee_uid, $exempts))return;
+
+  //then  we perform checks to see that the transaction doesn't take either party outside of the currency limits
+  if ($message = out_of_limits($transaction)) {
+    form_set_error('quantity', $message);
+  }
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_insert/6
+ */
+function transactions_insert($node) {
+  require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+  $result = db_query('INSERT INTO {cc_transactions} (
+    nid, payer_uid, payee_uid, starter_uid, completer_uid, quantity, cid, transaction_type, quality, depends_on
+  ) VALUES (%d, %d, %d, %d, %d, %s, %d, "%s", %d, %d)',
+    $node->nid, $node->payer_uid, $node->payee_uid, $node->starter_uid, $node->completer_uid, $node->quantity + $node->division, $node->cid, $node->transaction_type, $node->quality, 0);
+
+  //this is necessary because the status field in the db has a default of TRUE
+  drupal_set_message('setting status on node '.$node->nid.' to '.intval($node->status));
+  db_query("UPDATE {node} SET status = '%d' WHERE nid = %d", intval($node->status), $node->nid);
+  require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+  recalculate_balances(array($node->payer_uid, $node->payee_uid), $node->cid);
+
+  //gets rid of any status messages (and any others)
+  drupal_get_messages('status', TRUE);
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_update/6
+ */
+//it seems that form #type = value fields are not passed into the node object. Is it possible that a cck field on transactions could prevent that?
+function transactions_update($node) {
+  require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+  $node->quantity += $node->division;
+  db_query("UPDATE {cc_transactions} SET
+    payer_uid = '%d', payee_uid = '%d', starter_uid = '%d', completer_uid = '%d', quantity = '%f', cid = '%d', transaction_type = '%s', quality = '%d', depends_on = '%d' WHERE nid = '%d' ",
+    $node->payer_uid, $node->payee_uid, $node-> starter_uid,$node ->completer_uid, $node->quantity, $node->cid, $node->transaction_type, $node->quality, 0, $node->nid
+  );
+  db_query("UPDATE {node} SET status = %d WHERE nid = %d", $node->status, $node->nid);
+  recalculate_balances(array($node->payer_uid, $node->payee_uid),$node->cid);
+
+  //gets rid of any status messages (and any others)
+  drupal_get_messages('status', TRUE);
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_delete/6
+ */
+function transactions_delete($node) {
+  require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+  db_query("DELETE FROM {cc_transactions} WHERE nid = %d", $node->nid);
+  recalculate_balances(array($node->payer_uid, $node->payee_uid),$node->cid);
+}
+
+/** 
+ * http://api.drupal.org/api/function/hook_theme/6
+ * This hook is required for modules to define one or more node types.
+ */
+function transactions_theme($existing, $type, $theme, $path) {
+  return array(
+    'transaction' => array(
+     'template' => 'transaction',
+     'arguments' => array(
+       'title' => NULL,
+       'creator' => NULL,
+       'quantity' => NULL,
+      'currency' => 0,
+      'from_id' => NULL,
+      'to_id' => NULL,
+      'quality' => NULL,
+      'transaction_type' => NULL
+      )
+    ),
+    'pending_transactions' => array(
+      'function' => 'theme_pending_transactions',
+      'arguments' => array(
+        'pending_transactions' => array()
+      ),
+    ),
+    'pending_short' => array(
+      'function' => 'theme_pending_short',
+      'arguments' => array(
+        'pending_transactions' => array()
+      ),
+    ),
+    'money'=>array(
+      'function' => 'theme_money',
+      'arguments' => array(
+        'amount'=>0,
+        'cid'=>0,
+      )
+    ),
+    'user_balances' => array(
+      'function' => 'theme_user_balances',
+      'arguments' => array(
+        'balances'=>array(),
+      )
+    ),
+    'stats' => array(
+      'function' => 'theme_stats',
+      'arguments' => array(
+        'stats'=>array(),
+      )
+    ),
+    'verbal_transaction_summary' => array(
+      'function' => 'theme_verbal_transaction_summary',
+      'arguments' => array(
+        'transaction'=>NULL,
+        'complete_button'=>NULL,
+      )
+    ),
+    'statement_table' => array(
+      'function' => 'theme_statement_table',
+      'arguments' => array(
+        'data' => array(),
+        'uid' => NULL,
+      )
+    )
+  );
+}
+
+
+
+/** 
+ * http://api.drupal.org/api/function/hook_action_info/6
+ * This hook is required for modules to define one or more node types.
+ */
+function transactions_action_info() {
+  require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+  return array(
+    'transactions_email_completer_action' => array(
+      'description' => t('Mail anyone who needs to complete a transaction'),
+      'type' => 'node',
+      'configurable' => TRUE,
+      'hooks' => array(
+        'nodeapi' => array('presave'),
+      )
+    )
+  );
+}
+
+function transactions_email_completer_action_form($context) {
+  $form['message'] = array (
+    '#type' => 'textarea',
+    '#title' => 'Possible ratings',
+    '#default_value' => $context['template'],
+    '#description' => t("This is the contents of the email which will be sent to a member when someone initiates a transaction with them which needs confirming. You can use the following strings as variables:")."
+  <br /><strong>%completer </strong>" . t('the name of the person who started the transaction') ."
+  <br /><strong>%starter </strong>" . t('the name of the person who started the transaction') ."
+  <br /><strong>%summary </strong>" . t('a summary of the whole transaction') ."
+  <br /><strong>%reason </strong>" . t('description of the transaction by the starter') ."
+  <br /><strong>%transaction </strong>" . t('a link to the transaction') ."
+  <br /><strong>%unsubscribe </strong>" . t('cancellation of notification') ."
+  <br /><strong>%statement </strong>" . t("a link to the 'statement' page of this user") ."
+  <br /><strong>%home </strong>" . t("a link to the member's own page")
+  );
+  return $form;
+}
+function transactions_email_completer_action_validate($form, &$form_state) {
+  if (!strlen ($form_state['values']['message'])) {
+    form_set_error('message', t("You can't send an empty email"));
+  }
+}
+function transactions_email_completer_action_submit($form, &$form_state) {
+  return array('template' => $form_state['values']['message']);
+}
+
+
+/** 
+ * http://api.drupal.org/api/function/hook_user/6
+ * This hook is required for modules to define one or more node types.
+ */
+function transactions_user($op, &$edit, &$account, $category = NULL) {
+  switch ($op) {
+    case 'load':
+      if (!$account->uid) {
+        $account -> name = t('User @id', array('@id' => $account->uid));
+      }
+      return;
+    case 'form':
+      if ($category != 'account') return;
+      return array(
+        'contact'=> array(
+          'pending_notification' => array(
+            '#type' => 'radios',
+            '#prefix' => '<a name="notifications"></a>',
+            '#title' => t('Receive email notification when someone initiates a transaction with you?'),
+            '#default_value' => intval($account->pending_notification),
+            '#options' => array (0=>t('no'), 1=>t('yes')),
+            '#weight' => 2,
+          )
+        )
+      );
+    case 'insert':
+      //user preference to be sent emails about pending transactions
+      $edit['pending_notification']=TRUE; 
+      require_once(drupal_get_path('module', 'transactions').'/transactions.inc');
+      //this creates an empty row in {cc_balance_cache}
+      recalculate_balances(array($edit['uid'])); 
+  }
+}
+
+//theme_username isn't flexible or personal enough for local communities, so this function is better 
+//how do we ensure this isn't overwritten? It's necessary to protect names from the public.
+function phptemplate_username($name) {
+  return friendly_name($name, 'profile');
+}
+
+//provides hotlink to user when passed a uid or name
+//this is not in the include file so it can be called from cc_custom module or the template
+function friendly_name($user_data=NULL, $link = NULL) {
+  global $user;
+  if (!is_object($user_data)){
+    if (is_numeric($user_data)) {
+      $uid = $user_data;
+      $user_data = user_load(array('uid'=>$uid));
+    } elseif ($user_data=='user') {
+      $user_data = $user;
+    }
+  }
+  if ($user->uid > 0) { //authenticated user
+    if ($link == 'contact') {
+      return l($user_data->name, 'user/'.$user_data->uid.'/contact', array('attributes'=>array('title'=>'Contact this person')));
+    } elseif ($link == 'profile') {
+      return l($user_data->name, 'user/'.$user_data->uid);
+    } elseif ($link == 'email') {
+      return l($user_data->name, 'mailto:'.$user_data->mail);
+    } else {
+      return $user_data->name;
+    }
+  } else return t('User @id', array('@id'=>$user_data->uid));
+}
+
+//delivers a list of category headings for offers/wants, like the index of the yellow pages
+//adds each category to the end of each link for use as an argument to views
+// See http://drupal.org/project/vocabindex for a module to do this better
+function type_categories_count($nodetype, $link_prefix){
+//TODO need to filter this function by the appropriate vocab
+  $result = db_query("
+    SELECT d.tid, d.name, COUNT(*) AS count 
+    FROM {term_data} d 
+    INNER JOIN {term_node} USING (tid) 
+    INNER JOIN {node} n USING (nid)
+    WHERE n.type = '%s'
+    AND n.status = 1
+    GROUP BY d.tid, d.name 
+    ORDER BY d.weight ASC
+    ", $nodetype);
+  $items = array();
+  while ($category = db_fetch_object($result)) {
+    //directory/recent/%/%
+    $items[] = l($category->name .' ('. $category->count .')', $link_prefix.'/'. $category->name) .'<br />';
+  }
+  //$footer = theme('add_directory_entry', $nodetype);
+  return theme('item_list', $items) . $footer;
+}
+
+//this is here and not in transactions.inc because it's referred to in requack.module
+function get_all_user_accounts() {
+  $query= db_query('SELECT uid, name FROM {users} WHERE uid >0');
+  while ($account = db_fetch_array($query)) {
+    $users[$account['uid']]=$account['name'];
+  }
+  return $users;
+}
+//user accounts and trading accounts are the same for now
+function get_all_trading_accounts () {
+  $accounts = get_all_user_accounts();
+  return $accounts;
+}
+function phptemplate_preprocess(&$variables) {
+  $variables['cc_links'] = menu_navigation_links('complementary_currencies');
+}
+function pending_enabled(){
+  $types = variable_get('cc_transaction_types', array());
+  if (strlen($types['transactions']['outgoing_confirm']) || strlen($types['transactions']['incoming_confirm'])) {
+    return TRUE;
+  }
+}

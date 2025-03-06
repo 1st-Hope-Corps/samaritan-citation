@@ -1,0 +1,503 @@
+<?php
+// $Id$
+
+/**
+* Display help and module information
+* @param $sPath		- which path of the site we're displaying help
+* @param $aArg array- holds the current path as would be returned from arg() function
+* @return help		- text for the path
+*/
+function bank_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#bank":
+			$sOutput = '<p>'. t("Hope Development Bank module integration.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+* Valid permissions for this module
+* @return array	- An array of valid permissions for the test module
+*/
+
+function bank_perm(){
+	return array('access bank', 'access bank content', 'administer bank');
+}
+
+/**
+* Generate HTML for Hope Dev Bank Block
+* @param $sOperation	- the operation from the URL
+* @param $iDelta		- offset
+* @return $aBlock array	- HTML
+*/
+function bank_block($sOperation='list', $iDelta=0){
+	if ($sOperation == "list") {
+		$aBlock[0]["info"] = t('Hope Dev Bank Module');
+		return $aBlock;
+	}
+}
+
+function bank_init(){
+	
+}
+
+function bank_menu() {
+	$aItems = array();
+	
+	$aItems['admin/settings/bank'] = array(
+		'title' => 'Hope Dev Bank Settings',
+		'description' => "Sets the Key and Pass pair to use for Hope Dev Bank access.",
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('bank_admin'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['hopebank'] = array(
+		'title' => 'Hope Dev Bank',
+		'page callback' => 'bank_details',
+		'access arguments' => array('access bank content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	if (user_access('administer')){
+		$aItems['hopebank/create'] = array(
+			'title' => 'Create Money',
+			'page callback' => 'bank_create',
+			'access arguments' => array('administer bank'),
+			'weight' => 0,
+			'type' => MENU_NORMAL_ITEM
+		);
+	}
+	
+	$aItems['hopebank/send'] = array(
+		'title' => 'Send Money',
+		'page callback' => 'bank_give',
+		'access arguments' => array('access bank content'),
+		'weight' => 1,
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['hopebank/statement'] = array(
+		'title' => 'Statement',
+		'page callback' => 'bank_history',
+		'access arguments' => array('access bank content'),
+		'weight' => 2,
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	return $aItems;
+}
+
+function bank_admin(){
+	$aForm['bank_key'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Access Key'),
+		'#default_value' => variable_get("bank_key", ""),
+		'#size' => 41,
+		'#maxlength' => 32,
+		'#description' => t("The access key that was given by Hope Dev Bank."),
+		'#required' => TRUE,
+	);
+	
+	$aForm['bank_pass'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Access Pass'),
+		'#default_value' => variable_get("bank_pass", ""),
+		'#size' => 41,
+		'#maxlength' => 40,
+		'#description' => t("The access pass that was given by Hope Dev Bank."),
+		'#required' => TRUE,
+	);
+	
+	$aForm['bank_rate'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Conversion Rate:'),
+		'#default_value' => variable_get("bank_rate", "0.00"),
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t("The Conversion rate for approved hour for civic duties to Valiants. Formula: Approved Hour x Conversion Rate = Valiants"),
+		'#required' => TRUE
+	);
+
+	return system_settings_form($aForm);
+}
+
+function bank_admin_validate($oForm, &$aFormState){
+	$sBankKey = trim($aFormState['values']['bank_key']);
+	$sBankPass = trim($aFormState['values']['bank_pass']);
+	$mBankRate = trim($aFormState['values']["bank_rate"]);
+	
+	if ($sBankKey == ""){
+		form_set_error('bank_key', t('You must specify the access key.'));
+	}elseif (strlen($sBankKey) < 32){
+		form_set_error('bank_key', t('Invalid character count for the Access Key. It should have 32 characters.'));
+	}
+	
+	if ($sBankPass == ""){
+		form_set_error('bank_pass', t('You must specify the access pass.'));
+	}elseif (strlen($sBankPass) < 40){
+		form_set_error('bank_pass', t('Invalid character count for the Access Pass. It should have 40 characters.'));
+	}
+	
+	if (!is_numeric($mBankRate) || $mBankRate == ""){
+		form_set_error("bank_rate", t("You must specify a numeric value for the 'Conversion Rate' field.".$mBankRate));
+	}elseif ($mBankRate <= 0){
+		form_set_error("bank_rate", t("The Conversion Rate should be greater than zero."));
+	}
+}
+
+function bank_details(){
+	$oDetails = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oDetails->account_number, "pass" => $oDetails->account_pass));
+	
+	$sPageContent = '<table>
+						<tr>
+							<th style="width:200px;">Account Number</th>
+							<th>Balances</th>
+						</tr>
+						<tr>
+							<td style="vertical-align:top;">'.$oDetails->account_number.'</td>
+							<td>
+								<table style="width:250px;">
+									<tr style="font-weight:bold;">
+										<td style="width:110px;">Balance</td>
+										<td style="text-align:right;">'.number_format($aBalances["RETURN"]["BALANCE"], 2).'</td>
+									</tr>
+									<tr>
+										<td>Pending</td>
+										<td style="text-align:right;">'.number_format($aBalances["RETURN"]["PENDING"], 2).'</td>
+									</tr>
+									<tr>
+										<td>Turnover</td>
+										<td style="text-align:right;">'.number_format($aBalances["RETURN"]["TURNOVER"], 2).'</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+					</table>';
+	
+	return $sPageContent;
+}
+
+function bank_create(){
+	return drupal_get_form("bank_create_form");
+}
+
+function bank_create_form($aFormState){
+	$aForm['sAccount'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Account Number'),
+		'#default_value' => '',
+		'#size' => 20,
+		'#maxlength' => 20,
+		'#description' => t("The account number of the child/recipient in this format XXXX-##########. e.g. ABCD-1234567890"),
+		'#required' => TRUE
+	);
+	
+	$aForm['Details'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Details'),
+		'#collapsible' => FALSE,
+		'#collapsed' => TRUE,
+		'#description' => t("<b>Only one of the fields below should be filled up.</b> If both fields have values, the Approved Time field has the priority.")
+	);
+	
+	$aForm['Details']['sTime'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Approved Time'),
+		'#default_value' => '00:00',
+		'#size' => 5,
+		'#maxlength' => 5,
+		'#attributes' => array("style" => "text-align:center;"),
+		'#description' => t("The approved time that the child have done for his/her civic duty in this format HH:MM. e.g. 02:30"),
+		'#required' => FALSE
+	);
+	
+	$aForm['Details']['sMoney'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Approved Money'),
+		'#default_value' => '0.00',
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t("The approved money that you think is equivalent to the user/member's donation or civic duty."),
+		'#required' => FALSE
+	);
+	
+	$aForm['sDescription'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Description'),
+		'#default_value' =>  '',
+		'#cols' => 30,
+		'#rows' => 5,
+		'#description' => t('The description that pertains to what this transaction is for. Please be descriptive as much as possible.'),
+		'#required' => TRUE
+	);
+	
+	$aForm['btnCreate'] = array("#type" => "submit", "#value" => t("Create"));
+	
+	return $aForm;
+}
+
+function bank_create_form_validate($oForm, &$aFormState){
+	// echo "<pre>";
+	// print_r($aFormState["values"]);
+	// echo "</pre>";
+	// exit;
+	
+	$aFormVal = $aFormState["values"];
+	$sTime = trim($aFormVal["sTime"]);
+	$mMoney = trim($aFormVal["sMoney"]);
+	
+	if (trim($aFormVal["sAccount"]) == "" || strlen($aFormVal["sAccount"]) < 15){
+		form_set_error("sAccount", t("You must specify a valid account number."));
+	}
+	
+	if ($sTime != "" && $sTime != "00:00"){
+		$aTime = explode(":", $sTime);
+		
+		if (count($aTime) == 2){
+			if (!is_numeric($aTime[0]) || strlen($aTime[1]) < 2 || !is_numeric($aTime[1]) || $aTime[1] > 60){
+				form_set_error("sTime", t("You must specify a valid time."));
+			}else{
+				$mBankRate = variable_get("bank_rate", 5);
+				$iMinsFromHour = $aTime[0] * 60;
+				$iTotalMins = $iMinsFromHour + $aTime[1];
+				$iMinToDec = $iTotalMins/60;
+				
+				$aFormState["values"]["sMoney"] = number_format($iMinToDec * $mBankRate, 2);
+			}
+		}else{
+			form_set_error("sTime", t("You must specify a valid time."));
+		}
+	}elseif ($mMoney != "0.00"){
+		if (!is_numeric($mMoney) || $mMoney == ""){
+			form_set_error("sMoney", t("You must specify a numeric value for the 'Money' field."));
+		}elseif ($mMoney <= 0){
+			form_set_error("sMoney", t("The money to create should be greater than zero."));
+		}
+	}else{
+		form_set_error("", t("Either 'Approved Time' OR 'Approved Money' field should  be filled up."));
+	}
+}
+
+function bank_create_form_submit($oForm, &$aFormState){
+	$oDetails = _bank_account();
+	$aFormVal = $aFormState["values"];
+	$mAmount = number_format($aFormVal["sMoney"], 2);
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass, 
+						"amount" => $mAmount, 
+						"recipient" => $aFormVal["sAccount"],
+						"description" => _bank_escape($aFormVal["sDescription"])
+					);
+	$aBankReply = _bank_post("create", $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		drupal_set_message(t("The amount ".$mAmount." was created successfully for Account Number ".$aFormVal["sAccount"]." with Reference Number ".$aBankReply["RETURN"]["REF"]).".");
+	}else{
+		drupal_set_message(t($aBankReply["ERR_MSG"]), "error");
+	}
+}
+
+function bank_give(){
+	return drupal_get_form("bank_give_form");
+}
+
+function bank_give_form($aFormState){
+	$aForm['mAmount'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Amount'),
+		'#default_value' => '0.00',
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#description' => t("The amount to send to the recipient."),
+		'#attributes' => array("style" => "text-align:right;"),
+		'#required' => TRUE
+	);
+	
+	$aForm['sAccount'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Account Number'),
+		'#default_value' => '',
+		'#size' => 20,
+		'#maxlength' => 20,
+		'#description' => t("The account number of the recipient in this format XXXX-##########. e.g. ABCD-1234567890"),
+		'#required' => TRUE
+	);
+	
+	//$aForm['sAccountKey'] = array('#type' => 'hidden', '#value' => $oDetails->account_number);
+	$aForm['btnSend'] = array("#type" => "submit", "#value" => t("Send"));
+	
+	return $aForm;
+}
+
+function bank_give_form_validate($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$oDetails = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oDetails->account_number, "pass" => $oDetails->account_pass));
+	$mBalance = (float)$aBalances["RETURN"]["BALANCE"];
+	
+	if (!is_numeric($aFormVal["mAmount"]) || trim($aFormVal["mAmount"]) == ""){
+		form_set_error("mAmount", t("You must specify a numeric value for the 'Amount' field."));
+	}elseif ($aFormVal["mAmount"] <= 0){
+		form_set_error("mAmount", t("The amount to send should be greater than zero."));
+	}elseif ($aFormVal["mAmount"] > $mBalance){
+		form_set_error("mAmount", t("The amount to send (".number_format($aFormVal["mAmount"], 2).") is greater than your current balance (".number_format($mBalance, 2).")."));
+	}
+	
+	if (trim($aFormVal["sAccount"]) == "" || strlen($aFormVal["sAccount"]) < 15){
+		form_set_error("sAccount", t("You must specify a valid account number."));
+	}
+}
+
+function bank_give_form_submit($oForm, &$aFormState){
+	$oDetails = _bank_account();
+	$aFormVal = $aFormState["values"];
+	$mAmount = number_format($aFormVal["mAmount"], 2);
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass, 
+						"amount" => $mAmount, 
+						"recipient" => $aFormVal["sAccount"]
+					);
+	$aBankReply = _bank_post("send", $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		drupal_set_message(t("The amount ".$mAmount." was sent successfully to Account Number ".$aFormVal["sAccount"]." with Reference Number ".$aBankReply["RETURN"]["REF"]).".");
+	}else{
+		drupal_set_message(t($aBankReply["ERR_MSG"]), "error");
+	}
+}
+
+function bank_history(){
+	global $user;
+	
+	// echo "<pre>";
+	// print_r($user);
+	// echo "</pre>";
+	
+	$oDetails = _bank_account();
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass
+					);
+	$aBankReply = _bank_post("history", $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		$aStatement = $aBankReply["RETURN"];
+		$iRecordCount = count($aStatement);
+		$sPageHeader = '<table>
+							<tr>
+								<th style="width:150px;">Date</th>
+								<th style="width:75px;">Type</th>
+								<th>Description</th>
+								<th style="text-align:right;">Amount</th>
+							</tr>';
+		$sPageContent = "";
+		$mStatementTotal = 0;
+		$mCreatedMoney = 0;
+		
+		for ($x = 0; $x < $iRecordCount; $x++){
+			$sTransactType = strtoupper($aStatement[$x]["sTransactType"]);
+			$mTransactAmount = $aStatement[$x]["mTransactAmount"];
+			
+			switch ($sTransactType){
+				case "CREATE":
+					if (user_access('administer')) $mCreatedMoney += $mTransactAmount;
+					$mTransactAmount = "<em>(".$mTransactAmount.")</em>";
+					
+					break;
+				case "SEND":
+					//$mTransactAmount = $mTransactAmount * -1;
+					break;
+			}
+			
+			if ($sTransactType != "CREATE") $mStatementTotal += $mTransactAmount;
+			
+			$sBgColor = (bcmod($x, 2) == 0) ? "#F8F8F8":"";
+			
+			$sPageContent .= '<tr style="background-color:'.$sBgColor.';">
+									<td style="vertical-align:top;">'.$aStatement[$x]["dTransactTime"].'</td>
+									<td style="vertical-align:top;">'.$sTransactType.'</td>
+									<td>'.nl2br($aStatement[$x]["sTransactDesc"])." (Ref: ".$aStatement[$x]["sReference"].")".'</td>
+									<td style="vertical-align:top; text-align:right;">'.$mTransactAmount.'</td>
+							</tr>';
+		}
+		
+		$sPageContent .= '<tr style="font-weight:bold;">
+							<td style="text-align:right; padding-right:50px;" colspan="3">Total</td>
+							<td style="text-align:right; border-top:1px solid black;">'.number_format($mStatementTotal, 2).'</td>
+						</tr>';
+		
+		if (user_access('administer')){
+			$sPageContent .= '<tr style="font-style:italic;">
+								<td style="text-align:right; padding-right:50px;" colspan="3">Total Created Money</td>
+								<td style="text-align:right;">'.number_format($mCreatedMoney, 2).'</td>
+							</tr>';
+		}
+		
+		$sPageContent = ($iRecordCount == 0) ? "No transactions for user ".$user->name.", yet.":$sPageHeader.$sPageContent."</table>";
+		
+		return $sPageContent;
+	}else{
+		drupal_set_message(t($aBankReply["ERR_MSG"]), "error");
+	}
+}
+
+
+function _bank_account(){
+	global $user;
+	
+	$sBankQuery = "SELECT account_number, account_pass, account_creation 
+					FROM {users_bank} 
+					WHERE uid = ".$user->uid;
+	
+	$oQueryResult = db_query($sBankQuery);
+	$oDetails = db_fetch_object($oQueryResult);
+	
+	return $oDetails;
+}
+
+function _bank_escape($sString, $bNoHTML=true){
+		$sOutput = (get_magic_quotes_gpc()) ? stripslashes($sString):$sString;
+		$sOutput = addslashes(trim($sOutput));
+		
+		if ($bNoHTML) $sOutput = strip_tags($sOutput);
+		
+		return $sOutput;
+	}
+
+function _bank_post($sModule, $aVarFields){
+	$aRequest = array(
+					"key" => variable_get("bank_key", ""), 
+					"pass" => variable_get("bank_pass", ""),
+					"module" => $sModule, 
+					"vars" => $aVarFields
+				);
+	
+	$sRequestJSON = json_encode($aRequest);
+	
+	# Initialize cURL
+	$oCURL = curl_init();
+	curl_setopt($oCURL, CURLOPT_URL, "http://drupal.firsthopecorps.org/bank/gateway.php");
+	curl_setopt($oCURL, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
+	curl_setopt($oCURL, CURLOPT_POST, 1);
+	curl_setopt($oCURL, CURLOPT_POSTFIELDS, "q=".$sRequestJSON);
+	
+	# Setting CURLOPT_RETURNTRANSFER variable to 1 will force cURL not to print out the results of 
+	# its query. Instead, it will return the results as a string return value from curl_exec() 
+	# instead of the usual true/false.
+	curl_setopt($oCURL, CURLOPT_RETURNTRANSFER, 1);
+	
+	$sResponse = curl_exec($oCURL);
+	
+	return json_decode($sResponse, true);
+}

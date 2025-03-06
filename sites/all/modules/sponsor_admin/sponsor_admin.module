@@ -1,0 +1,1155 @@
+<?php
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function sponsor_admin_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#sponsor_admin":
+			$sOutput = '<p>'. t("Sponsor Master Admin.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function sponsor_admin_menu(){
+	$aMenus = array();
+	
+	$aMenus['admin/sponsors/dashboard'] = array(
+		'title' => 'Sponsor Master Admin',
+		'description' => 'Tracks the statistics of the instat eMentors.',
+		'page callback' => 'sponsor_admin_dasboard',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aMenus['admin/sponsors/savetocomment/%/%/%/%'] = array(
+		'title' => 'Sponsor Master Admin',
+		'description' => 'Tracks the statistics of the instat eMentors.',
+		'page callback' => 'sponsor_save_comment',
+		'page arguments' => array(3,4,5,6),
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	); 
+	
+	$aMenus['admin/sponsors/refreshtable'] = array(
+		'title' => 'Refresh Table',
+		'page callback' => 'sponsor_master_refresh_table',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/sponsors/searchementor'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_sponsor_admin_searchsearchementor',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/sponsors/searchcomment'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_sponsor_admin_searchcomment',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/sponsors/getmembers'] = array(
+		'title' => 'Get Team Members',
+		'page callback' => 'volunteer_sponsor_admin_getmembers',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);  
+	
+	$aMenus['admin/sponsors/removemembers'] = array(
+		'title' => 'Remove Team Members',
+		'page callback' => 'volunteer_sponsor_admin_removemembers',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/sponsors/organizeteam'] = array(
+		'title' => 'Organize Team',
+		'page callback' => 'volunteer_sponsor_admin_organizemembers',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/sponsors/updateteam'] = array(
+		'title' => 'Update Team',
+		'page callback' => 'volunteer_sponsor_admin_updateteam',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/sponsors/unblockitems'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'sponsor_master_admin_unblock_unblockitems',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/sponsors/removecomment'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'comment_sponsor_admin_remove_comment',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);  
+	
+	$aMenus['admin/sponsors/showpendingcomments'] = array(
+		'title' => 'Pending Comments',
+		'page callback' => 'sponsor_comment_list',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+
+	$aMenus['admin/sponsors/commentform'] = array(
+		'title' => 'Pending Comments',
+		'page callback' => 'sponsor_comment_form',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);	
+	
+	$aMenus['admin/sponsors/saveapprovecomment'] = array(
+		'title' => 'Pending Comments',
+		'page callback' => 'sponsor_comment_save_approve',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);	 
+	
+	return $aMenus; 
+}
+
+function sponsor_comment_save_approve(){
+	$id = $_POST['id'];
+	$comment = $_POST['comment'];
+	$status = $_POST['status'];
+	$uid = $_POST['fromid'];
+	
+	$sql_update = db_query("update comments_kickapps set comment = '".$comment."', status = '".$status."' where id = '".$id."'");
+	
+	$content = sponsor_comment_list($uid, "func");
+	$content2 = sponsors_loadCommentTable();
+	$content3 = sponsor_admin_table();
+	
+	echo json_encode(array("STATUS" => 1, "CONTENT" => $content, "CONTENT2" => $content2, "CONTENT3" => $content3));
+	exit;
+}
+
+function sponsor_comment_form(){
+	$id = $_POST['id'];
+	
+	$com_sql = db_query("select comment, commentfrom from comments_kickapps where id = '".$id."'");	
+	$com_q = db_fetch_object($com_sql);
+	
+	$com_text = $com_q->comment;	
+	$com_fromid = $com_q->commentfrom;	
+	
+	$content = '<form id="commentform" name="commentform">
+				<div>
+				<input type="hidden" id="com_id" name="com_id" value="'.$id.'" />
+				<input type="hidden" id="com_id" name="com_fromid" value="'.$com_fromid.'" />
+				';
+	$content .= '<p><textarea id="commenttext" name="commenttext" cols="48">'.$com_text.'</textarea></p>
+				 <p>&nbsp;</p>
+				 <p><input type="radio" id="commentstatus" name="commentstatus" value="1" /> Approve <input type="radio" id="commentstatus" name="commentstatus" value="2" /> Disapprove</p>';
+	$content .= "</div></form>";	
+	
+	echo json_encode(array("STATUS" => 1, "CONTENT" => $content));
+	exit;	
+}
+
+function sponsor_save_comment($ementorid, $hopeful, $comment, $type){
+	
+	$arr_hopeful = explode('boxing123',$hopeful);
+	$hopefulname = $arr_hopeful[0]; 
+	$kickappsuserid = $arr_hopeful[1]; 
+	
+	$hopefulid = db_result(db_query("select uid from users where name = '".$hopefulname."'"));
+	
+	db_query("insert into {comments_kickapps} values (NULL, '".$comment."', '".$ementorid."', '".$hopefulid."', '".$type."', '".$kickappsuserid."', '".time()."', 0)");
+	
+	echo json_encode(array("STATUS" => 1));
+	exit;
+}
+
+// buttons functionality
+function comment_sponsor_admin_remove_comment(){
+	$id = $_POST['id'];
+	$oComments = explode("-", $id);
+		foreach($oComments as $id){
+			
+			
+			$kickappsteam_id = db_result(db_query("select kickappsteam_id from invest_team
+						  WHERE team_id = '".$id."'"));	
+			
+			$sqlDelete = "DELETE FROM invest_team
+						  WHERE team_id = '".$id."'";				  
+			
+			$sqlDelete2 = "DELETE FROM hope_teamusers
+						  WHERE team_id = '".$kickappsteam_id."'";	
+						  
+		db_query($sqlDelete, $id);
+		db_query($sqlDelete2, $id);
+	}
+	
+	$content = sponsors_loadCommentTable();
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content));
+	exit;
+}
+
+function sponsor_master_admin_unblock_unblockitems($ids){
+	
+	$status = $_POST['status'];
+	
+	switch($status){
+	case 'activate':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlUpdate = "UPDATE volunteer_optin
+					  SET 
+					  bStatus = '1'
+					  WHERE uid = '".$id."'
+					  AND type = 'instant'";						  
+		$bSuccess = db_query($sqlUpdate);
+	  }
+	$content = sponsor_admin_table();
+	break;
+	case 'deactivate':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlUpdate = "UPDATE volunteer_optin
+					  SET 
+					  bStatus = '0'
+					  WHERE uid = '".$id."'
+					  AND type = 'instant'";						  
+		$bSuccess = db_query($sqlUpdate);
+	  }
+	$content = sponsor_admin_table();
+	break;
+	case 'delete':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlDelete1 = "DELETE FROM hope_teamusers
+					  WHERE uid = '".$id."'";
+					  
+		$sqlDelete2 = "DELETE FROM users_roles
+					  WHERE uid = '".$id."'
+					  AND rid = '7'";
+
+		$sqlDelete3 = "DELETE FROM invest_donations
+					  WHERE uid = '".$id."'";					
+		
+		db_query($sqlDelete1);
+		db_query($sqlDelete2);
+		db_query($sqlDelete3);
+	  }
+	$content = sponsor_admin_table();
+	break;
+	}
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content));
+	exit;
+}
+
+function sponsor_master_refresh_table(){
+	$type = $_POST['type'];
+	
+	switch($type){
+	case 'instant':
+	$table = sponsor_admin_table();
+	break;
+	case 'comment':
+	$table = sponsors_loadCommentTable();
+	break;
+	}
+	
+	echo json_encode(array("TABLE" => $table));
+	exit;
+}
+// eof buttons functionality
+
+function volunteer_sponsor_admin_searchsearchementor(){
+	$type = $_POST["type"];
+	$value = $_POST["value"];
+
+	$content = sponsor_admin_table($type, $value);
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+} 
+
+function volunteer_sponsor_admin_searchcomment(){
+	$type = $_POST["type"];
+	$value = $_POST["value"];
+
+	$content = sponsors_loadCommentTable($type, $value);
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+} 
+
+function volunteer_sponsor_admin_getmembers(){
+	
+	$teamid = $_POST["teamid"];
+	
+	$sqlCount = "SELECT C.uid, C.name
+				FROM hope_teamusers A
+				INNER JOIN invest_team B ON B.kickappsteam_id = A.team_id
+				LEFT JOIN users C ON A.uid = C.uid
+				WHERE A.team_id = '".$teamid."'";
+					
+	$oSQLResult = db_query($sqlCount);
+	
+	$counter = 0;
+	$content = '<div id="members_content">'; 	
+	while ($oSQL = db_fetch_object($oSQLResult)){
+		$content .= '<div id="member_list_'.$oSQL->uid.'">'.$oSQL->name.' <a href="javascript:void(0);" id="sponsors_delete_member" onclick="sponsors_delete_member('."'".$oSQL->uid."'".', '."'".$teamid."'".');">Delete</a></div>';
+	$counter++;	
+	}
+	$content .= '</div>'; 	
+	
+	if($counter == 0){
+		$content = 'There are no members in this team yet.';
+	}
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+}
+
+function volunteer_sponsor_admin_updateteam(){
+	$teamid = $_POST['teamid'];
+	
+	$teamid	=$_POST['teamid'];
+	$teamname = $_POST['teamname'];
+	$description = $_POST['description'];
+	$teamlocation = $_POST['teamlocation'];
+	$teamtagline = $_POST['teamtagline'];
+	$website = $_POST['website'];
+	$category = $_POST['category'];
+	$url = $_POST['url'];
+	$joinstatus	= $_POST['joinstatus'];
+	
+	$sql_update = db_query("UPDATE invest_team 
+							SET 
+							team_name = '".$teamname."',
+							description = '".$description."',
+							location = '".$teamlocation."',
+							tagline = '".$teamtagline."',
+							website = '".$website."',
+							category = '".$category."',
+							url = '".$url."',
+							joinstatus = '".$joinstatus."'
+							where kickappsteam_id = '".$teamid."'");
+	if($sql_update){
+	$status = 'success';
+	} else{
+	$status = 'failed';
+	}
+	
+	$content = volunteer_sponsor_admin_organizemembers(1);
+	
+	echo json_encode(array("STATUS" => $status, "CONTENT" => $content));
+	exit;
+}
+
+function volunteer_sponsor_admin_organizemembers($access = ''){
+
+	$teamid = $_POST['teamid'];
+	
+	$sqlInvest = "SELECT *
+				FROM invest_team
+				WHERE kickappsteam_id = '".$teamid."'";
+					
+	$oSQLResult = db_query($sqlInvest);
+	$oSQL = db_fetch_object($oSQLResult);
+	
+	$form = '<div width="580" align="left;" id="teaminfo">';
+	$form .= '<div>Team Name</div>';
+	$form .= '<div><input type="text" id="teamname" name="teamname" value="'.$oSQL->team_name.'" /><input type="hidden" id="teamid" name="teamid" value="'.$teamid.'" /></div>';
+	$form .= '<div style="margin-top:12px;">Description</div>';
+	$form .= '<div><textarea type="text" id="description" name="description" cols="60" rows="5">'.$oSQL->description.'</textarea></div>';
+	$form .= '<div style="margin-top:12px;">Location</div>';
+	$form .= '<div><input type="text" id="teamlocation" name="teamlocation" value="'.$oSQL->location.'" /></div>';
+	$form .= '<div style="margin-top:12px;">Team Tagline</div>';
+	$form .= '<div><input type="text" id="teamtagline" name="teamtagline" value="'.$oSQL->tagline.'" /></div>';
+	$form .= '<div style="margin-top:12px;">Started Date</div>';
+	$form .= '<div>'.date('D, M d Y',$oSQL->datecreated).'</div>';
+	$form .= '<div style="margin-top:12px;">Website</div>';
+	$form .= '<div><input type="text" id="website" name="website" value="'.$oSQL->website.'" /></div>';
+	
+	$cat_list = array('family'=>'Family', 'friends'=>'Friends', 'alumni group' => 'Alumni Group', 'business' => 'Business', 'education' => 'Education', 'religious' => 'Religious', 'others' => 'Others');
+	$category = $oSQL->category;
+	$form .= '<div style="margin-top:12px;">Category</div>';
+	$form .= '<div>
+			  <select id="category" name="category">
+			  <option value="">Please Select</option>';
+			  
+			  foreach($cat_list as $value => $title){
+				if($value == $category){
+				$form .= '<option value="'.$value.'" selected>'.$title.'</option>';
+				} else{
+				$form .= '<option value="'.$value.'">'.$title.'</option>';
+				}
+			  }
+			  
+	$form .= '</select>
+			  </div>';
+			  
+	$form .= '<div style="margin-top:12px;">Landing Page Team URL</div>';
+	$form .= '<div>http://www.hopecybrary.org/adopt-team/<input type="text" id="url" name="url" value="'.$oSQL->url.'" /></div>';
+	$form .= '<div style="margin-top:12px;">Activated</div>';
+	
+	$joinstatus = $oSQL->joinstatus;
+	$form .= '<div style="margin-top:12px;">
+			  <select id="joinstatus" name="joinstatus">
+			  <option value="">Please Select</option>';
+			  
+			  if($joinstatus == 1){
+			  $form .= '<option value="1" selected>Yes</option>	
+						<option value="0">No</option>';
+			  } else{
+			  $form .= '<option value="1">Yes</option>	
+						<option value="0" selected>No</option>';
+			  }
+			  
+	$form .= '</select>
+			  </div>';
+	$form .= '</div>';
+	
+	if($access == 1){
+	return $form;
+	} else{
+	echo json_encode(array("FORM" => $form));
+	exit;
+	}
+}
+
+function volunteer_sponsor_admin_removemembers(){
+	
+	$teamid = $_POST["teamid"];
+	$uid = $_POST["uid"];
+	
+	$sqlDelete = "DELETE FROM hope_teamusers WHERE uid = '".$uid."' AND team_id = '".$teamid."'";			
+	if(db_query($sqlDelete)){
+	$status = 'success';
+	} else{
+	$status = 'failed';
+	}
+	
+	echo json_encode(array("STATUS" => $status));	
+	exit;
+}
+
+
+function sponsor_admin_dasboard(){
+
+	error_reporting(E_ERROR | E_PARSE);
+	
+	if (count($_REQUEST) > 0){
+		foreach ($_REQUEST as $sKey => $sData) {
+			${$sKey} = $sData;
+		}
+	}
+	
+	//Headers
+	//Username, Status, Roles, Total Items Processed, Hopeful Items Waiting for User, Hopefuls waiting for User, Hopefuls Assigned
+	drupal_add_js(drupal_get_path("module", "sponsor_admin")."/sponsor_admin.js");
+	drupal_add_js("misc/jqueryui/jquery-ui.min.js");
+	$sTableContent = '';
+	$sTableHeader = '';
+	
+	$sTableHeader .= '
+				<div id="addofflinevolunteer_Dialog" title="Add Offline Volunteer" style="display:none;">
+					<div id="addoffline_content">&nbsp;</div>
+				</div>
+				<div id="assignofflinevolunteer_Dialog" title="Assign Offline Volunteer" style="display:none;">
+					<div id="assignoffline_content">&nbsp;</div>
+				</div>
+				<div id="removeofflinevolunteer_Dialog" title="Assign Offline Volunteer" style="display:none;">
+					<div id="removeoffline_content">&nbsp;</div>
+				</div>
+				<div id="totalKindnessWorkz_Dialog" title="Total Kindness Workz Processed" style="display:none;">
+					<div id="totalKindnessWorkz_div"></div>
+				</div>
+				<div id="volPendingKindnessWorkz_Dialog" title="Volunteer Kindness Workz Waiting for eAdministrator" style="display:none;">
+					<div id="volPendingKindnessWorkz_div"></div>
+				</div>
+				<div class="demo">
+				<div id="Volunteerstabs">
+					<ul>
+						<li><a href="#tabs-1" style="text-decoration:none;font-size:12px;">By Sponsors</a></li>
+					</ul>';
+					
+	$sTableHeader .= '<div id="tabs-1">';
+	
+		$sTableHeader .= '
+						<div align="right">
+							<input type="text" style="font-size:11px;width:105px;" id="in-search-input" name="in-search-input" value=""/>
+						    <select id="in-field-search" style="font-size:11px;">
+								<option value="">Fields</option>
+								<option value="username">Username</option>
+							</select>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-search" name="in-search" value="Search"/>
+						    <!--<input type="button" style="cursor:pointer;font-size:11px;" id="in-unblock" name="in-unblock" value="Activate"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-block" name="in-block" value="Deactivate"/>-->
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-delete" name="in-delete" value="Remove"/>
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="in-toggle" name="in-toggle" value="Toggle"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-refresh" name="in-refresh" value="Refresh"/>
+						</div>';
+						
+	$sTableHeader .= '<div id="instantTable">';
+	
+	$sTableContent .= sponsor_admin_table();
+
+	
+	$iMaxRec = 25;
+	
+	$sPagerHTML = ($sTableContent != "") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	
+	$sTableFooter = '</div><div id="mystudies_master_admin_Container"></div>';
+	$sTableFooter .= '</div>
+	                 </div>
+				    </div>';
+	
+	$sTableFooter .= sponsor_admin_comments();
+	
+	return $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+}
+
+function sponsor_admin_table($searchtype = "", $searchvalue = ""){
+	global $user;
+	
+	error_reporting(E_ERROR | E_PARSE);
+	
+	$sTableContent = '<table width="650">
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="sponsors_master_admin_bCheckAll" name="sponsors_master_admin_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:150px;">Username</th>
+								<th style="width:72px;">Status</th>
+								<th>Roles</th>
+								<th style="text-align:center;font-size:9px;">Total Teams Joined</th>
+								<th style="text-align:center;font-size:9px;">Total Invested</th>
+								<th style="text-align:center;font-size:9px;">Adopted Schools</th>
+								<th style="text-align:center;font-size:9px;">Kindness Hours</th>
+							</tr>';
+	
+	$queryName = "";
+	if($searchtype == "username"){
+	$queryName = "AND B.name like '%{$searchvalue}%'";
+	}
+	
+	$sqlVolunteer = "SELECT A.uid, B.name
+					FROM users_roles A
+					INNER JOIN users B ON B.uid = A.uid
+					WHERE A.rid = '7' {$queryName} ORDER BY B.name ASC";
+	
+	$sqlCount = "SELECT COUNT(A.uid)
+				FROM users_roles A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.rid = '7' {$queryName}";
+	
+	$sVolType = 'sponsor';
+	
+	if (isset($volunteer_master_admin_aFilter1) && $volunteer_master_admin_aFilter1 != ""){
+		$sVolType = $volunteer_master_admin_aFilter1;
+	}
+	
+	if (isset($volunteer_master_admin_aFilter2) && $volunteer_master_admin_aFilter2 != ""){
+		$iStatus = ($volunteer_master_admin_aFilter2 == 'active') ? 1:0;
+		//$sqlVolunteer .= " AND A.bStatus = '".$iStatus."'";
+		//$sqlCount .= $sqlVolunteer;
+	}
+
+	$iMaxRec = 25;
+	
+	$oVolunteerResult = pager_query($sqlVolunteer, $iMaxRec, 0, $sqlCount);
+	
+	while ($oVolunteer = db_fetch_object($oVolunteerResult)){
+		$iUserId = $oVolunteer->uid;
+		$aStats = _sponsor_admin_stat($iUserId);
+		$sStatus = "active";
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+		
+		$aChosenTeams = _selected_team_chosen_count($iUserId, "list");
+		
+		$totalementoring = $aStats["totalementoring"];
+		
+		$sHopeful = '';
+		
+		if (count($aChosenTeams) > 0){
+			$sHopeful = '<span style="font-size:1.2em; font-weight:bold;">Chosen Teams:</span>';
+			for ($x=0; $x<count($aChosenTeams); $x++){
+				$aHopeful = $aChosenTeams[$x];
+				$iHopefulId = $aHopeful["team_id"];
+				$sHopefulName = $aHopeful["team_name"];
+				$sHopeful .= '<div>'.$sHopefulName.'</div>';
+			}
+		}else{
+			$sHopeful = '<div>No Teams have been chosen by this user, yet.</div>';
+		}
+		
+			$sSchools = '<span style="font-size:1.2em; font-weight:bold;">Adopted Schools:</span>';	
+			$sSchools.= '<div>Maximo Estrella Elementary School</div>';
+		
+		$aInvestedSchools = _invested_total_count($iUserId, "list");
+		
+		if (count($aInvestedSchools) > 0){
+			$sInvested = '
+						<div align="left">	
+						<span style="font-size:1.2em; font-weight:bold;">Total Invested:</span>
+						<table>
+						<tr>
+						<th style="padding:2px;"><center>Team</center></th>
+						<th style="padding:2px;"><center>Amount</center></th>
+						<th style="padding:2px;"><center>Adopted Program</center></th>
+						<th style="padding:2px;"><center>School</center></th>
+						<th style="padding:2px;"><center>Date Donated</center></th>
+						</tr>';
+			
+			for ($x=0; $x<count($aInvestedSchools); $x++){
+				$sMiniRowClass = ($x % 2 == 0) ? 'even':'odd';
+				$aInvested = $aInvestedSchools[$x];
+				$sInvested .= '<tr class="'.$sMiniRowClass.'">
+						<td style="padding:2px;"><center>'.$aInvested['team_name'].'</center></th>
+						<td style="padding:2px;"><center>$'.($aInvested['amount'] == '' ? 0: $aInvested['amount']).'</center></td>
+						<td style="padding:2px;"><center>'.$aInvested['adopt_option'].'</center></td>
+						<td style="padding:2px;"><center>'.$aInvested['school'].'</center></td>
+						<td style="padding:2px;"><center>'.date("F j, Y, g:i a", $aInvested['datedonated']).'</center></td>
+						</tr>';
+			}
+			
+			$sInvested .= ' </table>
+						 </div>';
+		}else{
+			$sInvested = '<div>No Investments have been made by this user, yet.</div>';
+		}
+		
+		//if ($oVolunteer->bStatus == 0) $sStatus = "enrolled";
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="sponsors_master_admin_bCheckThis" name="sponsors_master_admin_bCheckThis[]" value="'.$iUserId.'" /></td>
+								<td style="vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$iUserId.'" style="cursor:pointer;">'.$oVolunteer->name.'</span>
+									<div id="kindness_assigned_hopeful_block_'.$iUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;z-index:1;">
+										'.$sHopeful.'
+									</div>
+								</td>
+								<td style="padding-top:3px; vertical-align:top;">'.$sStatus.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">Sponsor</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats['totalteams'].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><span style="cursor:pointer;color:white;text-decoration:underline;" id="sponsors_invested_'.$iUserId.'">$'.($aStats['totalinvested'] == '' ? 0: $aStats['totalinvested']).'</span>
+								<div id="sponsors_invested_block_'.$iUserId.'" style="display:none; width:450px; padding:5px; position:absolute; left:250px; background-color:#FFFFFF; border:2px solid #acacac; color:black;z-index:1;">
+										'.$sInvested.'
+									</div>
+								</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">
+									<span id="sponsors_adopted_schools_'.$iUserId.'" style="cursor:pointer;text-decoration:underline;">1</span>
+									<div id="sponsors_adopted_schools_block_'.$iUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:250px; background-color:#FFFFFF; border:2px solid #acacac; color:black;z-index:1;">
+										'.$sSchools.'
+									</div>
+								</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats['iKindnessHours'].'</td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No Sponsors Listed.</td>
+										</tr>';
+										
+	$sTableContent .= '</table>';
+	
+    return $sTableContent;
+}
+
+function _sponsor_admin_stat($iUserId){
+	
+	$totalteams	= "SELECT COUNT(team_id)
+					   FROM hope_teamusers
+					   WHERE uid = %d";
+					   
+	$totalinvested	= "SELECT sum(amount)
+					   FROM invest_donations
+					   WHERE uid = %d";
+					   
+	$adoptedschools	= "SELECT COUNT(donation_id)
+					   FROM invest_donations
+					   WHERE uid = %d";
+	
+	$sqlKindnessHours	= db_query("SELECT A.created, A.ended
+							FROM cybrarian_activity A
+							WHERE A.uid = '{$iUserId}' AND A.bApproved = 1");
+					
+	while ($aKhours = db_fetch_object($sqlKindnessHours)){
+		$totalended += $aKhours->ended; 
+		$totalcreated += $aKhours->created;
+	}	
+	
+	$Khours = format_interval($totalended - $totalcreated);
+	
+	$adoptedschools	 = db_result(db_query($adoptedschools, $iUserId));
+	$totalinvested = db_result(db_query($totalinvested, $iUserId));
+	$totalteams = db_result(db_query($totalteams, $iUserId));
+	
+	return array(
+				"iKindnessHours"	=> $Khours == "" ? 0 : $Khours,
+				"adoptedschools"	=> $adoptedschools,
+				"totalinvested"		=> $totalinvested,
+				"totalteams"	=> $totalteams,
+			);
+}
+
+function _sponsor_team_stat($iTeamId, $kickappsId){
+	
+	$members	= "SELECT COUNT(distinct uid)
+					   FROM hope_teamusers
+					   WHERE team_id = '%d'";
+					   
+	$invested	= "SELECT sum(amount)
+					   FROM invest_donations
+					   WHERE adopt_team = '%d'";
+					   
+	$adoptedschools	= "SELECT count(distinct school) 
+					   FROM invest_donations
+					   WHERE adopt_team = '%d'";
+	
+	$Khours = format_interval($totalended - $totalcreated);
+	
+	$adoptedschools	 = db_result(db_query($adoptedschools, $iTeamId));
+	$invested = db_result(db_query($invested, $iTeamId));
+	$members = db_result(db_query($members, $kickappsId));
+	
+	return array(
+				"members"	=> $members,
+				"adoptedschools" => $adoptedschools,
+				"invested"		=> $invested == '' ? 0 : $invested,
+			);
+}
+
+function _selected_team_chosen_count($iUserId, $sType="count"){
+
+	$sField = ($sType == "count") ? "COUNT(A.uid)":"B.team_id, B.team_name";
+	
+	$sqlCount = "SELECT %s
+				FROM hope_teamusers A
+				INNER JOIN invest_team B ON B.kickappsteam_id = A.team_id
+				WHERE A.uid = %d";
+					
+	$oSQLResult = db_query($sqlCount, array($sField, $iUserId));
+	
+	if ($sType == "count"){
+		$iCount = db_result($oSQLResult);
+		
+		return $iCount;
+	}elseif ($sType == "list"){
+		$aChosenTeams = array();
+		
+		while ($oSQL = db_fetch_object($oSQLResult)){
+			$aChosenTeams[] = array("team_id" => $oSQL->team_id, "team_name" => $oSQL->team_name);
+		}
+		
+		return $aChosenTeams;
+	}
+}
+
+function _invested_total_count($iUserId, $sType="count"){
+
+	$sField = ($sType == "count") ? "COUNT(A.uid)":"A.amount, A.adopt_option, A.school, A.date_donated, B.team_name";
+	
+	$sqlCount = "SELECT %s
+				FROM invest_donations A
+				INNER JOIN invest_team B ON A.adopt_team = B.team_id
+				WHERE A.uid = %d";
+					
+	$oSQLResult = db_query($sqlCount, array($sField, $iUserId));
+	
+	if ($sType == "count"){
+		$iCount = db_result($oSQLResult);
+		
+		return $iCount;
+	}elseif ($sType == "list"){
+		$aChosenTeams = array();
+		
+		while ($oSQL = db_fetch_object($oSQLResult)){
+			$aChosenTeams[] = array("amount" => $oSQL->amount,"adopt_option" => $oSQL->adopt_option, "school" => $oSQL->school, "team_name" => $oSQL->team_name, "datedonated" => $oSQL->date_donated);
+		}
+		
+		return $aChosenTeams;
+	}
+}
+
+function _invested_no_donations($iTeamId){
+	
+	$sqlCount = "SELECT distinct C.name
+				 FROM invest_donations B, hope_teamusers A
+				 LEFT JOIN drupal.users C ON C.uid = A.uid
+				 WHERE A.team_id = %d and A.uid != B.uid";
+					
+	$oSQLResult = db_query($sqlCount, $iTeamId);
+	$aChosenTeams = array();
+		
+	while ($oSQL = db_fetch_object($oSQLResult)){
+		$aChosenTeams[] = array("amount" => '0',"adopt_option" => '0', "school" => '0', "name" => $oSQL->name, "datedonated" => '0');
+	}
+		
+	return $aChosenTeams;
+}
+
+function _team_invested_total_count($TeamId, $sType="count"){
+
+	$sField = ($sType == "count") ? "COUNT(A.adopt_team)":"A.adopt_team, A.amount, A.adopt_option, A.school, A.date_donated, B.name";
+	
+	$sqlCount = "SELECT %s
+				FROM invest_donations A
+				INNER JOIN users B ON A.uid = B.uid
+				WHERE A.adopt_team = %d";
+					
+	$oSQLResult = db_query($sqlCount, array($sField, $TeamId));
+	
+	if ($sType == "count"){
+		$iCount = db_result($oSQLResult);
+		
+		return $iCount;
+	}elseif ($sType == "list"){
+		$aChosenTeams = array();
+		
+		while ($oSQL = db_fetch_object($oSQLResult)){
+			$aChosenTeams[] = array("amount" => $oSQL->amount,"adopt_option" => $oSQL->adopt_option, "school" => $oSQL->school, "name" => $oSQL->name, "datedonated" => $oSQL->date_donated);
+		}
+		
+		return $aChosenTeams;
+	}
+}
+
+function sponsor_admin_comments($searchtype = "", $searchvalue = ""){
+	drupal_add_js(drupal_get_path("module", "instant")."/sponsor_admin.js");
+	
+	
+	$sTableHeader = '
+				<div class="demo">
+				<div id="OfflineVolunteerstabs">
+					<ul>
+						<li><a href="#offlinetab-1" style="text-decoration:none;font-size:12px;">By Team</a></li>
+					</ul>';
+					
+	$sTableHeader .= '<div id="offlinetab-1">';
+	
+	$sTableHeader .= '
+					<div id="team_name_Dialog" title="Edit Team" style="clear:both;">
+						<div id="editteam_content">&nbsp;</div>
+					</div>
+					<div id="members_Dialog" title="Team Members" style="clear:both;">
+						<div id="teammembers_content">&nbsp;</div>
+					</div>
+					<div id="teamname_Dialog" title="Team Details" style="clear:both;">
+						<div id="teamname_content">&nbsp;</div>
+					</div>
+					<div id="profile_Dialog" title="View Comment" style="display:none;">
+						<iframe id="hc_HopefulProfile1" style="position: abosolute;top: 0; left: 0;width:100%;height:95%;"></iframe>
+					</div>
+					<div id="show_pending_Dialog" title="Pending Comments" style="display:none;">
+						<div id="pendingComments_div"></div>
+					</div>
+					<div id="approve_disapprove_Dialog" title="<span id='."'add_label'".'></span>" style="display:none;">
+						<div id="pendingForm_div"></div>
+					</div>
+					<div id="admin_kindnessreport_Dialog_edit" title="Kindness Status" style="display:none;">
+							<div style="clear:both;width:500px;">
+								<div style="margin:5px;">
+									<div style="float:left;vertical-align:bottom;">&nbsp;</div>
+									<div align="left" style="width:100%">
+									<div style="float:left;width:30%;"><b>Start Time:</b> <label id="fstart_edit"></label></div>
+									<div style="float:left;width:30%;"><b>Stop Time:</b> <label id="fstop_edit"></label></div>
+									<div style="float:left;width:30%;"><b>Elapsed Time:</b> <label id="felapse_edit"></label></div>
+									</div>
+									<div style="clear:both;height:10px;">&nbsp;</div>
+									<div style="clear:both;">Title:<br/><span id="kindnesstitle_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div style="float:left;">Description:</div><div style="float:right;">&nbsp;</div>
+									<div style="clear:both;"><span id="kindnessdescription_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div style="float:left;">Location:</div><div style="float:right;">&nbsp;</div>
+									<div style="clear:both;"><span id="kindnesslocation_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div id="icomment"></div>
+								</div>
+							</div>
+					</div>
+					<div id="offlinevolunteerfilter_Dialog" title="eAdministrator Filter" style="display:none;">
+					<form method="post" action="'.base_path().str_replace("q=", "", $_SERVER["QUERY_STRING"]).'">
+						<fieldset style="margin-top:10px;">
+							<legend>Show only coordinators where</legend>
+							
+							<table>
+								<tr>
+									<td style="width:85px; text-align:right; padding-right:10px;">Role is</td>
+									<td>
+										<select name="volunteer_master_admin_aFilter1" style="margin-bottom:10px;">
+											<option value="">All Roles</option>
+											<option value="cybrarian" '.((@$volunteer_master_admin_aFilter1 == "cybrarian") ? 'selected="selected"':'').'>Cybrarian</option>
+										</select>
+									</td>
+									<td rowspan="2" style="text-align:right; padding-left:10px;"><input type="submit" name="volunteer_master_admin_sOp" class="form-submit" value="Filter" /></td>
+								</tr>
+								<tr>
+									<td style="text-align:right; padding-right:10px;">Status is</td>
+									<td>
+										<select name="volunteer_master_admin_aFilter2">
+											<option value="">All Status</option>
+											<option value="active" '.((@$volunteer_master_admin_aFilter2 == "active") ? 'selected="selected"':'').'>Active</option>
+											<option value="enrolled" '.((@$volunteer_master_admin_aFilter2 == "enrolled") ? 'selected="selected"':'').'>Enrolled</option>
+										</select>
+									</td>
+								</tr>
+							</table>
+						</fieldset>
+					</form>
+					</div>
+					';
+	
+		$sTableHeader .= '
+						<div align="right">
+							<input type="text" style="font-size:11px;width:105px;" id="off-search-input" name="off-search-input" value=""/>
+						    <select id="off-field-search" style="font-size:11px;">
+								<option value="">Fields</option>
+								<option value="teamname">Team Name</option>
+							</select>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-search" name="off-search" value="Search"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-remove" name="off-remove" value="Remove" onClick="remove_comment();"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-selectall" name="off-selectall" value="Toggle"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-refresh" name="off-refresh" value="Refresh"/>
+						</div>
+						
+						<div id="commentTable">';
+						
+	$iMaxRec = 25;
+	
+	$sTableContent .= sponsors_loadCommentTable();
+	
+	$sPagerHTML = ($sTableContent != "") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	
+	$sTableFooter = '</div></div></div><div id="mystudies_master_admin_Container"></div>';
+	
+	return $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+}
+
+function sponsors_loadCommentTable($searchtype = "", $searchvalue = ""){
+	$sTableContent = '
+	<table style="width:650px;">
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="sponsors_team_master_admin_bCheckAll" name="sponsors_team_master_admin_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:150px;">Team Name</th>
+								<th style="text-align:center;font-size:10px;">Location</th>
+								<th style="text-align:center;font-size:10px;">Members</th>
+								<th style="text-align:center;font-size:10px;">Adopted Schools</th>
+								<th style="text-align:center;font-size:10px;">Started Date</th>
+								<th style="text-align:center;font-size:10px;">Invested</th>
+							</tr>';
+
+	$queryName = "";
+	if($searchtype == "teamname"){
+	$queryName = "WHERE A.team_name like '%{$searchvalue}%'";
+	$queryNameCount = "WHERE A.team_name like '%{$searchvalue}%'";
+	}							
+							 
+	$sqlTeam = "SELECT A.team_id, A.team_name, A.location, A.datecreated, A.kickappsteam_id
+					FROM invest_team A
+					{$queryName}
+					ORDER BY A.team_id DESC";
+	
+	$sqlCount = "SELECT COUNT(A.team_id)
+				FROM invest_team A
+				{$queryNameCount}";
+	
+	if (isset($volunteer_master_admin_aFilter1) && $volunteer_master_admin_aFilter1 != ""){
+		$sVolType = $volunteer_master_admin_aFilter1;
+	}
+	
+	if (isset($volunteer_master_admin_aFilter2) && $volunteer_master_admin_aFilter2 != ""){
+		$iStatus = ($volunteer_master_admin_aFilter2 == 'active') ? 1:0;
+	}
+	
+	$iMaxRec = 25;
+	
+	$oTeamResult = pager_query($sqlTeam, $iMaxRec, 0, $sqlCount);
+	
+	while ($oTeam = db_fetch_object($oTeamResult)){
+		$nTeamId = $oTeam->team_id;
+		$nKickappsId = $oTeam->kickappsteam_id;
+		$stat = _sponsor_team_stat($nTeamId, $nKickappsId);
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+
+		$aInvestedUsers = _team_invested_total_count($nTeamId, "list");
+		
+		if($stat['adoptedschools'] == 1){
+		$sSchools = '<span style="font-size:1.2em; font-weight:bold;">Adopted Schools:</span>';	
+		$sSchools.= '<div>Maximo Estrella Elementary School</div>';
+	    } else{
+		$sSchools = '<div>No schools have been invested by this team, yet.</div>';
+		}
+		
+		if (count($aInvestedUsers) > 0){
+			$sInvested = '
+						<div id="invested_Dialog_'.$nTeamId.'" title="Sponsors Invested" style="display:none;overflow-y:scroll;">
+						<table>
+						<tr>
+						<th style="padding:2px;"><center>Name</center></th>
+						<th style="padding:2px;"><center>Amount</center></th>
+						<th style="padding:2px;"><center>Adopted Program</center></th>
+						<th style="padding:2px;"><center>School</center></th>
+						<th style="padding:2px;"><center>Date Donated</center></th>
+						</tr>';
+			
+			for ($x=0; $x<count($aInvestedUsers); $x++){
+				$sMiniRowClass = ($iMCount % 2 == 0) ? 'even':'odd';
+				$aInvested = $aInvestedUsers[$x];
+				$sInvested .= '<tr class="'.$sMiniRowClass.'">
+						<td style="padding:2px;"><center>'.$aInvested['name'].'</center></th>
+						<td style="padding:2px;"><center>$'.$aInvested['amount'].'</center></td>
+						<td style="padding:2px;"><center>'.$aInvested['adopt_option'].'</center></td>
+						<td style="padding:2px;"><center>'.$aInvested['school'].'</center></td>
+						<td style="padding:2px;"><center>'.date("F j, Y, g:i a", $aInvested['datedonated']).'</center></td>
+						</tr>';
+				
+			$iMCount++;
+			}
+			
+			$aInvestedNone = _invested_no_donations($nKickappsId);
+			if (count($aInvestedNone) > 0){
+				for ($x=0; $x<count($aInvestedNone); $x++){
+					$sMiniNRowClass = ($x % 2 == 0) ? 'even':'odd';
+					$aInvested = $aInvestedNone[$x];
+					$sInvested .= '<tr class="'.$sMiniNRowClass.'">
+						<td style="padding:2px;"><center>'.$aInvested['name'].'</center></th>
+						<td style="padding:2px;"><center>$'.$aInvested['amount'].'</center></td>
+						<td style="padding:2px;"><center>'.$aInvested['adopt_option'].'</center></td>
+						<td style="padding:2px;"><center>'.$aInvested['school'].'</center></td>
+						<td style="padding:2px;"><center>'.$aInvested['datedonated'].'</center></td>
+						</tr>';
+				}
+			}
+			
+			$sInvested .= ' </table>
+						 </div>';
+		}else{
+			$sInvested = '<div id="invested_Dialog_'.$nTeamId.'" title="Sponsors Invested" style="display:none;">No Investments have been made by this team, yet.</div>';
+		}
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="sponsors_team_master_admin_bCheckThis" name="sponsors_team_master_admin_bCheckThis[]" value="'.$nTeamId.'" /></td>
+								<td style="padding-top:3px; text-align:left; vertical-align:top;color:white;"><a style="color:white;text-decoration:none;" href="javascript:void(0);" id="team_name_'.$nKickappsId.'" ><span style="color:white;text-decoration:underline;">'.ucwords($oTeam->team_name).'</span></a></td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.ucwords($oTeam->location).'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;color:white;"><a style="color:white;text-decoration:none;" href="javascript:void(0);" id="members_sponsors_'.$nKickappsId.'" ><span style="color:white;text-decoration:underline;">'.$stat['members'].'</span></a></td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><span id="sponsors_adopted_schools_'.$nTeamId.'" style="cursor:pointer;text-decoration:underline;">'.$stat['adoptedschools'].'</span>
+									<div id="sponsors_adopted_schools_block_'.$nTeamId.'" style="display:none; width:250px; padding:5px; position:absolute; left:250px; background-color:#FFFFFF; border:2px solid #acacac; color:black;z-index:1;">
+										'.$sSchools.'
+									</div></td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.date("F j, Y, g:i a", $oTeam->datecreated).'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">
+								<span style="cursor:pointer;color:white;text-decoration:underline;" id="teams_invested_'.$nTeamId.'">$'.$stat['invested'].'</span>
+									'.$sInvested.'
+								</td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No Teams Listed.</td>
+										</tr>';
+						
+	$sTableContent .= '</table>';
+	return $sTableContent;
+}
+
+function _sponsor_get_hopeful_name($uid){
+
+	return db_result(db_query("select name from users where uid = %d", $uid));
+}
+
+function sponsor_comment_list($uid, $type=""){
+	global $user;
+
+	$sTableContent = '
+	<div align="left" style="margin: 6px 6px 6px 6px;background-color:#ffb4b4;border: 1px solid #ff0000;width:165px;">&nbsp;'.db_result(db_query("select count(id) as count from comments_kickapps where status = 0")).' Comment Pending</div>
+	<table style="width:650px;">
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;">&nbsp;</th>
+								<th style="text-align:center;font-size:10px;">Hopeful</th>
+								<th style="width:150px;">Comment Message</th>
+								<th style="text-align:center;font-size:10px;">Type</th>
+								<th style="width:72px;">Commentded Date</th>
+								<th style="text-align:center;font-size:10px;">Status</th>
+							</tr>';
+							
+	$sqlComment = "SELECT A.id, A.comment, A.commentfrom, A.commentto, A.type, A.kickaps_userid, A.commentdate, A.status
+					FROM comments_kickapps A
+					INNER JOIN users B ON B.uid = A.commentfrom
+					WHERE B.uid = '".$uid."'
+					AND A.status = 0
+					ORDER BY A.id DESC";
+	
+	$sqlCount = "SELECT COUNT(A.commentfrom)
+				FROM comments_kickapps A
+				INNER JOIN users B ON B.uid = A.commentfrom 
+				WHERE B.uid = '".$uid."'
+				AND A.status = 0";
+	
+
+	$iMaxRec = 25;
+	
+	$oCommentResult = pager_query($sqlComment, $iMaxRec, 0, $sqlCount);
+	
+	$count = 1;
+	while ($oComment = db_fetch_object($oCommentResult)){
+		$nUserId = $oComment->id;
+		$sStatus = "active";
+		$comment = $oComment->comment;
+		$status = $oComment->status == 0 ? "Pending" : "Approved";
+		//$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+
+		if ($oComment->activate == 0) $sStatus = "enrolled";
+		
+		$sTableContent .= '<tr style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;">'.$count.'.</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.ucfirst(_sponsor_get_hopeful_name($oComment->commentto)).'</td>
+								<td style="padding-top:'.(($iNeededHopeful > 0 && $sStatus == 'active') ? 0:3).'px; vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$nUserId.'" style="cursor:pointer;">'.$comment.'</span>
+									<div id="kindness_assigned_hopeful_block_'.$nUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+											'.$oComment->comment.'
+									</div>
+								</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.ucfirst($oComment->type).'</a></td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.date("F j, Y, g:i a", $oComment->commentdate).'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><a href="javascript:void(0);" onclick="ApproveDisapproveComments('."'".$nUserId."'".","."'"._sponsor_get_hopeful_name($uid)." comment to "._sponsor_get_hopeful_name($oComment->commentto)."'".');">'.$status.'</a></td>
+							</tr>';
+		
+		$iCount++;
+		$count++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No comments to list based, yet.</td>
+										</tr>';
+						
+	$sTableContent .= '</table>';
+	
+	if($type == "func"){
+	
+	return $sTableContent;
+	
+	} else{
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $sTableContent));
+	exit;
+	}
+}

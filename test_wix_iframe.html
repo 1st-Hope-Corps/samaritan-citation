@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>URL Test in iFrame</title>
+	<script>
+	function setIFrameURL(){
+		var sInputURL = document.getElementById('test_sInputURL').value;
+		var sProto1 = sInputURL.substring(0, 7);
+		var sProto2 = sInputURL.substring(0, 8);
+		
+		if (sInputURL.trim() != '' && (sProto1 == 'http://' || sProto1 == 'https://')){
+			var oFrame = document.createElement('iframe');
+			
+			oFrame.frameBorder	= 0;
+			oFrame.width		= '100%';
+			oFrame.height		= '500px';
+			oFrame.id			= 'test_WixURLinFrame';
+			oFrame.setAttribute('src', sInputURL);
+			oFrame.setAttribute('style', 'overflow-x:hidden;');
+			
+			document.getElementById('test_iFrameContainer').innerHTML = '';
+			document.getElementById('test_iFrameContainer').appendChild(oFrame);
+		}else{
+			alert('Please specify a valid URL.\n\nExample: http://kakaiba8.wix.com/itsolution');
+		}
+	}
+	</script>
+</head>
+<body>
+	
+	WIX URL: <input type="text" id="test_sInputURL" name="test_sInputURL" value="" style="width:500px;" />
+	<button type="button" id="test_btnApplyURL" name="test_btnApplyURL" onclick="setIFrameURL();">Apply Wix.com URL</button>
+	
+	<br/><br/>
+	
+	<div id="test_iFrameContainer"></div>
+	
+</body>
+</html>

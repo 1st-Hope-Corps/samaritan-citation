@@ -1,0 +1,27 @@
+#volunteer_optin,
+#volunteer_type_instant_answer_notification{
+	width:500px;
+	margin:0px;
+	padding-left:60px;
+}
+
+#volunteer_optin_left,
+#volunteer_type_instant_answer_notification_left{
+	float:left;
+	width:40px;
+}
+
+#volunteer_optin_right,
+#volunteer_type_instant_answer_notification_right{
+	width:520px;
+	margin-left:40px;
+	vertical-align:top;
+}
+
+div.volunteer_optin_spacer{
+	height:20px;
+}
+
+#volunteer_tutor_categories{
+	text-align:center;
+}

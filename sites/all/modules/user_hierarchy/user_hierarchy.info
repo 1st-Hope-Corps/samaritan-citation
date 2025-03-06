@@ -1,0 +1,6 @@
+; $Id$
+name = User Hierarchy Module
+description = A module that sets user hierarchy for children, mentors, and moderators.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

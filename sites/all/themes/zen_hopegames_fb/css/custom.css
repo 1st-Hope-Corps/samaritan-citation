@@ -1,0 +1,82 @@
+body#body.fb-iframe {
+  background: #ccc;
+}
+
+.breadcrumb {
+  background: #ddd;
+  border: 1px solid #aaa;
+  border-radius: 2px;
+  float: right;
+  height: auto;
+  margin: 0;
+  padding: 3px 0;
+  top: 0;
+  width: auto;
+}
+  .breadcrumb a {
+    color: #333;
+    font-weight: normal;
+  }
+
+.divider {
+  width: auto;
+}
+
+.left-border,
+.right-border,
+.divider,
+.divederv {
+  background: transparent;
+}
+
+.fb-iframe td.bgfix {
+  display: none;
+}
+
+#main {
+  width: auto;
+}
+
+.content-box {
+  
+}
+
+
+.page-instant-mentor-fb-welcome {
+  text-align: center;
+}
+  .page-instant-mentor-fb-welcome h1,
+  .page-instant-mentor-fb-welcome h2 {
+    color: #4c66a4;
+  }
+  .page-instant-mentor-fb-welcome h1 {
+    font-size: 32px;
+  }
+  .page-instant-mentor-fb-welcome h2 {
+    font-size: 24px;
+  }
+
+
+
+.section-instant .fb_login_button_wrapper {
+  margin-top: 20px;
+}
+
+
+.jbox .jbox {
+  border: 1px solid whitesmoke;
+}
+
+.jbox div.jboxhead,
+.jbox div.jboxhead h2,
+.jbox div.jboxfoot,
+.jbox div.jboxfoot p,
+.jbox div.jboxbody,
+.jbox div.jboxcontent { 
+  background: transparent;
+}
+
+.gi_green,
+.gi_pink {
+  background: transparent;
+}

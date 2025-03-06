@@ -1,0 +1,93 @@
+body {
+	background:#ffffff url(images/box_rect_c.png) repeat-x 0 100% !important;
+}
+
+body#ka_profilePage .ka_contentTitle {
+	background: url(images/box_head_lb.png) no-repeat 0 0 !important; 
+	padding-left:7px !important; 
+	margin:0 !important; 
+	height:30px !important;
+	border: none !important;
+	position: static !important;
+}
+
+body#ka_profilePage .ka_contentTitle h5 {
+	font-size:14px !important; 
+	padding-top:7px !important; 
+	background: url(images/box_head.png) no-repeat top right !important; 
+	margin: 0 !important; 
+	height:30px !important;
+}
+
+body#ka_profilePage .ka_contentBody {
+    background: #fafbfb url(images/box_head_l.png) repeat-y 0 0 !important; 
+	padding: 0 0 0 5px !important; 
+	margin: 0 !important;
+    border: none !important;
+}
+
+body#ka_profilePage .ka_profileSegFooter {
+	background: url(images/box_head_lb.png) no-repeat 0 100% !important; 
+	padding-left:20px !important; 
+	margin: 0 !important; 
+	height:15px !important;
+	display:block !important;
+}
+body#ka_profilePage .ka_profileSegFooter p {
+	background: url(images/box_head.png) no-repeat 100% 100% !important; 
+	margin: 0 !important; 
+	height:15px !important;
+}
+body#ka_profilePage .jboxcontent {
+	background: #fafbfb url(images/box_head_r.png) repeat-y 100% 100%; 
+	padding: 10px 5px 10px 5px; 
+	margin: 0;
+}
+
+#ka_profileImg {
+	background-color: transparent !important;
+}
+
+body#ka_homepage .ka_contentTitle, body#ka_myhome .ka_contentTitle, body#ka_groups .ka_contentTitle{
+	background-color: #cecece !important;
+	border: 1px solid #cecece transparent !important;
+	color: #cbcccc !important;
+	font-family: Arial;
+	font-size: 12px;
+}
+
+body#ka_homepage .ka_contentTitle span, body#ka_myhome .ka_contentTitle span, body#ka_groups .ka_contentTitle span{
+	color: #000 !important;
+	font-family: Arial;
+	font-size: 12px;
+}
+
+body.ka_myhome_pages li.ka_list, body#ka_homepage .ka_contentBody, body#ka_myhome .ka_contentBody, body#ka_groups .ka_contentBody{
+	background-color: #FFFFFF !important;
+	background-image: none;
+	border: 1px solid #cecece !important;
+	color: #000000 !important;
+	font-size: 12px;
+}
+
+body.ka_messageBoards .ka_contentTitle{
+	background-color: #cecece !important;
+	border: 1px solid #cecece transparent !important;
+	font-family: Arial;
+	color: #222222 !important;
+	font-size: 12px;
+}
+
+div#ka_manageSubNav ul li span, div#ka_manageSubNav ul li a{
+	background-color: #efefef !important;
+	border: 1px solid #cecece transparent !important;
+	color: #222222 !important;
+}
+
+body#ka_playPage .ka_contentBody, ul#ka_relatedTabs li a.active, #ka_relatedTabs a.active:hover, body#ka_listPage .ka_contentBody, body#ka_listPage li.ka_list, body.ka_myhome_pages li.ka_list, body#ka_homepage .ka_contentBody, body#ka_myhome .ka_contentBody, body#ka_profilePage .ka_contentBody, body#ka_groups .ka_contentBody, body.ka_messageBoards .ka_contentBody, .ka_bubble blockquote, .ka_popup, .ka_popUpDiv, form#ka_loginPopup, #ka_ProgressBarDiv{
+	background-color: #ffffff !important;
+	background-image: none;
+	border: 1px solid #B3B3B3 !important;
+	color: #000000 !important;
+	font-size: 12px;
+}

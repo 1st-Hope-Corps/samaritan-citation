@@ -1,0 +1,915 @@
+# $Id: marketplace.pot,v 1.2 2009/01/08 21:03:55 matslats Exp $
+#
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files:
+#  transactions.inc: n/a
+#  transactions.stats.inc: n/a
+#  transactions.module,v 1.10 2008/10/04 19:17:48 matslats
+#  views/transactions.views.inc: n/a
+#  extensions/offers_wants.module: n/a
+#  transactions.install: n/a
+#  transactions.info: n/a
+#  extensions/cc_import.info: n/a
+#  extensions/offers_wants.info: n/a
+#  extensions/requack.info: n/a
+#  extensions/uid_login.info: n/a
+#  extensions/cc_import.module: n/a
+#  extensions/requack.module: n/a
+#  extensions/offers_wants.install: n/a
+#  views/requack.views.inc: n/a
+#  views/views_handler_field_requack_completer_uid.inc: n/a
+#  views/views_handler_field_transactions_payer_uid.inc: n/a
+#  views/views_handler_field_transactions_payee_uid.inc: n/a
+#  views/views_handler_filter_requack_completer_uid.inc: n/a
+#  views/views_handler_filter_trader_current.inc: n/a
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2008-12-20 21:31+0000\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: transactions.inc:9
+msgid "Default currency name"
+msgstr ""
+
+#: transactions.inc:13
+msgid "If there is more than one currency on the system, this currency, known as currency-0 will never be seen or used. Otherwise this name will be available as a variable for use in styling quantities. You should use the plural form of the nound"
+msgstr ""
+
+#: transactions.inc:17
+msgid "Maximum Balance"
+msgstr ""
+
+#: transactions.inc:21
+msgid "Transactions will be declined by the system if the balance of the seller would go above this number. Up to six digits. Leave blank for no limit(not reccomended). (This feature works independently of the maximum balance for each additional currency defined by the currencies module.)"
+msgstr ""
+
+#: transactions.inc:25
+msgid "Minimum Balance"
+msgstr ""
+
+#: transactions.inc:29
+msgid "Transactions will be declined by the system if the balance of the payer would go below this number. Up to seven digits, including minus sign. Leave blank for no limit (not reccomended). (This feature works independently of the minimum balance for each additional currency defined by the currencies module.)"
+msgstr ""
+
+#: transactions.inc:33
+msgid "Minimum number of words to describe a transaction"
+msgstr ""
+
+#: transactions.inc:37
+msgid "Your community will be richer if users take a few seconds more to describe the transaction in more detail. It will also make the transaction easier to categorise, and easier for the participants to remember. Suggested value is 4."
+msgstr ""
+
+#: transactions.inc:41
+msgid "These accounts are not subject to balance limits "
+msgstr ""
+
+#: transactions.inc:45
+msgid "A list of account numbers separated by commas"
+msgstr ""
+
+#: transactions.inc:58
+msgid "Maximum balance must be an integer larger than zero and minimum balance"
+msgstr ""
+
+#: transactions.inc:64
+msgid "Minimum balance must not be larger than 0"
+msgstr ""
+
+#: transactions.inc:75
+msgid "Minimum number of words must be a positive integer"
+msgstr ""
+
+#: transactions.inc:91
+msgid "Traders can earn a reputation when their customers rate them highly. Use this field to list the words used to describe the quality of transactions, from worst to best, one on each line. Example:<br />Bad<br />As expected<br />Great<br />Note that changing the number of rating options after transactions have been entered will distort the averages. I wonder if there is a drupal ratings module which could do this more effectively? Probably not because only buyers can rate. This feature therefore needs a lot more work to make it attractive and interesting."
+msgstr ""
+
+#: transactions.inc:102
+msgid "You must have more than one rating, or leave the field blank to disable the rating system"
+msgstr ""
+
+#: transactions.inc:125
+msgid "Transaction has been rejected as it would take !username below the minimum balance of !quantity"
+msgstr ""
+
+#: transactions.inc:131
+msgid "Transaction has been rejected as it would take !username above the maximum balance of !quantity"
+msgstr ""
+
+#: transactions.inc:171 transactions.stats.inc:80
+msgid "Carried forward"
+msgstr ""
+
+#: transactions.inc:197
+msgid "This user has no completed transactions"
+msgstr ""
+
+#: transactions.inc:202;207;885
+msgid "Edit"
+msgstr ""
+
+#: transactions.inc:227 transactions.module:126
+msgid "My Statement"
+msgstr ""
+
+#: transactions.inc:230
+msgid "@username's Statement"
+msgstr ""
+
+#: transactions.inc:233
+msgid "There are no transactions to display"
+msgstr ""
+
+#: transactions.inc:238
+msgid "Date"
+msgstr ""
+
+#: transactions.inc:239
+msgid "Category"
+msgstr ""
+
+#: transactions.inc:240
+msgid "Description"
+msgstr ""
+
+#: transactions.inc:241
+msgid "With Whom?"
+msgstr ""
+
+#: transactions.inc:242 views/transactions.views.inc:92;206
+msgid "Amount"
+msgstr ""
+
+#: transactions.inc:243 views/transactions.views.inc:85
+msgid "Rating"
+msgstr ""
+
+#: transactions.inc:244;315
+msgid "Income"
+msgstr ""
+
+#: transactions.inc:245
+msgid "Receipts"
+msgstr ""
+
+#: transactions.inc:246
+msgid "Running Total"
+msgstr ""
+
+#: transactions.inc:247
+msgid "Completed?"
+msgstr ""
+
+#: transactions.inc:248
+msgid ""
+msgstr ""
+
+#: transactions.inc:294
+msgid "Purchases"
+msgstr ""
+
+#: transactions.inc:296
+msgid "Sales"
+msgstr ""
+
+#: transactions.inc:312
+msgid "Expenditure"
+msgstr ""
+
+#: transactions.inc:347
+msgid "There are no pending transactions"
+msgstr ""
+
+#: transactions.inc:367
+msgid "This transaction is yet to be confirmed by !other_person"
+msgstr ""
+
+#: transactions.inc:374
+msgid "Transactions for !who to complete"
+msgstr ""
+
+#: transactions.inc:391
+msgid "Transactions !who started"
+msgstr ""
+
+#: transactions.inc:401
+msgid "There are no transactions to complete"
+msgstr ""
+
+#: transactions.inc:404
+msgid "!name is paying you !amount"
+msgstr ""
+
+#: transactions.inc:423
+msgid "On @date, !payer paid !payee !amount for '@transaction'"
+msgstr ""
+
+#: transactions.inc:432
+msgid "The sale was graded '@quality'."
+msgstr ""
+
+#: transactions.inc:468 views/transactions.views.inc:119
+msgid "Balance"
+msgstr ""
+
+#: transactions.inc:474
+msgid "Pending"
+msgstr ""
+
+#: transactions.inc:480 views/transactions.views.inc:133
+msgid "Turnover"
+msgstr ""
+
+#: transactions.inc:562
+msgid "Transaction type"
+msgstr ""
+
+#: transactions.inc:571
+msgid "What was paid for?"
+msgstr ""
+
+#: transactions.inc:576
+msgid "Minimum @int words"
+msgstr ""
+
+#: transactions.inc:583
+msgid "Who is being paid?"
+msgstr ""
+
+#: transactions.inc:593
+msgid "Who is paying?"
+msgstr ""
+
+#: transactions.inc:610
+msgid "Initiator, if not you"
+msgstr ""
+
+#: transactions.inc:640
+msgid "With whom did you transact?"
+msgstr ""
+
+#: transactions.inc:654
+msgid "Quantity"
+msgstr ""
+
+#: transactions.inc:667 views/transactions.views.inc:99;214
+msgid "Currency"
+msgstr ""
+
+#: transactions.inc:681
+msgid "Rate the quality of what was paid for"
+msgstr ""
+
+#: transactions.inc:690
+msgid "Transaction is completed (not awaiting confirmation)."
+msgstr ""
+
+#: transactions.inc:709 transactions.module:358
+msgid "Confirm"
+msgstr ""
+
+#: transactions.inc:870
+msgid "submit"
+msgstr ""
+
+#: transactions.inc:950
+msgid "You have a transaction to confirm"
+msgstr ""
+
+#: transactions.inc:952
+msgid "Email template variable not found, blank sent"
+msgstr ""
+
+#: transactions.stats.inc:120
+msgid "Now"
+msgstr ""
+
+#: transactions.stats.inc:121
+msgid "Account balance over time"
+msgstr ""
+
+#: transactions.stats.inc:126
+msgid "@user's balance over time"
+msgstr ""
+
+#: transactions.module:30
+msgid "Defines a contentType called transactions, extends the user profile to store balances."
+msgstr ""
+
+#: transactions.module:49 views/transactions.views.inc:30
+msgid "Transaction"
+msgstr ""
+
+#: transactions.module:51
+msgid "A transaction is a movement of a quantity of a currency between one user and another. It also has a description and sometimes a rating"
+msgstr ""
+
+#: transactions.module:53
+msgid "Description of entity traded"
+msgstr ""
+
+#: transactions.module:72
+msgid "Marketplace"
+msgstr ""
+
+#: transactions.module:73 extensions/offers_wants.module:91
+msgid "Default currency, transaction ratings and directory settings"
+msgstr ""
+
+#: transactions.module:82
+msgid "Default Currency"
+msgstr ""
+
+#: transactions.module:87
+msgid "Transaction ratings"
+msgstr ""
+
+#: transactions.module:95
+msgid "Balance Sheet"
+msgstr ""
+
+#: transactions.module:105
+msgid "My balance Sheet"
+msgstr ""
+
+#: transactions.module:115
+msgid "Statement"
+msgstr ""
+
+#: transactions.module:136
+msgid "Balances"
+msgstr ""
+
+#: transactions.module:147
+msgid "My balances"
+msgstr ""
+
+#: transactions.module:166
+msgid "Pending transactions"
+msgstr ""
+
+#: transactions.module:167
+msgid "A list of the transactions which are not yet complete"
+msgstr ""
+
+#: transactions.module:179
+msgid "Start new transaction"
+msgstr ""
+
+#: transactions.module:180
+msgid "The full new transaction form"
+msgstr ""
+
+#: transactions.module:277
+msgid "Start payment"
+msgstr ""
+
+#: transactions.module:283
+msgid "Transactions awaiting my confirmation"
+msgstr ""
+
+#: transactions.module:287
+msgid "Balances for user"
+msgstr ""
+
+#: transactions.module:291
+msgid "Previous month statistics"
+msgstr ""
+
+#: transactions.module:308
+msgid "New Transaction with !name"
+msgstr ""
+
+#: transactions.module:319
+msgid "Transactions awaiting confirmation"
+msgstr ""
+
+#: transactions.module:330
+msgid "@user's balances"
+msgstr ""
+
+#: transactions.module:339
+msgid "Last month"
+msgstr ""
+
+#: transactions.module:359
+msgid "Are you sure you want to complete this transaction?"
+msgstr ""
+
+#: transactions.module:363 extensions/offers_wants.module:233
+msgid "Editing @type"
+msgstr ""
+
+#: transactions.module:367
+msgid "Are you sure you want to create the transaction?"
+msgstr ""
+
+#: transactions.module:369
+msgid "Transaction created"
+msgstr ""
+
+#: transactions.module:374
+msgid "Initiating transaction"
+msgstr ""
+
+#: transactions.module:462
+msgid "Please describe the transaction in more detail"
+msgstr ""
+
+#: transactions.module:465
+msgid "You must enter a positive amount"
+msgstr ""
+
+#: transactions.module:604
+msgid "Mail anyone who needs to complete a transaction"
+msgstr ""
+
+#: transactions.module:619
+msgid "This is the contents of the email which will be sent to a member when someone initiates a transaction with them which needs confirming. You can use the following strings as variables:"
+msgstr ""
+
+#: transactions.module:620;621
+msgid "the name of the person who started the transaction"
+msgstr ""
+
+#: transactions.module:622
+msgid "a summary of the whole transaction"
+msgstr ""
+
+#: transactions.module:623
+msgid "description of the transaction by the starter"
+msgstr ""
+
+#: transactions.module:624
+msgid "a link to the transaction"
+msgstr ""
+
+#: transactions.module:625
+msgid "cancellation of notification"
+msgstr ""
+
+#: transactions.module:626
+msgid "a link to the 'statement' page of this user"
+msgstr ""
+
+#: transactions.module:627
+msgid "a link to the member's own page"
+msgstr ""
+
+#: transactions.module:633
+msgid "You can't send an empty email"
+msgstr ""
+
+#: transactions.module:649;701
+msgid "User @id"
+msgstr ""
+
+#: transactions.module:657
+msgid "Receive email notification when someone initiates a transaction with you?"
+msgstr ""
+
+#: transactions.module:659
+msgid "no"
+msgstr ""
+
+#: transactions.module:659
+msgid "yes"
+msgstr ""
+
+#: transactions.install:13
+msgid "invoice"
+msgstr ""
+
+#: transactions.install:14
+msgid "proffer"
+msgstr ""
+
+#: transactions.install:15
+msgid "take"
+msgstr ""
+
+#: transactions.install:16
+msgid "give"
+msgstr ""
+
+#: transactions.install:30
+msgid "Transaction module is installed. Set the default currency at !link"
+msgstr ""
+
+#: transactions.install:34 transactions.info:0 extensions/cc_import.info:0 extensions/offers_wants.info:0 extensions/requack.info:0 extensions/uid_login.info:0
+msgid "Complementary Currencies"
+msgstr ""
+
+#: transactions.install:34
+msgid "Links from the complementary currencies package"
+msgstr ""
+
+#: transactions.install:39
+msgid "Now go to the blocks page and set the 'new payment' block to appear only on pages 'user*', and place it in a region."
+msgstr ""
+
+#: transactions.info:0
+msgid "transactions"
+msgstr ""
+
+#: transactions.info:0
+msgid "Makes a contentType called transactions and manages the way that users create and view this content."
+msgstr ""
+
+#: extensions/cc_import.module:6
+msgid "Provides advice and a simple text box to paste csv style data from your existing spreadsheets. This is a work in progress"
+msgstr ""
+
+#: extensions/cc_import.module:16
+msgid "Import Tools"
+msgstr ""
+
+#: extensions/cc_import.module:25
+msgid "Import Balances"
+msgstr ""
+
+#: extensions/cc_import.module:30
+msgid "Import Offers"
+msgstr ""
+
+#: extensions/cc_import.module:38
+msgid "Import Wants"
+msgstr ""
+
+#: extensions/cc_import.module:55
+msgid "This page allows you to import users' balances and gross incomes for users already on the system. To import users, see the !import_user module."
+msgstr ""
+
+#: extensions/cc_import.module:60
+msgid "Paste paste 2 or 3 comma separated columns into the field below, the first column should be the uid or username, the second column the current balance, and optionally the third column should be the user's gross income until now (turnover). This tools assumes there is only one currency in the system. The second column SHOULD add up to 0 for LETS and other zero balance systems, but this is not checked."
+msgstr ""
+
+#: extensions/cc_import.module:78
+msgid "to import balances you need a balancing account. Specify the account number at !admin/settings/marketplace"
+msgstr ""
+
+#: extensions/cc_import.module:87
+msgid "balance (second item) on row @num is not an integer"
+msgstr ""
+
+#: extensions/cc_import.module:93
+msgid "gross income (third item) on row @rownum must be a positive integer"
+msgstr ""
+
+#: extensions/cc_import.module:95
+msgid "gross income (third item) on row @rownum cannot be less than 0"
+msgstr ""
+
+#: extensions/cc_import.module:118
+msgid "Gross income to date"
+msgstr ""
+
+#: extensions/cc_import.module:121
+msgid "Gross expenditure to date"
+msgstr ""
+
+#: extensions/cc_import.module:127
+msgid "Carried Forward"
+msgstr ""
+
+#: extensions/cc_import.module:193
+msgid "The description on row @rownum is more than 128 characters"
+msgstr ""
+
+#: extensions/cc_import.module:214
+msgid "This page allows you to import users' @type for users already on the system. There are other ways of doing this, but this is simple and maintained along with the rest of the Complementary Currencies module.\n  <br />\n  <br />Use a spreadsheet tool to prepare a list of user ids, or names, and their @type in one line. For aesthetic reasons, there is a 128 character limit on each description. Each line should look like this:<blockquote><strong>\"userID\",\"Description of @type\",\"categories(optional)\"</strong></blockquote>"
+msgstr ""
+
+#: extensions/cc_import.module:224
+msgid "no data entered"
+msgstr ""
+
+#: extensions/cc_import.module:253
+msgid "user (first item) on row @rownum is not a user"
+msgstr ""
+
+#: extensions/offers_wants.module:12
+msgid "Defines two contentTypes called Offer and Wants which are created and edited by each user and which are compiled to make a directory."
+msgstr ""
+
+#: extensions/offers_wants.module:24
+msgid "Offer"
+msgstr ""
+
+#: extensions/offers_wants.module:26
+msgid "An entry in the offers directory."
+msgstr ""
+
+#: extensions/offers_wants.module:28
+msgid "Product or service you want to sell"
+msgstr ""
+
+#: extensions/offers_wants.module:35
+msgid "Want"
+msgstr ""
+
+#: extensions/offers_wants.module:37
+msgid "An entry in the wants directory."
+msgstr ""
+
+#: extensions/offers_wants.module:39
+msgid "Product or service you want to buy"
+msgstr ""
+
+#: extensions/offers_wants.module:57
+msgid "Enable offers"
+msgstr ""
+
+#: extensions/offers_wants.module:59;65
+msgid "If you want a directory, you should nominate a vocabulary to define the categories - !link"
+msgstr ""
+
+#: extensions/offers_wants.module:63
+msgid "Enable wants"
+msgstr ""
+
+#: extensions/offers_wants.module:69
+msgid "Enable Goods and Services"
+msgstr ""
+
+#: extensions/offers_wants.module:71
+msgid "Each offer and want can be subdivided into goods and services, and the directory pages and views can be organised accordingly, although this can get complicated, as there will need to be a whole new set of views"
+msgstr ""
+
+#: extensions/offers_wants.module:90
+msgid "Offers and Wants"
+msgstr ""
+
+#: extensions/offers_wants.module:100
+msgid "Offer categories"
+msgstr ""
+
+#: extensions/offers_wants.module:101
+msgid "A list of categories in the offers directory"
+msgstr ""
+
+#: extensions/offers_wants.module:107
+msgid "offers"
+msgstr ""
+
+#: extensions/offers_wants.module:111;213
+msgid "Want categories"
+msgstr ""
+
+#: extensions/offers_wants.module:112
+msgid "A list of categories in the wants directory"
+msgstr ""
+
+#: extensions/offers_wants.module:118
+msgid "wants"
+msgstr ""
+
+#: extensions/offers_wants.module:120
+msgid "and"
+msgstr ""
+
+#: extensions/offers_wants.module:122
+msgid "Directory"
+msgstr ""
+
+#: extensions/offers_wants.module:123
+msgid "All the @types from this user"
+msgstr ""
+
+#: extensions/offers_wants.module:132;325
+msgid "My Directory"
+msgstr ""
+
+#: extensions/offers_wants.module:133
+msgid "All your @types"
+msgstr ""
+
+#: extensions/offers_wants.module:198
+msgid "@offer_or_want categories"
+msgstr ""
+
+#: extensions/offers_wants.module:208
+msgid "Offer Categories"
+msgstr ""
+
+#: extensions/offers_wants.module:328
+msgid "@username's Directory"
+msgstr ""
+
+#: extensions/requack.module:15
+msgid "A contentType called request, which when completed with a user id, becomes an acknowledgement for which each user has a total."
+msgstr ""
+
+#: extensions/requack.module:27
+msgid "A contentType which when completed with a user id, becomes an acknowledgement for which each user has a total."
+msgstr ""
+
+#: extensions/requack.module:29
+msgid "A need to be met by a user"
+msgstr ""
+
+#: extensions/requack.module:59
+msgid "Choose the words you want to use for Requests and Acknowledgements. These are made available as configuration options rather than translations to allow groups to be more creative with their use of language. E.g. you might call them prayers & halos, or needs & gold stars"
+msgstr ""
+
+#: extensions/requack.module:103
+msgid "nobody yet"
+msgstr ""
+
+#: extensions/requack.module:113
+msgid "Who has fulfilled this @type?"
+msgstr ""
+
+#: extensions/offers_wants.install:15
+msgid "The offers_wants contentTypes are installed. Now go to !link make a vocabulary control one or both of them."
+msgstr ""
+
+#: extensions/cc_import.info:0
+msgid "Cc Import"
+msgstr ""
+
+#: extensions/cc_import.info:0
+msgid "Import Offers, Wants and 'carried forward' balances"
+msgstr ""
+
+#: extensions/offers_wants.info:0
+msgid "Offers/Wants"
+msgstr ""
+
+#: extensions/offers_wants.info:0
+msgid "Allows users to contribute to a directory of offers and wants."
+msgstr ""
+
+#: extensions/requack.info:0
+msgid "requests / acknowledgements"
+msgstr ""
+
+#: extensions/requack.info:0
+msgid "A contentType called request, which when completed with a user id, becomes an acknowledgement for which each user has a total"
+msgstr ""
+
+#: extensions/uid_login.info:0
+msgid "Uid Login"
+msgstr ""
+
+#: extensions/uid_login.info:0
+msgid "Alters the login function so that users login with their uid, and usernames are not necessarily unique"
+msgstr ""
+
+#: views/requack.views.inc:13;15
+msgid "Requests/acknowledgements"
+msgstr ""
+
+#: views/requack.views.inc:17
+msgid "Things requested done for free, and counted"
+msgstr ""
+
+#: views/requack.views.inc:27
+msgid "Completer"
+msgstr ""
+
+#: views/requack.views.inc:29;33
+msgid "The user id who met the request"
+msgstr ""
+
+#: views/requack.views.inc:37
+msgid "Request"
+msgstr ""
+
+#: views/requack.views.inc:37
+msgid "Acknowledgement"
+msgstr ""
+
+#: views/requack.views.inc:42
+msgid "Number of @acknowledgements"
+msgstr ""
+
+#: views/requack.views.inc:51
+msgid "Total"
+msgstr ""
+
+#: views/requack.views.inc:53
+msgid "The total number of @acknowledgements received by the user"
+msgstr ""
+
+#: views/transactions.views.inc:27
+msgid "Transactions"
+msgstr ""
+
+#: views/transactions.views.inc:31
+msgid "Money flows between users."
+msgstr ""
+
+#: views/transactions.views.inc:41;59;164;179
+msgid "Purchaser"
+msgstr ""
+
+#: views/transactions.views.inc:43
+msgid "The user id who spent currency in the transaction."
+msgstr ""
+
+#: views/transactions.views.inc:47
+msgid "Show only transactions where the current user paid"
+msgstr ""
+
+#: views/transactions.views.inc:51;55
+msgid "The user who spent currency in the transaction."
+msgstr ""
+
+#: views/transactions.views.inc:63;81;188
+msgid "Seller"
+msgstr ""
+
+#: views/transactions.views.inc:65
+msgid "The user id who received currency in the transaction."
+msgstr ""
+
+#: views/transactions.views.inc:69
+msgid "Show only transactions where the current user was paid"
+msgstr ""
+
+#: views/transactions.views.inc:73;77
+msgid "The user who received currency in the transaction."
+msgstr ""
+
+#: views/transactions.views.inc:87
+msgid "Quality of the transaction according to the payer"
+msgstr ""
+
+#: views/transactions.views.inc:94
+msgid "Number of units of currency transferred"
+msgstr ""
+
+#: views/transactions.views.inc:101
+msgid "The currency that the transaction was conducted in"
+msgstr ""
+
+#: views/transactions.views.inc:109
+msgid "User Balance"
+msgstr ""
+
+#: views/transactions.views.inc:110
+msgid "Balances of users."
+msgstr ""
+
+#: views/transactions.views.inc:121
+msgid "The user's total cleared income minus total cleared expenditure"
+msgstr ""
+
+#: views/transactions.views.inc:126
+msgid "Pending Balance"
+msgstr ""
+
+#: views/transactions.views.inc:128
+msgid "The sum of the user's incomplete transactions"
+msgstr ""
+
+#: views/transactions.views.inc:135
+msgid "The user's total cleared income ever"
+msgstr ""
+
+#: views/transactions.views.inc:197
+msgid "Trade"
+msgstr ""
+
+#: views/transactions.views.inc:333
+msgid "Transactions by user"
+msgstr ""
+
+#: views/transactions.views.inc:335
+msgid "You haven't completed any transactions yet"
+msgstr ""
+
+#: views/views_handler_field_requack_completer_uid.inc:24
+msgid "Link this field to its user, the completer's profile"
+msgstr ""
+
+#: views/views_handler_field_transactions_payer_uid.inc:23
+msgid "Link this field to its user, the purchaser's profile"
+msgstr ""
+
+#: views/views_handler_field_transactions_payee_uid.inc:24
+msgid "Link this field to its user, the seller's profile"
+msgstr ""
+
+#: views/views_handler_filter_requack_completer_uid.inc:14
+msgid "Completed"
+msgstr ""
+
+#: views/views_handler_filter_requack_completer_uid.inc:14
+msgid "Open"
+msgstr ""
+
+#: views/views_handler_filter_trader_current.inc:6
+msgid "Is the logged in user"
+msgstr ""
+

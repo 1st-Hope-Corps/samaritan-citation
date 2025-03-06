@@ -1,0 +1,6 @@
+; $Id$
+name = Recent Items Module
+description = A block module that lists links to content such as blog entries or forum discussions that was recently published.
+version = 6.x-1.0
+package = Test
+core = 6.x

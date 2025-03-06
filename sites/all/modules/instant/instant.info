@@ -1,0 +1,6 @@
+; $Id$
+name = Instant Mentor Module
+description = A module that tracks hopefuls by volunteers who are instant mentors.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

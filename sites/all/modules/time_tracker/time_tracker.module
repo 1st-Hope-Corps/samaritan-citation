@@ -1,0 +1,854 @@
+<?php
+define("TIME_REC_PER_PAGE", 25);
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function time_tracker_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#kindness":
+			$sOutput = '<p>'. "Time Tracker module.".'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function time_tracker_perm(){
+	return array('access time_tracker content');
+}
+
+function dump_this($sVar){
+	echo "<pre>";
+	print_r($sVar);
+	echo "</pre>";
+	exit;
+}
+
+function time_tracker_init(){
+	global $user;
+	
+	if (_time_tracker_in_array($_REQUEST["q"], array("mystudies*")) 
+			&& !_time_tracker_in_array($_REQUEST["q"], array("mystudies/getinvolved*"))
+			&& in_array("Hopeful", $user->roles) 
+			&& $user->uid > 1){
+	
+	/* if (in_array("Hopeful", $user->roles) && $user->uid > 1){ */
+		
+		$iTimeAvailable = _time_tracker_get_credits();
+		
+		if ($iTimeAvailable == 0 || $iTimeAvailable <= 180){
+			drupal_goto("time/buy");
+		}else{
+			$_SESSION["time_tracker_bStartTimer"] = true;
+			$iTimeSpent = _time_tracker_get_time();
+			
+			drupal_add_js("var time_tracker_sBasePath = '".base_path()."';\nvar time_tracker_iSpent = ".$iTimeSpent.";\nvar time_tracker_iAvailable = ".$iTimeAvailable.";", "inline");
+			drupal_add_js(drupal_get_path("module", "time_tracker")."/time_tracker.js");
+		}
+	}else{
+		$_SESSION["time_tracker_bStartTimer"] = false;
+	}
+}
+
+function time_tracker_menu(){
+	$aItems['admin/content/time_tracker'] = array(
+		'title' => 'Time Tracker Packages',
+		'description' => "List, Create, and Modify time packages that can be purchased by the Child with their Valiants.",
+		'page callback' => 'time_tracker_package',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['admin/content/time_tracker/list'] = array(
+		'title' => 'Packages',
+		'page callback' => 'time_tracker_package',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 1
+	);
+	
+	$aItems['admin/content/time_tracker/list/%'] = array(
+		'title' => 'Details',
+		'page callback' => 'time_tracker_package_purchases',
+		'page arguments' => array(4),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK
+	);
+	
+	$aItems['admin/content/time_tracker/create'] = array(
+		'title' => 'Create',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('time_tracker_package_create'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 2
+	);
+	
+	$aItems['time_tracker/update'] = array(
+		'page callback' => 'time_tracker_update',
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['time_tracker/time'] = array(
+		'page callback' => 'time_tracker_get_time_callback',
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/content/time_tracker/package/delete'] = array(
+		'title' => 'Delete Package',
+		'page callback' => 'time_tracker_packege_delete',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['time'] = array(
+		'title' => 'Time Tracker',
+		'page callback' => 'time_tracker_dashboard',
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['time/dashboard'] = array(
+		'title' => 'Time Tracker',
+		'page callback' => 'time_tracker_dashboard',
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 1
+	);
+	
+	$aItems['time/buy'] = array(
+		'title' => 'Buy Time',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('time_tracker_buy'),
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 3
+	);
+	
+	$aItems['time/callback/credit'] = array(
+		'page callback' => 'time_tracker_callback_credit',
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['time/callback/blocks'] = array(
+		'page callback' => 'time_tracker_callback_blocks',
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['time/callback/blocks/buy'] = array(
+		'page callback' => 'time_tracker_callback_blocks_buy',
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['time/callback/history'] = array(
+		'page callback' => 'time_tracker_callback_history',
+		'access arguments' => array('access time_tracker content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+function time_tracker_callback_credit(){
+	$iTimeAvailable = _time_tracker_get_credits();
+	$aTimeAvailable = _time_tracker_secs_to_hms($iTimeAvailable);
+	
+	echo json_encode(array("RETURN" => 'You have '.$aTimeAvailable[0].' hour(s), '.$aTimeAvailable[1].' minute(s), and '.$aTimeAvailable[2].' second(s) of fuel left'));
+	
+	exit;
+}
+
+function time_tracker_callback_blocks(){
+	$aPackages = array();
+	$sqlPackage = "SELECT id, sTimePackage, iTimeLength, mTimePrice
+					FROM {time_tracker_package}
+					WHERE bDeleted = '0'
+					ORDER BY sTimePackage";
+	$oPackageResult = db_query($sqlPackage);
+	
+	while ($oPackage = db_fetch_object($oPackageResult)){
+		$aPackages[] = array("id" => $oPackage->id, "desc" => $oPackage->sTimePackage." (".(number_format($oPackage->iTimeLength/3600, 2))." hours) H$ ".$oPackage->mTimePrice);
+	}
+	
+	echo json_encode(array("RETURN" => $aPackages));
+	
+	exit;
+}
+
+function time_tracker_callback_blocks_buy(){
+	global $user;
+	
+	$iPackageId = $_REQUEST["iPackageId"];
+	$mBalance = $_REQUEST["mBalance"];
+	$aPackage = _time_tracker_get_package($iPackageId);
+	$mPackagePrice = $aPackage["mTimePrice"];
+	$iPackageTime = number_format($aPackage["iTimeLength"]/3600, 2);
+	
+	if ($mPackagePrice > $mBalance){
+		$aResult = array("STATUS" => "Fail", "RETURN" => "You don't have sufficient funds in your bank account.");
+	}else{
+		$sqlInsert = "INSERT INTO {time_tracker_statement} VALUES(NULL, %d, %d, %d, '%s')";
+		db_query($sqlInsert, array($iPackageId, $user->uid, $aPackage["iTimeLength"], date("Y-m-d H:i:s")));
+		
+		$oDetails = _bank_account();
+		$aReqParam = array(
+							"key" => $oDetails->account_number, 
+							"pass" => $oDetails->account_pass,
+							"amount" => $mPackagePrice,
+							"recipient" => "P85L-1235534669",
+							"description" => "Payment for buying a Time Block - ".$aPackage["sTimePackage"]." ".$iPackageTime." hour(s)"
+						);
+		
+		$aBankReply = _bank_post("pay", $aReqParam);
+		
+		$aResult = array("STATUS" => "Success", "RETURN" => "You just bought the ".$aPackage["sTimePackage"]." ".$iPackageTime." hour Time Block.");
+	}
+	
+	echo json_encode($aResult);
+	
+	exit;
+}
+
+function time_tracker_callback_history(){
+	global $user;
+	
+	$sOutput = '';
+	$snTime  = '';
+	$iTimeAvailable = _time_tracker_get_credits();
+	$aTimeAvailable = _time_tracker_secs_to_hms($iTimeAvailable);
+	
+	if ($iTimeAvailable == 0){
+		$sNotice = 'You do not have any more available time in your account. Buy time blocks with your Valiants.';
+	}else{
+		$sNotice = 'You have '.$aTimeAvailable[0].' hour(s), '.$aTimeAvailable[1].' minute(s), and '.$aTimeAvailable[2].' second(s) of fuel left.';
+	}
+	
+	$sqlBody = "FROM time_tracker_statement A
+					LEFT JOIN time_tracker_package B ON B.id = A.iRefId
+					WHERE A.iUserId = ".$user->uid."
+						AND A.iDuration != 0
+					ORDER BY A.dDatetime DESC";
+	$sqlHistory = "SELECT A.id, B.sTimePackage, A.iDuration, DATE_FORMAT(A.dDatetime, '%s') AS sDate ".$sqlBody;
+	$sqlCount = "SELECT COUNT(A.id) ".$sqlBody;
+		
+	$oHistoryResult = db_query($sqlHistory, "%b %e, %Y %H:%i");
+	$iHistoryCount = 0;
+	
+	while ($oHistory = db_fetch_object($oHistoryResult)){
+		$iHistoryCount++;
+		
+		$iTime = $oHistory->iDuration;
+		$bNegTime = ($iTime < 0) ? true:false;
+		$sNegSign = ($bNegTime) ? "-":"";
+		$iTime = ($bNegTime) ? abs($iTime):$iTime;
+		
+		$aTime = _time_tracker_secs_to_hms($iTime);
+		$sTime = $aTime[0].":".str_pad($aTime[1], 2, "0", STR_PAD_LEFT).":".str_pad($aTime[2], 2, "0", STR_PAD_LEFT);
+				
+		if ($oHistory->sTimePackage == "" || is_null($oHistory->sTimePackage)){
+			$sDescription = 'Spent time in the learningPortal';
+		}else{
+			$sDescription = 'Bought time block ('.$oHistory->sTimePackage.')';
+		}
+		
+		$aHistory[] = '<div class="navigation_maintop_history_date1">'.$oHistory->sDate.'</div>
+						<div class="navigation_maintop_history_discription1">'.$sDescription.'</div>
+						<div class="navigation_maintop_history_time1">'.$sNegSign.$sTime.'</div>';
+						
+	}
+	
+	if ($iHistoryCount > 0){
+		$sPagerHTML = theme("pager", null, TIME_REC_PER_PAGE);
+		
+		$aTimeSpent = _time_tracker_secs_to_hms(_time_tracker_get_time_spent());
+		$snTime = 'Total Fuel Spent: <span>'.$aTimeSpent[0].' hour(s) - '.$aTimeSpent[1].' min(s) - '.$aTimeSpent[2].' sec(s)</span>';
+	}else{
+		$aHistory[] = 'No history to display, yet.';
+	}
+	
+	echo json_encode(array("aTime"=>$sNotice, "sHistory" => $aHistory, "sTime"=>$snTime));
+	
+	exit;
+}
+
+function time_tracker_dashboard(){
+	global $user;
+	
+	drupal_set_breadcrumb(array(l("Home", "<front>"), l("Time Tracker", "time")));
+	
+	$sTableHeader = '<table style="margin-top:10px; width:100%;">
+						<tr>
+							<td colspan="3"><h3>History</h3></td>
+						</tr>
+						<tr>
+							<th style="width:150px;">Date</th>
+							<th>Description</th>
+							<th style="width:70px; text-align:right;">Time Spent</th>
+						</tr>';
+	$sTableFooter = '</table>';
+	$sOutput = '';
+	
+	$iTimeAvailable = _time_tracker_get_credits();
+	$aTimeAvailable = _time_tracker_secs_to_hms($iTimeAvailable);
+	
+	if ($iTimeAvailable == 0){
+		$sNotice = '<div style="color:red; margin-top:10px;">You do not have any more available time in your account. Buy time blocks with your Valiants.</div>';
+	}else{
+		$sNotice = '<h3 style="color:green; margin-top:10px;">You have '.$aTimeAvailable[0].' hour(s), '.$aTimeAvailable[1].' minute(s), and '.$aTimeAvailable[2].' second(s) left in your time.</h3>';
+	}
+	
+	$sqlBody = "FROM time_tracker_statement A
+					LEFT JOIN time_tracker_package B ON B.id = A.iRefId
+					WHERE A.iUserId = ".$user->uid."
+						AND A.iDuration != 0
+					ORDER BY A.dDatetime DESC";
+	$sqlHistory = "SELECT A.id, B.sTimePackage, A.iDuration, DATE_FORMAT(A.dDatetime, '%M %e, %Y %H:%i') AS sDate ".$sqlBody;
+	$sqlCount = "SELECT COUNT(A.id) ".$sqlBody;
+		
+	$oHistoryResult = pager_query($sqlHistory, TIME_REC_PER_PAGE, 0, $sqlCount);
+	$iHistoryCount = 0;
+	
+	while ($oHistory = db_fetch_object($oHistoryResult)){
+		$iHistoryCount++;
+		
+		$iTime = $oHistory->iDuration;
+		$bNegTime = ($iTime < 0) ? true:false;
+		$sNegSign = ($bNegTime) ? "-":"";
+		$iTime = ($bNegTime) ? abs($iTime):$iTime;
+		
+		$aTime = _time_tracker_secs_to_hms($iTime);
+		$sTime = $aTime[0].":".str_pad($aTime[1], 2, "0", STR_PAD_LEFT).":".str_pad($aTime[2], 2, "0", STR_PAD_LEFT);
+		
+		
+		if ($oHistory->sTimePackage == "" || is_null($oHistory->sTimePackage)){
+			$sDescription = 'Spent time in the learningPortal';
+		}else{
+			$sDescription = 'Bought time block ('.$oHistory->sTimePackage.')';
+		}
+		$sOutput .= '<tr>
+						<td>'.$oHistory->sDate.'</td>
+						<td>'.$sDescription.'</td>
+						<td style="text-align:right;">'.$sNegSign.$sTime.'</td>
+					</tr>';
+	}
+	
+	if ($iHistoryCount > 0){
+		$sPagerHTML = theme("pager", null, TIME_REC_PER_PAGE);
+		
+		$aTimeSpent = _time_tracker_secs_to_hms(_time_tracker_get_time_spent());
+		$sOutput .= '<tr>
+						<td colspan="3" style="text-align:right; padding-top:15px;">
+							<em>Total Tme Spent:</em> <strong>'.$aTimeSpent[0].' hour(s) - '.$aTimeSpent[1].' min(s) - '.$aTimeSpent[2].' sec(s)</strong>
+						</td>
+					</tr>';
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter.$sPagerHTML;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No history to display, yet.</div>';
+	}
+	
+	return $sNotice.$sOutput;
+}
+
+function time_tracker_package(){
+	$sJavaScript = '';
+	$aTrail = array(
+					l("Home", "<front>"), 
+					l("Administer", "admin"), 
+					l("Content Management", "admin/content"), 
+					l("Time Tracker Packages", "admin/content/time_tracker")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	drupal_add_js(drupal_get_path("module", "time_tracker")."/time_tracker_admin.js");
+	
+	$sOutput = '';
+	$iPackageCount = 0;
+	$sTableHeader = '<form method="post" action="'.base_path().'admin/content/time_tracker/package/delete"><table style="margin-top:10px; width:100%;">
+						<tr>
+							<th style="width:20px;"><input type="checkbox" id="time_tracker_iPackageId_CheckAll" value="1" /></th>
+							<th>Package</th>
+							<th style="width:150px; text-align:right;">Duration</th>
+							<th style="width:150px; text-align:right;">Price (H$)</th>
+						</tr>';
+	$sDeleteButton = '<button type="submit" id="time_tracker_btnDelete" name="time_tracker_btnDelete" style="margin-top:10px;" class="form-submit">Delete</button>';
+	$sTableFooter = '</table>'.$sDeleteButton.'</form>';
+	
+	$sqlPackage = "SELECT id, sTimePackage, (iTimeLength / 3600) AS iTimeHours, mTimePrice, bDeleted
+					FROM {time_tracker_package}
+					ORDER BY bDeleted, iTimeHours";
+	$oPackageResult = db_query($sqlPackage);
+	
+	while ($oPackage = db_fetch_object($oPackageResult)){
+		$iPackageCount++;
+		
+		$bDeleted = ($oPackage->bDeleted == 1) ? true:false;
+		$sCheckbox = ($bDeleted) ? '':'<input type="checkbox" id="time_tracker_aPackageId" name="time_tracker_aPackageId[]" value="'.$oPackage->id.'" />';
+		$sStyle = ($bDeleted) ? 'text-decoration:line-through;':'';
+		
+		$sOutput .= '<tr>
+						<td>'.$sCheckbox.'</td>
+						<td style="'.$sStyle.'">'.l($oPackage->sTimePackage, 'admin/content/time_tracker/list/'.$oPackage->id).'</td>
+						<td style="text-align:right;'.$sStyle.'">'.number_format($oPackage->iTimeHours, 2).' hour(s)</td>
+						<td style="text-align:right;'.$sStyle.'">'.$oPackage->mTimePrice.'</td>
+					</tr>';
+	}
+	
+	if ($iPackageCount > 0){
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No time packages to display, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function time_tracker_package_purchases($iPackagedId=null){
+	$aTrail = array(
+					l("Home", "<front>"), 
+					l("Administer", "admin"), 
+					l("Content Management", "admin/content"), 
+					l("Time Tracker Packages", "admin/content/time_tracker"),
+					l("Purchases", "admin/content/time_tracker/list/".$iPackagedId),
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	$sOutput = '';
+	$iPurchasesCount = 0;
+	$sTableHeader = '<table style="margin-top:10px; width:100%;">%s
+						<tr>
+							<th>Child</th>
+							<th style="width:150px; text-align:right;">Duration</th>
+							<th style="width:150px; text-align:right;">Price (H$)</th>
+							<th style="width:150px; text-align:right;">Date Purchased</th>
+						</tr>';
+	$sTableFooter = '</table>';
+	
+	$sqlBody = "FROM {time_tracker_package} A
+				INNER JOIN {time_tracker_statement} B ON B.iRefId = A.id
+				INNER JOIN {users} C ON C.uid = B.iUserId
+					%s
+				ORDER BY B.dDatetime DESC";
+	
+	$sqlPurchases = "SELECT B.iUserId, C.name, REPLACE_THIS, A.id, A.sTimePackage, (A.iTimeLength / 3600) AS iTimeHours, A.mTimePrice ".$sqlBody;
+	$sqlCount = "SELECT COUNT(B.iUserId) ".$sqlBody;
+	
+	$sWhereClause = (is_null($iPackagedId)) ? "":"AND A.id = ".$iPackagedId;
+	$sqlPurchases = sprintf($sqlPurchases, $sWhereClause);
+	$sqlPurchases = str_replace("REPLACE_THIS", "DATE_FORMAT(B.dDatetime, '%M %e, %Y') AS sPurchaseDate", $sqlPurchases);
+	
+	$oPurchasesResult = pager_query($sqlPurchases, TIME_REC_PER_PAGE, 0, $sqlCount);
+	
+	while ($oPurchases = db_fetch_object($oPurchasesResult)){
+		$iPurchasesCount++;
+		
+		if ($iPurchasesCount == 1){
+			$sHeaderSub = '<tr><td colspan="4"><h3>'.$oPurchases->sTimePackage.' Purchases</h3></td></tr>';
+			 
+			 $sOutput .= '<tr>
+							<td>'._time_tracker_name($oPurchases->iUserId).' <em>('.l($oPurchases->name, "user/".$oPurchases->iUserId, array("attributes" => array("target" => "_blank"))).')</em></td>
+							<td style="text-align:right;">'.number_format($oPurchases->iTimeHours, 2).' hour(s)</td>
+							<td style="text-align:right;">'.$oPurchases->mTimePrice.'</td>
+							<td style="text-align:right;">'.$oPurchases->sPurchaseDate.'</td>
+						</tr>';
+		}
+	}
+	
+	if ($iPurchasesCount > 0){
+		$sPagerHTML = theme("pager", null, TIME_REC_PER_PAGE);
+		$sTableHeader = str_replace("%s", $sHeaderSub, $sTableHeader);
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter.$sPagerHTML;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No purchase history to display, yet.</div>';
+	}
+	
+	return $sOutput;	
+}
+
+function time_tracker_package_create(){
+	$aTimeHours = array();
+	$aTrail = array(
+					l("Home", "<front>"), 
+					l("Administer", "admin"), 
+					l("Content Management", "admin/content"), 
+					l("Time Tracker Packages", "admin/content/time_tracker"), 
+					l("Create", "admin/content/time_tracker/create")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	for ($h=3600; $h<=43200; $h+=3600){
+		$sUnit = ($h > 3600) ? "hours":"hour";
+		$aTimeHours[$h] = ($h/3600)." ".$sUnit;
+	}
+	
+	$aForm['time_tracker_title'] = array(
+		'#type' => 'textfield',
+		'#title' => 'Package Name',
+		'#required' => true,
+		'#default_value' => '',
+		'#maxlength' => 30,
+		'#description' => 'The title/name of the time package you want to create.',
+	);
+	
+	$aForm['time_tracker_duration'] = array(
+		'#type' => 'select',
+		'#title' => 'Duration (hours)',
+		'#required' => true,
+		'#default_value' => 3600,
+		'#options' => $aTimeHours,
+		'#description' => 'The time duration for this time package.'
+	);
+	
+	$aForm['time_tracker_amount'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Amount'),
+		'#default_value' => '1.00',
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#description' => t("The cost to purchase this time package."),
+		'#attributes' => array("style" => "text-align:right;"),
+		'#required' => true
+	);
+	
+	$aForm['btnCreate'] = array("#type" => "submit", "#value" => "Create Time Package");
+	
+	return $aForm;
+}
+
+function time_tracker_package_create_validate($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$mPackageCost = $aFormVal["time_tracker_amount"];
+	
+	if (is_numeric($mPackageCost)){
+		$aFormState["values"]["time_tracker_amount"] = number_format($mPackageCost, 2);
+	}else{
+		form_set_error("time_tracker_amount", "You have specified an invalid number.");
+	}
+}
+
+function time_tracker_package_create_submit($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$sqlInsert = "INSERT INTO {time_tracker_package} VALUES(NULL, '%s', %d, '%f', '0')";
+	
+	db_query($sqlInsert, ucwords($aFormVal["time_tracker_title"]), $aFormVal["time_tracker_duration"], $aFormVal["time_tracker_amount"]);
+	drupal_set_message("The time package has been created.");
+	
+	return "";
+}
+
+function time_tracker_packege_delete(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	drupal_add_js('setTimeout("location=\''.base_path().'admin/content/time_tracker\'", 5000)', "inline");
+	
+	$sqlDelete = "UPDATE {time_tracker_package}
+					SET bDeleted = '1'
+					WHERE id IN ('%s')";
+	
+	db_query($sqlDelete, implode("','", $time_tracker_aPackageId));
+	drupal_set_message("The selected package has been deleted.");
+	
+	return "";
+}
+
+function time_tracker_update(){
+	global $user;
+	
+	$iTimeLapsed = $_REQUEST["sec"];
+	$sqlUpdate1 = "UPDATE {time_tracker} SET iTimeLapsed = %d WHERE iUserId = %d AND iTimeStart = %d";
+	$sqlUpdate2 = "UPDATE {time_tracker_statement} SET iDuration = %d WHERE iUserId = %d AND iRefId = %d";
+	
+	db_query($sqlUpdate1, array($iTimeLapsed, $user->uid, $user->login));
+	db_query($sqlUpdate2, array(($iTimeLapsed * -1), $user->uid, $user->login));
+	
+	echo 1;
+	exit;
+}
+
+function time_tracker_buy(){
+	global $user;
+	
+	drupal_set_breadcrumb(array(l("Home", "<front>"), l("Time Tracker", "time"), l("Buy Time Blocks", "time/buy")));
+	
+	$iTimeAvailable = _time_tracker_get_credits();
+	$aTimeAvailable = _time_tracker_secs_to_hms($iTimeAvailable);
+	
+	$oDetails = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oDetails->account_number, "pass" => $oDetails->account_pass));
+	$mBalance = number_format($aBalances["RETURN"]["BALANCE"], 2);
+
+	if ($iTimeAvailable <= 0){
+		$sNotice = '<div style="color:red;"><br/>You do not have any more available time in your account. Buy time blocks with your Valiants.</div>';
+	}else{
+		$sNotice = '';
+		if(isset($aTimeAvailable[0]) && $aTimeAvailable[0] !== 0){
+		//$sNotice .= '<script type="text/javascript">window.location="http://hopefuls.firsthopecorps.org/hud.php";</script>';
+		$sNotice .= '<script type="text/javascript">window.location="http://www.hopecybrary.org/hud-v2.php";</script>';
+		}
+		$sNotice .= '<div style="color:white;">You have '.$aTimeAvailable[0].' hour(s), '.$aTimeAvailable[1].' minute(s), and '.$aTimeAvailable[2].' second(s) left in your time.</div>';
+	}
+	
+	$sqlPackage = "SELECT id, sTimePackage, iTimeLength, mTimePrice
+					FROM {time_tracker_package}
+					WHERE bDeleted = '0'
+					ORDER BY sTimePackage";
+	$oPackageResult = db_query($sqlPackage);
+	
+	while ($oPackage = db_fetch_object($oPackageResult)){
+		$aPackages[$oPackage->id] = $oPackage->sTimePackage." (".(number_format($oPackage->iTimeLength/3600, 2))." hours) H$ ".$oPackage->mTimePrice;
+	}
+	
+	$aForm['time_tracker_notice'] = array(
+		'#type' => 'fieldset',
+		'#title' => 'Information',
+		'#collapsible' => false,
+		'#collapsed' => true,
+		'#description' => 'You have H$ '.$mBalance.' in your bank account.'.$sNotice
+	);
+	
+	$aForm['time_tracker_package'] = array(
+		'#type' => 'select',
+		'#title' => '<br/>Time Blocks',
+		'#required' => true,
+		'#default_value' => '',
+		'#options' => $aPackages,
+		'#description' => '<br/>These are the available time blocks you can buy with your Valiants.<br/><br/>'
+	);
+	
+	$aAttribute = ($user->uid == 1) ? array("disabled" => "true"):array();
+	
+	$aForm['time_tracker_mBalance'] = array('#type' => 'hidden', '#value' => $mBalance);
+	$aForm['btnBuy'] = array("#type" => "submit", "#value" => "Buy Selected Time Block", '#attributes' => $aAttribute);
+	
+	return $aForm; 
+}
+
+function time_buy_page($content){
+
+ echo $content;
+}
+
+function time_tracker_buy_validate($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$mBalance = $aFormVal["time_tracker_mBalance"];
+	$aPackage = _time_tracker_get_package($aFormVal["time_tracker_package"]);
+	$mPackagePrice = $aPackage["mTimePrice"];
+	
+	if ($mPackagePrice > $mBalance){
+		form_set_error("", "You don't have sufficient funds in your bank account.");
+	}else{
+		$aFormState["values"]["time_tracker_package_cost"] = $mPackagePrice;
+		$aFormState["values"]["time_tracker_package_name"] = $aPackage["sTimePackage"];
+		$aFormState["values"]["time_tracker_package_length"] = $aPackage["iTimeLength"];
+	}
+}
+
+function time_tracker_buy_submit($oForm, &$aFormState){
+	global $user;
+	
+	$aFormVal = $aFormState["values"];
+	$mPackagePrice = $aFormVal["time_tracker_package_cost"];
+	$iPackageId = $aFormVal["time_tracker_package"];
+	$iPackageTime = number_format($aFormVal["time_tracker_package_length"]/3600, 2);
+	
+	$sqlInsert = "INSERT INTO {time_tracker_statement} VALUES(NULL, %d, %d, %d, '%s')";
+	db_query($sqlInsert, array($iPackageId, $user->uid, $aFormVal["time_tracker_package_length"], date("Y-m-d H:i:s")));
+	
+	$oDetails = _bank_account();
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass,
+						"amount" => $mPackagePrice,
+						"recipient" => "P85L-1235534669",
+						"description" => "Payment for buying a Time Block - ".$aFormVal["time_tracker_package_name"]." ".$iPackageTime." hour(s)"
+					);
+	
+	$aBankReply = _bank_post("pay", $aReqParam);
+	
+	drupal_set_message("You just bought the ".$aFormVal["time_tracker_package_name"]." ".$iPackageTime." hour Time Block.");
+	
+	return "";
+}
+
+function time_tracker_user($sOperation, &$aFormVals, &$oUser, $sCategory=NULL){
+	switch ($sOperation){
+		case "login":
+			if (in_array("Hopeful", $oUser->roles)){
+				$iTimeAvailable = _time_tracker_get_credits($oUser->uid);
+				
+				if ($iTimeAvailable == 0){
+					drupal_goto("time/buy");
+				}else{
+					$dDateStamp = date("Y-m-d H:i:s", $oUser->login);
+					$sqlInsert1 = "INSERT INTO {time_tracker} VALUES(NULL, %d, %d, 0, '%s')";
+					$sqlInsert2 = "INSERT INTO {time_tracker_statement} VALUES(NULL, %d, %d, 0, '%s')";
+					
+					db_query($sqlInsert1, array($oUser->uid, $oUser->login, $dDateStamp));
+					db_query($sqlInsert2, array($oUser->login, $oUser->uid, $dDateStamp));
+				}
+			}
+			
+			break;
+		
+		case "logout":
+			if (in_array("Hopeful", $oUser->roles)){
+				$iTimeLapsed = _time_tracker_get_time($oUser->uid, $oUser->login);
+				$sqlUpdate = "UPDATE {time_tracker_statement} 
+								SET iDuration = %d
+								WHERE iRefId = %d
+									AND iUserId = %d";
+				
+				db_query($sqlUpdate, array(($iTimeLapsed * -1), $oUser->login, $oUser->uid));
+			}
+			
+			break;
+	}
+}
+
+function _time_tracker_get_package($iPackageId){
+	$sqlTime = "SELECT sTimePackage, iTimeLength, mTimePrice
+				FROM {time_tracker_package}
+				WHERE id = %d";
+	$oTime = db_fetch_object(db_query($sqlTime, $iPackageId));
+	
+	$aPackage["sTimePackage"] = $oTime->sTimePackage;
+	$aPackage["iTimeLength"] = $oTime->iTimeLength;
+	$aPackage["mTimePrice"] = $oTime->mTimePrice;
+	
+	return $aPackage;
+}
+
+function _time_tracker_get_time($iChildId=null, $iLogin=null){
+	if (is_null($iChildId) || is_null($iLogin)){
+		global $user;
+		
+		$iChildId = $user->uid;
+		$iLogin = $user->login;
+	}
+	
+	$sqlTime = "SELECT iTimeLapsed
+				FROM {time_tracker}
+				WHERE iUserId = %d
+					AND iTimeStart = %d";
+	
+	$iTimeLapsed = db_result(db_query($sqlTime, array($iChildId, $iLogin)));
+	
+	//$iTimeLapsedTemp = time() - $iLogin;
+	//$iTimeDiff = $iTimeLapsedTemp - $iTimeLapsed;
+	//$bStartTimer = variable_get("time_tracker_bStartTimer", false);
+	
+	//if ($iTimeLapsed == 0 && $iTimeDiff <= 20) return $iTimeLapsed;
+	//if ($iTimeDiff > 180 && $bStartTimer) drupal_goto("logout");
+	
+	//if ($iTimeLapsedTemp > $iTimeLapsed){
+	//	$iTimeLapsed = $iTimeLapsedTemp;
+	//	$sqlUpdate = "UPDATE {time_tracker} SET iTimeLapsed = %d WHERE iUserId = %d AND iTimeStart = %d";
+		
+	//	db_query($sqlUpdate, array($iTimeLapsed, $iChildId, $iLogin));
+	//}
+	
+	return $iTimeLapsed;
+}
+
+function time_tracker_get_time_callback(){
+	global $user;
+	echo _time_tracker_get_time();
+	exit;
+}
+
+function _time_tracker_secs_to_hms($iSecs){
+	if ($iSecs<0) return false;
+	
+	$m = (int)($iSecs / 60);
+	$s = $iSecs % 60;
+	$h = (int)($m / 60); $m = $m % 60;
+	
+	return array($h, $m, $s);
+}
+
+function _time_tracker_get_credits($iChildId=null){
+	if (is_null($iChildId)){
+		global $user;
+		$iChildId = $user->uid;
+	}
+	
+	$sqlTime = "SELECT SUM(iDuration) AS iAvailableTime
+				FROM {time_tracker_statement}
+				WHERE iUserId = %d";
+	$iAvailableTime = db_result(db_query($sqlTime, $iChildId));
+	
+	return $iAvailableTime;
+}
+
+function _time_tracker_get_time_spent($iChildId=null){
+	if (is_null($iChildId)){
+		global $user;
+		$iChildId = $user->uid;
+	}
+	
+	$sqlTime = "SELECT ABS(SUM(A.iDuration)) AS iSpentTime
+				FROM time_tracker_statement A
+				LEFT JOIN time_tracker_package B ON B.id = A.iRefId
+				WHERE B.id IS NULL
+					AND A.iUserId = %d";
+	$iSpentTime = db_result(db_query($sqlTime, $iChildId));
+	
+	return $iSpentTime;
+}
+
+function _time_tracker_name($iUserId){
+	$sqlName = "SELECT fid, `value`
+				FROM profile_values
+				WHERE fid IN (1, 2)
+					AND uid = %d
+				ORDER BY fid ASC";
+	$oNameResult = db_query($sqlName, $iUserId);
+	$sName = "";
+	
+	while ($oName = db_fetch_object($oNameResult)){
+		$sName .= ($sName != "") ? ", ":"";
+		$sName .= ucwords($oName->value);
+	}
+	
+	return $sName;
+}
+
+function _time_tracker_in_array($sNeedle, $aHaystack){
+	foreach ($aHaystack as $sReference){
+		if (strstr($sReference, "*")){
+			if (stristr($sNeedle, str_replace("*", "", $sReference))) return true;
+		}else{
+			return ($sNeedle == $sReference);
+		}
+	}
+	
+	return false;
+}
+
+function _time_tracker_get_name($iUserId=null){
+	if (is_null($iUserId)){
+		global $user;
+		$iUserId = $user->uid;
+	}
+	
+	$sqlName = "SELECT `value`
+				FROM profile_values
+				WHERE fid = 2
+					AND uid = ".$iUserId;
+	
+	return db_result(db_query($sqlName, $iUserId));
+}

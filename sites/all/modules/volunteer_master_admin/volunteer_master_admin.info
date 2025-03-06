@@ -1,0 +1,6 @@
+; $Id$
+name = Kindness Master Volunteer Admin Module
+description = A module that tracks the statistics of Coordinators and Offline volunteers.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

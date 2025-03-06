@@ -1,0 +1,7 @@
+; $Id$
+name = InCybrary Module
+description = A module that shows the online children and their picture.
+version = 6.x-1.1
+package = HopeNet
+core = 6.x
+dependencies[] = profile

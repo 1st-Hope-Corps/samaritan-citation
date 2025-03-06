@@ -1,0 +1,17 @@
+; $Id: offers_wants.info,v 1.2 2009/01/21 17:01:04 matslats Exp $
+name = Offers/Wants
+description = Allows users to contribute to a categorised directory of offers and wants.
+version = $Name: DRUPAL-6--1-0-BETA1 $
+package = Complementary Currencies
+dependencies[] = views
+dependencies[] = taxonomy
+dependencies[] = transactions
+
+core = "6.x"
+
+; Information added by drupal.org packaging script on 2009-01-31
+version = "6.x-1.0-beta1"
+core = "6.x"
+project = "marketplace"
+datestamp = "1233420627"
+

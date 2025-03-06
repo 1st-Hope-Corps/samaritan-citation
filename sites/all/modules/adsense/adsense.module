@@ -1,0 +1,143 @@
+<?php
+// $Id$
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array- holds the current path as would be returned from arg() function
+ * @return help		- text for the path
+ **/
+function adsense_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#adsense":
+			$sOutput = '<p>'. t("Google AdSense module.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+ * Valid permissions for this module
+ * @return array	- An array of valid permissions for the socialgo module
+ **/
+function adsense_perm(){
+	return array('access adsense');
+}
+
+function adsense_menu(){
+	$aItems['adsense'] = array(
+		'title' => 'Google AdSense',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('adsense_set_form'),
+		'access arguments' => array('access adsense'),
+		'weight' => 0,
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	return $aItems;
+}
+
+function adsense_set_form(){
+	global $user;
+	
+	$iDrupalId = $user->uid;
+	$aAds = _adsense_get_ads($iDrupalId);
+	
+	$aForm['adsense_top'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Header Ad (Leaderboard 728 x 90)'),
+		'#default_value' => $aAds["top"],
+		'#cols' => 70,
+		'#rows' => 8,
+		'#description' => t("728(W) x 90(H) Ad that will be placed somewhere on the header.<br />Copy and paste your Google AdSense code in this area."),
+		'#required' => FALSE
+	);
+	
+	$aForm['adsense_bottom'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Footer Ad (Leaderboard 728 x 90)'),
+		'#default_value' => $aAds["bottom"],
+		'#cols' => 70,
+		'#rows' => 8,
+		'#description' => t("728(W) x 90(H) Ad that will be placed somewhere on the footer.<br />Copy and paste your Google AdSense code in this area."),
+		'#required' => FALSE
+	);
+	
+	$aForm['adsense_right'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Right Ad (Skyscraper 120 x 600)'),
+		'#default_value' => $aAds["right"],
+		'#cols' => 70,
+		'#rows' => 8,
+		'#description' => t("120(W) x 600(H) Ad that will be placed on the right hand side.<br />Copy and paste your Google AdSense code in this area."),
+		'#required' => FALSE
+	);
+	
+	$aForm['adsense_left'] = array(
+		'#type' => 'textarea',
+		'#title' => t('Left Ad (Skyscraper 120 x 600)'),
+		'#default_value' => $aAds["left"],
+		'#cols' => 70,
+		'#rows' => 8,
+		'#description' => t("120(W) x 600(H) Ad that will be placed on the left hand side.<br />Copy and paste your Google AdSense code in this area."),
+		'#required' => FALSE
+	);
+	
+	$aForm['btnSave'] = array("#type" => "submit", "#value" => t("Save Ads"));
+	
+	return $aForm;
+}
+
+function adsense_set_form_submit($oForm, &$aFormState){
+	global $user;
+	
+	$iDrupalId = $user-uid;
+	$aFormVal = $aFormState["values"];
+	$aAdPos = array("top","bottom","right","left");
+	$iRowCount = _adsense_check_ads($iDrupalId);
+	
+	if ($iRowCount == 0){
+		for ($x=0; $x<count($aAdPos); $x++){
+			$sqlInsert = "INSERT INTO {adsense_values} VALUES(NULL, %d, '%s', '%s')";
+			db_query($sqlInsert, $iDrupalId, $aAdPos[$x], $aFormVal["adsense_".$aAdPos[$x]]);
+		}
+	}else{
+		for ($x=0; $x<count($aAdPos); $x++){
+			$sqlUpdate = "UPDATE {adsense_values} SET ad_js = '%s' WHERE ad_position = '%s' AND uid = %d";
+			db_query($sqlUpdate, $aFormVal["adsense_".$aAdPos[$x]], $aAdPos[$x], $iDrupalId);
+		}
+	}
+	
+	drupal_set_message(t("Your ads have been saved."));
+}
+
+/**
+ * Reusable functions AKA callbacks
+ **/
+function _adsense_check_ads($iUserId){
+	$sqlCheck = "SELECT COUNT(uid) AS iRowCount FROM {adsense_values} WHERE uid = %d";
+	$oCheck = db_query($sqlCheck, $iUserId);
+	
+	return db_fetch_object($oCheck)->iRowCount;
+}
+
+function _adsense_get_ads($iUserId=NULL){
+	if (is_null($iUserId)){
+		global $user;
+		$iUserId = $user->uid;
+	}
+	
+	$aAds = array();
+	
+	$sqlGetAds = "SELECT ad_position, ad_js FROM {adsense_values} WHERE uid = %d";
+	$oGetAds = db_query($sqlGetAds, $iUserId);
+	
+	while ($oGetAd = db_fetch_object($oGetAds)){
+		$aAds[$oGetAd->ad_position] = $oGetAd->ad_js;
+	}
+	
+	return $aAds;
+}

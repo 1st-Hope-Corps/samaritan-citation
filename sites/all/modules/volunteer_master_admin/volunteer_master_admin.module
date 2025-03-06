@@ -1,0 +1,1960 @@
+<?php
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function volunteer_master_admin_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#volunteer_master_admin":
+			$sOutput = '<p>'. t("Reviewer Master Admin.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function volunteer_master_admin_menu(){
+	$aMenus = array();
+	
+	$aMenus['admin/user/master_volunteer_kindness'] = array(
+		'title' => 'Reviewer Master Admin',
+		'description' => 'Tracks the statistics of the Citation Mentor volunteers.',
+		'page callback' => 'volunteer_master_admin_list',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	/*
+	$aMenus['admin/user/master_reviewer/list'] = array(
+		'title' => 'List',
+		'description' => 'The list of Kindness Mentor volunteers.',
+		'page callback' => 'volunteer_master_admin_list',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 1
+	);
+		
+	$aMenus['admin/user/master_reviewer/list/process'] = array(
+		'title' => 'Reviewer Master Admin',
+		'page callback' => 'volunteer_master_admin_list_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/master_reviewer/list/assign/%/%'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_list_assign',
+		'page arguments' => array(5, 6),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/master_reviewer/list/assign/process'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_list_assign_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);*/
+	
+	$aMenus['admin/user/getofflinevolunteer'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_get_offline_volunteer',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+		
+	$aMenus['admin/user/assignofflinevolunteer'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_assign_offline_volunteer',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/saveassignofflinevolunteer'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_update_assign_offline_volunteer',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/addofflinevolunteer'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_add_offline_volunteer',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/user/insertaddofflinevolunteer'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_insert_add_offline_volunteer',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/user/removeofflinevolunteer'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_remove_offline_volunteer',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/user/addschool'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_add_school',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/getpositions'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_get_positions',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/addpositionsave'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_add_positions_save',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/user/editpositionform'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_edit_positions_form',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);  
+	
+	$aMenus['admin/user/editpositionsave'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_edit_positions_save',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/removeposition'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_remove_positions_save',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/user/unblockcoordinators'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_unblock_coordinators',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/removeofflinevolunteertocoordinator'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_removeofflinevolunteertocoordinator',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/offlinekindnessstatus'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_offlinekindnessstatus',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/searchcoordinator'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_searchcoordinator',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/searchofflinevolunteers'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_searchofflinevolunteers',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/searchschool'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_searchschool',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	 
+	$aMenus['admin/user/totalKindnessWorkz'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_totalKindnessWorkz',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/volPendingKindnessWorkz'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_master_admin_volPendingKindnessWorkz',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/refreshtable'] = array(
+		'title' => 'Refresh Table',
+		'page callback' => 'volunteer_master_refresh_table',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/user/getSchoolOptions'] = array(
+		'title' => 'School Option',
+		'page callback' => 'volunteer_master_getSchoolOption',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/user/deleteschool'] = array(
+		'title' => 'Delete School',
+		'page callback' => 'volunteer_master_deleteSchool',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	return $aMenus; 
+}
+
+function volunteer_master_deleteSchool($schoolv){
+	
+	$arr_school = explode("-",$schoolv);
+	$sqlDelete = "DELETE FROM cybrarian_schools
+					  WHERE id = '".$arr_school['0']."'";	
+					  
+	db_query($sqlDelete);
+	
+	$sqlDelete2 = "DELETE FROM cybrarian_positions
+					  WHERE cybschool_id = '".$arr_school['0']."'";	
+					  
+	db_query($sqlDelete2);
+
+	$table = _volunteer_master_admin_school_table();
+
+	echo json_encode(array("TABLE" => $table));
+	exit;
+}
+
+function volunteer_master_getSchoolOption(){
+	
+	$arr_schools = array("Jose Magsaysay Elementary School", "Francisco Benitez Elementary School", "Maximo Estrella Elementary School");
+	$arr_schools_query = array();
+
+	$content = '<div style="padding-top:12px;">
+						Select a School <select id="schoolselect" name="schoolselect">
+											<option value="">&nbsp;</option>';
+										
+						$sqlSchools = db_query("SELECT id, school_name
+									            FROM cybrarian_schools");
+						while($school = db_fetch_object($sqlSchools)){
+							array_push($arr_schools_query, $school->school_name);
+						}
+						
+						foreach($arr_schools as $schools){
+							if(!in_array($schools, $arr_schools_query)){
+							$content .= '<option value="'.$schools.'">'.$schools.'</option>';
+							}
+						}
+												
+							$content .= '</select>
+					</div>';
+					
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_refresh_table(){
+	$type = $_POST['type'];
+	
+	switch($type){
+	case 'eAdministrator':
+	$table = loadCoordinatorTable();
+	break;
+	case 'school':
+	$table = _volunteer_master_admin_school_table();
+	break;
+	case 'offlinevolunteer':
+	$table = loadOfflineTable();
+	break;
+	}
+	
+	echo json_encode(array("TABLE" => $table));
+	exit;
+}
+
+function volunteer_master_admin_searchschool(){
+	$type = $_POST["type"];
+	$value = $_POST["value"];
+
+	$content = _volunteer_master_admin_school_table($type, $value);
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_admin_searchofflinevolunteers(){
+	$type = $_POST["type"];
+	$value = $_POST["value"];
+
+	$content = loadOfflineTable($type, $value);
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_admin_searchcoordinator(){
+	$type = $_POST["type"];
+	$value = $_POST["value"];
+
+	$content = loadCoordinatorTable($type, $value);
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+} 
+
+function volunteer_master_admin_totalKindnessWorkz($iUserID){
+
+	$sqlKindness = "SELECT D.name, A.cybact_id, if(C.sTitle is null,B.position,C.sTitle) as position, A.created, A.ended, A.bApproved
+					FROM `drupal`.`cybrarian_activity` A 
+					LEFT JOIN drupal.cybrarian_optin B ON B.uid = A.uid
+					LEFT JOIN drupal.cybrarian_kindness C ON C.cybactivity_id = A.cybact_id
+					LEFT JOIN drupal.users D ON D.uid = A.uid
+					WHERE B.coordinator = '{$iUserID}'
+					AND A.bApproved != 0
+					GROUP BY A.cybact_id";
+	
+					$oKindness_count = db_result(db_query("
+									SELECT DISTINCT count(A.cybact_id) 
+									FROM drupal.cybrarian_activity A
+									LEFT JOIN drupal.cybrarian_optin B ON B.uid = A.uid
+									WHERE B.coordinator = '{$iUserID}' 
+									AND A.bApproved != 0"));
+					
+					$oKQueryResult = db_query($sqlKindness);
+					$oKDetails = array();
+			
+			if($oKindness_count > 0){
+			$sOutput .= '<table style="margin-top:10px;">
+						<tr>
+							<th style="width:120px;">Name</th>
+							<th style="width:120px;">Title</th>
+							<th style="width:120px; text-align:right;  padding-right:10px;">Duration</th>
+							<th style="width:120px;">Date</th>
+							<th style="width:160px;">Status</th>
+						</tr>';
+					
+					while ($oKDetails = db_fetch_object($oKQueryResult)){
+					
+					$oK_count = db_result(db_query("SELECT DISTINCT count(id) FROM cybrarian_kindness WHERE cybactivity_id = '{$oKDetails->cybact_id}'"));
+					$oAction = '';		
+					
+					if($oK_count == 0){
+					$oStatus = 'Incomplete';
+					$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'incomplete'.'\')">'.ucfirst($oKDetails->name).'</a>';
+					} else {
+						if($oKDetails->bApproved == 1){
+							$oStatus = 'Approved';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->name).'</a>';
+						} else if($oKDetails->bApproved == 2){
+							$oStatus = 'Disapproved';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->name).'</a>';
+						} else{
+							$oStatus = 'Pending';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->name).'</a>';
+						}
+					}
+					
+					$sOutput .= '<tr>
+									<td style="padding-top:5px;">'.$oAction.'</td>
+									<td style="padding-top:5px;">'.ucfirst($oKDetails->position).'</td>
+									<td style="text-align:right; padding-right:10px;">'.format_interval($oKDetails->ended - $oKDetails->created).'</td>
+									<td>'.date('d M y',$oKDetails->created).'</td>
+									<td>'.ucfirst($oStatus).'</td>
+									</tr>';
+					}
+			$sOutput .= "</table>";
+			} else{
+			$sOutput .= "There are no Kindnez to list yet.";
+			}
+			
+	echo json_encode(array("STATUS" => "Success", "OUTPUT" => $sOutput));
+	exit;
+}
+
+function volunteer_master_admin_volPendingKindnessWorkz($iUserID){
+
+	$sqlKindness = "SELECT D.name, A.cybact_id, if(C.sTitle is null,B.position,C.sTitle) as position, A.created, A.ended, A.bApproved
+					FROM `drupal`.`cybrarian_activity` A 
+					LEFT JOIN drupal.cybrarian_optin B ON B.uid = A.uid
+					LEFT JOIN drupal.cybrarian_kindness C ON C.cybactivity_id = A.cybact_id
+					LEFT JOIN drupal.users D ON D.uid = A.uid
+					WHERE B.coordinator = '{$iUserID}'
+					AND A.bApproved = 0
+					AND C.id != ''
+					GROUP BY A.cybact_id";
+	
+					$oKindness_count = db_result(db_query("
+									SELECT DISTINCT count(A.cybact_id) 
+									FROM drupal.cybrarian_activity A
+									LEFT JOIN drupal.cybrarian_optin B ON B.uid = A.uid
+									LEFT JOIN drupal.cybrarian_kindness C ON C.cybactivity_id = A.cybact_id
+									WHERE B.coordinator = '{$iUserID}' 
+									AND A.bApproved = 0
+									AND C.id != ''"));
+					
+					$oKQueryResult = db_query($sqlKindness);
+					$oKDetails = array();
+			
+			if($oKindness_count > 0){
+			$sOutput .= '<table style="margin-top:10px;">
+						<tr>
+							<th style="width:120px;">Name</th>
+							<th style="width:120px;">Title</th>
+							<th style="width:120px; text-align:right;  padding-right:10px;">Duration</th>
+							<th style="width:120px;">Date</th>
+							<th style="width:160px;">Status</th>
+						</tr>';
+					
+					while ($oKDetails = db_fetch_object($oKQueryResult)){
+					
+					$oK_count = db_result(db_query("SELECT DISTINCT count(id) FROM cybrarian_kindness WHERE cybactivity_id = '{$oKDetails->cybact_id}'"));
+					$oAction = '';		
+					
+					if($oK_count == 0){
+					$oStatus = 'Incomplete';
+					$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'incomplete'.'\')">'.ucfirst($oKDetails->name).'</a>';
+					} else {
+						if($oKDetails->bApproved == 1){
+							$oStatus = 'Approved';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->name).'</a>';
+						} else if($oKDetails->bApproved == 2){
+							$oStatus = 'Disapproved';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->name).'</a>';
+						} else{
+							$oStatus = 'Pending';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->name).'</a>';
+						}
+					}
+					
+					$sOutput .= '<tr>
+									<td style="padding-top:5px;">'.$oAction.'</td>
+									<td style="padding-top:5px;">'.ucfirst($oKDetails->position).'</td>
+									<td style="text-align:right; padding-right:10px;">'.format_interval($oKDetails->ended - $oKDetails->created).'</td>
+									<td>'.date('d M y',$oKDetails->created).'</td>
+									<td>'.ucfirst($oStatus).'</td>
+									</tr>';
+					}
+			$sOutput .= "</table>";
+			} else{
+			$sOutput .= "There are no Kindnez to list yet.";
+			}
+			
+	echo json_encode(array("STATUS" => "Success", "OUTPUT" => $sOutput));
+	exit;
+}
+
+function volunteer_master_admin_offlinekindnessstatus($iUserID){
+
+	$sqlKindness = "SELECT A.cybact_id, if(C.sTitle is null,B.position,C.sTitle) as position, A.created, A.ended, A.bApproved
+									FROM `drupal`.`cybrarian_activity` A 
+									LEFT JOIN drupal.cybrarian_optin B ON B.uid = A.uid
+									LEFT JOIN drupal.cybrarian_kindness C ON C.cybactivity_id = A.cybact_id
+									WHERE A.uid = '{$iUserID}'
+									AND A.activity = 'stop' 
+									GROUP BY A.cybact_id";
+	
+					$oKindness_count = db_result(db_query("SELECT DISTINCT count(cybact_id) FROM drupal.cybrarian_activity
+									WHERE uid = '{$iUserID}' 
+									AND activity = 'stop'"));
+					
+					$oKQueryResult = db_query($sqlKindness);
+					$oKDetails = array();
+			
+			if($oKindness_count > 0){
+			$sOutput .= '<table style="margin-top:10px;">
+						<tr>
+							<th style="width:120px;">Title</th>
+							<th style="width:120px; text-align:right;  padding-right:10px;">Duration</th>
+							<th style="width:120px;">Date</th>
+							<th style="width:160px;">Status</th>
+						</tr>';
+					
+					while ($oKDetails = db_fetch_object($oKQueryResult)){
+					
+					$oK_count = db_result(db_query("SELECT DISTINCT count(id) FROM cybrarian_kindness WHERE cybactivity_id = '{$oKDetails->cybact_id}'"));
+					$oAction = '';		
+					
+					if($oK_count == 0){
+					$oStatus = 'Incomplete';
+					$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'incomplete'.'\')">'.ucfirst($oKDetails->position).'</a>';
+					} else {
+						if($oKDetails->bApproved == 1){
+							$oStatus = 'Approved';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->position).'</a>';
+						} else if($oKDetails->bApproved == 2){
+							$oStatus = 'Disapproved';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->position).'</a>';
+						} else{
+							$oStatus = 'Pending';
+							$oAction = '<a href="javascript:void(0);" onclick="admin_viewLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->position).'</a>';
+						}
+					}
+					
+					$sOutput .= '<tr>
+									<td style="padding-top:5px;">'.$oAction.'</td>
+									<td style="text-align:right; padding-right:10px;">'.format_interval($oKDetails->ended - $oKDetails->created).'</td>
+									<td>'.date('d M y',$oKDetails->created).'</td>
+									<td>'.ucfirst($oStatus).'</td>
+									</tr>';
+					}
+			$sOutput .= "</table>";
+			} else{
+			$sOutput .= "There are no Kindnez to list yet.";
+			}
+			
+	echo json_encode(array("STATUS" => "Success", "OUTPUT" => $sOutput));
+	exit;
+}
+
+function volunteer_master_admin_removeofflinevolunteertocoordinator($iUserID){
+	
+	$coordinatorid = $_POST['coordinatorid'];
+	$sqlUpdate = "UPDATE cybrarian_optin
+					  SET 
+					  coordinator = '0'
+					  WHERE uid = '".$iUserID."'";						  
+	$bSuccess = db_query($sqlUpdate);
+
+	echo json_encode(array("STATUS" => "Success", "COID" => $coordinatorid));
+	exit;
+}
+
+function volunteer_master_admin_unblock_coordinators($ids){
+	
+	$status = $_POST['status'];
+	
+	switch($status){
+	case 'activate':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlUpdate = "UPDATE volunteer_optin
+					  SET 
+					  bStatus = '1'
+					  WHERE uid = '".$id."'
+					  AND type = 'eadministrator'";						  
+		$bSuccess = db_query($sqlUpdate);
+	  }
+	$content = loadCoordinatorTable();
+	break;
+	case 'deactivate':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlUpdate = "UPDATE volunteer_optin
+					  SET 
+					  bStatus = '0'
+					  WHERE uid = '".$id."'
+					  AND type = 'eadministrator'";						  
+		$bSuccess = db_query($sqlUpdate);
+	  }
+	$content = loadCoordinatorTable();
+	break;
+	case 'delete':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlDelete = "DELETE FROM volunteer_optin
+					  WHERE uid = '".$id."'
+					  AND type = 'eadministrator'";	
+					  
+		$bSuccess = db_query($sqlDelete);
+	  }
+	$content = loadCoordinatorTable();
+	break;
+	case 'off-activate':
+	$arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlUpdate = "UPDATE cybrarian_optin
+					  SET 
+					  activate = '1'
+					  WHERE uid = '".$id."'";						  
+		$bSuccess = db_query($sqlUpdate);
+	  }
+	$content = loadOfflineTable();
+	break;
+	case 'off-deactivate':
+	$arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlUpdate = "UPDATE cybrarian_optin
+					  SET 
+					  activate = '0'
+					  WHERE uid = '".$id."'";						  
+		$bSuccess = db_query($sqlUpdate);
+	  }
+	$content = loadOfflineTable();
+	break;
+	}
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_admin_remove_positions_save($posid){
+	
+	$sqlDelete = "DELETE FROM cybrarian_positions WHERE cybpos_id = %d";
+	db_query($sqlDelete, $posid);
+
+	echo json_encode(array("STATUS" => "Success"));
+	exit;
+}
+
+function volunteer_master_admin_edit_positions_save(){
+	$id = $_POST['id'];
+	$name = $_POST['name'];
+	$max = $_POST['max'];
+	$duties = $_POST['duties'];
+	
+	$sqlUpdate = "UPDATE cybrarian_positions
+				  SET 
+				  cybpos_name = '".$name."',
+				  max_available = '".$max."',
+				  duties = '".$duties."'
+				  WHERE cybpos_id = %d";			
+	
+	$bSuccess = db_query($sqlUpdate, $id);
+	
+	echo json_encode(array("STATUS" => "Success"));
+	exit;
+}
+
+function volunteer_master_admin_edit_positions_form($posid){
+
+	$sqlSelectPos = "SELECT cybpos_id, cybpos_name, max_available, duties 
+				FROM cybrarian_positions
+				WHERE cybpos_id = %d";
+	$oPosResult = db_query($sqlSelectPos, $posid);
+	
+	$oPos = db_fetch_object($oPosResult);
+	
+	$content = '<div id="addposition_content" style="clear:both;width:510px;padding-top:12px;">
+							<input type="hidden" id="editcybpos_id" name="editcybpos_id" value="'.$oPos->cybpos_id.'"/>
+							<div style="float:left;width:25%">Position Name:</div><div style="float:left;width:35%;"><input type="text" id="editcybpos_name" name="editcybpos_name" value="'.$oPos->cybpos_name.'"/></div><div style="float:left;width:25%">Maximum Users:</div><div style="float:left;width:10%">
+							<select id="editmax_available" name="editmax_available">';
+
+							$num = 0;
+							while($num <= 100){
+							if($oPos->max_available == $num){
+								$content .= '<option value="'.$num.'" selected>'.$num.'</option>';
+								} else{
+								$content .= '<option value="'.$num.'">'.$num.'</option>';
+								}
+								$num++;
+							}
+							
+				$content .= '</select></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;width:25%">Duties:</div><div style="float:left;width:75%;"><textarea id="editduties" name="editduties" cols="18" rows="8">'.$oPos->duties.'</textarea></div>
+				</div>';
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_admin_add_positions_save(){
+    $posname = $_POST['posname'];
+	$posmax = $_POST['posmax']; 
+	$posduties = $_POST['posduties']; 
+	$posschoolid = $_POST['posschoolid']; 
+	
+	$sqlInsert = "INSERT INTO cybrarian_positions VALUES(NULL, '%s', %d, NULL, NULL, %d, '%s')";
+	db_query($sqlInsert, array($posname, $posmax, $posschoolid, $posduties));
+	
+	echo json_encode(array("STATUS" => "Success"));
+	exit;
+}
+
+function volunteer_master_admin_get_positions($value){
+global $user;
+	
+	$arr_school = explode("-", $value);
+	$iSchoolId = $arr_school[0];
+	$arriSchoolName = explode("_", $arr_school[1]); 
+	$iSchoolName = $arriSchoolName[0];
+	
+	// For some reason, JS files are not being added via drupal_add_js.
+	// Below is a workaround to add those files.
+	$sVolunteerJS = file_get_contents(drupal_get_path('module', 'volunteer_master_admin')."/volunteer_master_admin.js");
+	
+	drupal_add_js($sVolunteerJS, 'inline');
+	
+	// Original code
+	//drupal_add_js(drupal_get_path("module", "volunteer_master_admin")."/volunteer_master_admin.js");
+	
+		$sTableHeader .= '
+						<div align="left" style="font-size:11px;padding-bottom:10px;">School: <span style="color:#6a7c9e;">'.ucfirst($iSchoolName).'</span></div>
+						<div align="right">
+							<!--<input type="text" style="font-size:11px;width:105px;" id="pos-search-input" name="pos-search-input" value=""/>
+						    <select id="pos-field-search" style="font-size:11px;">
+								<option value="">Fields</option>
+								<option value="username">Position</option>
+							</select>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="pos-search" name="pos-search" value="Search"/>-->
+							<input type="button" style="cursor:pointer;font-size:11px;" id="pos-add" name="pos-add" value="Add" onClick="add_position();" />
+							<input type="button" style="cursor:pointer;font-size:11px;" id="pos-edit" name="pos-edit" value="Edit" onClick="edit_position();"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="pos-remove" name="pos-remove" value="Remove" onClick="remove_position();"/>
+						    <!--<input type="button" style="cursor:pointer;font-size:11px;" id="pos-filter" name="pos-filter" value="Filter"/>
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="pos-selectall" name="pos-selectall" value="Toggle"/>-->
+						</div>
+						<table>
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;">&nbsp;<!--<input type="checkbox" id="positions_master_admin_bCheckAll" name="positions_master_admin_bCheckAll" title="Select all rows in this table" />--></th>
+								<th style="width:200px;">Position name</th>
+								<th style="text-align:center;font-size:10px;width:200px;">Maximum Available</th>
+								<th style="text-align:center;font-size:10px;width:200px;">Available</th>
+								<th style="text-align:center;font-size:10px;width:200px;">Taken</th>
+							</tr>';
+	$sTableFooter = '</table>';
+	
+	$sqlVolunteer = "SELECT cybpos_id, cybpos_name, max_available, available, taken, cybschool_id
+					FROM cybrarian_positions
+					WHERE cybschool_id = '%d'";
+	
+	$sqlCount = "SELECT COUNT(cybpos_id)
+				FROM cybrarian_positions 
+				WHERE cybschool_id = '%d'";
+	
+	$sqlVolunteer = sprintf($sqlVolunteer, $iSchoolId);
+	$sqlCount = sprintf($sqlCount, $iSchoolId);
+	$iMaxRec = 25;
+	
+	$oVolunteerResult = pager_query($sqlVolunteer, $iMaxRec, 0, $sqlCount);
+	
+	while ($oVolunteer = db_fetch_object($oVolunteerResult)){
+		$cybpos_id = $oVolunteer->cybpos_id; 
+		$strcybpos_name = $oVolunteer->cybpos_name;
+		$max_available = $oVolunteer->max_available;
+		
+		$intTakenPosition = db_result(db_query("SELECT count(cyb_id) FROM {cybrarian_optin} WHERE position = '".strtolower($strcybpos_name)."' AND school = '".$iSchoolName."'"));
+		$available = $oVolunteer->max_available - $intTakenPosition;
+		$taken = $intTakenPosition;
+		$cybschool_id = $oVolunteer->cybschool_id;
+		
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="positions_master_admin_bCheckThis" name="positions_master_admin_bCheckThis[]" value="'.$cybpos_id.'" /></td>
+								<td style="padding-top:0px; vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$cybpos_id.'" style="cursor:pointer;">'.ucwords($strcybpos_name).'</span> 
+								</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$max_available.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$available.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$taken.'</td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No positions to list, yet.</td>
+										</tr>';
+	
+	$sPagerHTML = ($sTableContent != "") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	
+	$content = $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_admin_add_school($schoolname){
+	
+	$sqlInsert = "INSERT INTO cybrarian_schools VALUES(NULL, '%s')";
+	db_query($sqlInsert, $schoolname);
+	
+	$table = _volunteer_master_admin_school_table();
+	echo json_encode(array("STATUS" => "Success", "TABLE" => $table));
+	exit;
+}
+
+function volunteer_master_admin_remove_offline_volunteer($offlinevolunteerid){
+	$offlinevolunteers = explode("-", $offlinevolunteerid);
+	foreach($offlinevolunteers as $offlinevolunteerid){
+	
+	$sqlDelete = "DELETE FROM cybrarian_optin
+					  WHERE uid = '".$offlinevolunteerid."'";	
+					  
+	db_query($sqlDelete, $offlinevolunteerid);
+	
+	$sqlTeamDelete = "DELETE FROM hope_teamusers
+					  WHERE uid = '".$offlinevolunteerid."'";	
+					  
+	db_query($sqlTeamDelete, $offlinevolunteerid);
+	
+	$sqlTeamDelete = "DELETE FROM users_roles
+					  WHERE uid = '".$offlinevolunteerid."' and rid = 19";	
+					  
+	db_query($sqlTeamDelete, $offlinevolunteerid);
+	
+	$sqlInsert = "INSERT INTO user_notification VALUES(NULL, '".$offlinevolunteerid."', 'cybrarian-team', '0')";
+	db_query($sqlInsert);
+	}
+	
+	$content = loadOfflineTable();
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content, "SQL" => $sqlUpdate));
+	exit;
+}
+
+function volunteer_master_admin_insert_add_offline_volunteer(){
+	$offlinevolunteerid = $_POST['offlinevolunteerid'];
+	$coordinatorid = $_POST['coordinatorid'];
+	
+	$sqlUpdate = "UPDATE cybrarian_optin
+				  SET coordinator = '".$coordinatorid."'
+				  WHERE uid = %d";			
+	
+	$bSuccess = db_query($sqlUpdate, $offlinevolunteerid);
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_admin_add_offline_volunteer($iUserid){
+/*
+	$resAllowable = db_result(db_query("SELECT iRequest FROM volunteer_optin WHERE type = 'eadministrator' AND uid = '{$iUserid}'"));
+	$resCurrent = 1;
+	$resCurrent = db_result(db_query("SELECT count(cyb_id) as cyb_id FROM cybrarian_optin WHERE coordinator = '{$iUserid}'"));
+
+	if($resAllowable == $resCurrent){
+	$content = '<div style="color:red;padding-top:12px;">Maximum allowable of volunteers request has been reached.</div>';
+	} else{
+	
+	}
+*/
+	
+	$sqlUser = "SELECT A.name, B.uid
+				FROM users A
+				INNER JOIN cybrarian_optin B ON B.uid = A.uid
+				WHERE B.coordinator = '0'
+				AND B.activate = '1'";
+				
+	$oUserResult = db_query($sqlUser);
+	
+	$content = '<div style="width:460px;clear:both;padding-top:12px;">
+				<input type="hidden" id="coordinatorid" name="coordinatorid" value="'.$iUserid.'"/>
+				';
+	$content .= '<div style="float:left;width:50%; margin: 0px;">Available Cybrarian Volunteers:</div>
+				<div style="float:left;">';
+				
+	$content .= '<select id="offlinevolunteerid" name="offlinevolunteerid"><option value="">&nbsp;</option>';
+	while($oUser = db_fetch_object($oUserResult)){
+	$content .= '<option value="'.$oUser->uid.'">'.$oUser->name.'</option>';
+	}
+	$content .= '</select> <input type="button" name="addoffvolunteer" id="addoffvolunteer" onclick="add_user_to_coordinator();" value="Add Volunteer" />';
+	$content .= '</div>';
+	
+	$content .= '<div id="coordinatorsvlist">';
+	$content .= loadOfflineVolunteersMiniTable($iUserid);
+	$content .= '</div>';
+	
+	$content .= '</div>';
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+}
+
+function loadOfflineVolunteersMiniTable($iUserid){
+	
+	$sqlVolunteers = "SELECT A.name, B.uid
+				FROM users A
+				INNER JOIN cybrarian_optin B ON B.uid = A.uid
+				WHERE B.coordinator = '".$iUserid."'";
+	$oVolunteersResult = db_query($sqlVolunteers);
+	
+	$countVolunteers = db_result(db_query("SELECT count(uid)
+						FROM cybrarian_optin
+						WHERE coordinator = '".$iUserid."'"));
+	
+	if($countVolunteers > 0){
+	$content .= '<div style="clear:both;"><b>Username(s)</b><br/>';
+	
+		while($oVolunteers = db_fetch_object($oVolunteersResult)){
+		$content .= $oVolunteers->name.' <a href="javascript:void(0);" onclick="removeOfflinetoCoordinator(\''.$oVolunteers->uid.'\',\''.$iUserid.'\');">remove</a><br/>';
+		}
+	}
+	$content .= '</div>';
+	
+	return $content;
+}
+
+function volunteer_master_admin_update_assign_offline_volunteer(){
+	$iUserId = $_POST['idassign'];
+	$hoursassigned = $_POST['hoursassigned'];
+	
+	$sqlUpdate = "UPDATE cybrarian_optin
+				  SET volunteer_hours_assigned = '".$hoursassigned."'
+				  WHERE uid = %d";			
+	
+	$bSuccess = db_query($sqlUpdate, $iUserId);
+
+	$content = loadOfflineTable();
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_admin_assign_offline_volunteer($iUserId){
+	
+	$sqlUser = "SELECT A.name, B.volunteer_hours_assigned
+				FROM users A
+				INNER JOIN cybrarian_optin B ON B.uid = A.uid
+				WHERE A.uid = %d";
+	$oUserResult = db_query($sqlUser, array($iUserId));
+	$oUser = db_fetch_object($oUserResult);
+	
+	$content = '<div style="width:410px;clear:both;">';
+	$content .= '<div style="float:left;width:40%;margin:5px;">Username</div>
+				 <div style="float:left;">'.$oUser->name.'<input type="hidden" id="id_assign" name="id_assign" value="'.$iUserId.'"/></div>';
+	$content .= '<div style="clear:both;">&nbsp;</div>';
+	$content .= '<div style="float:left;width:40%;margin:5px;">Hours per week</div>
+				<div style="float:left;">
+				<select id="hours_assigned" name="hours_assigned">
+				<option value=""></option>';
+	$count = 1;
+	while($count < 10){
+	
+	if($oUser->volunteer_hours_assigned == $count){
+	$content .= '<option value="'.$count.'" selected>'.$count.'</option>';	
+	} else{
+	$content .= '<option value="'.$count.'">'.$count.'</option>';	
+	}
+	
+	$count++;
+	}
+	
+	$content .= '</select>';		
+				
+	$content .= '</div>';
+	$content .= '<div style="clear:both;">&nbsp;</div>';
+	$content .= '</div>';
+	
+	$content .= '</div>';
+
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+}
+
+function volunteer_master_admin_get_offline_volunteer(){
+global $user;
+	
+	// For some reason, JS files are not being added via drupal_add_js.
+	// Below is a workaround to add those files.
+	$sVolunteerJS = file_get_contents(drupal_get_path('module', 'volunteer_master_admin')."/volunteer_master_admin.js");
+	
+	drupal_add_js($sVolunteerJS, 'inline');
+	
+	// Original code
+	//drupal_add_js(drupal_get_path("module", "volunteer_master_admin")."/volunteer_master_admin.js");
+	
+	
+	$sTableHeader = '&nbsp;&nbsp;<h3>Cybrary Volunteers</h3>
+				<div class="demo">
+				<div id="OfflineVolunteerstabs">
+					<ul>
+						<li><a href="#offlinetab-1" style="text-decoration:none;font-size:12px;">Cybrary Volunteers</a></li>
+					</ul>';
+					
+	$sTableHeader .= '<div id="offlinetab-1">';
+	
+	$sTableHeader .= '
+					<div id="offlinekindnessstatus_Dialog" title="Kindness Status" style="display:none;">
+						<div id="kindnessStatus_div"></div>
+					</div>
+					<div id="offlineschedule_Dialog" title="Schedule" style="display:none;">
+						<iframe src="" width="1180" height="580" id="schedule_url" frameBorder="0"></iframe>
+					</div>
+					<div id="admin_kindnessreport_Dialog_edit" title="Kindness Status" style="display:none;">
+							<div style="clear:both;width:500px;">
+								<div style="margin:5px;">
+									<div style="float:left;vertical-align:bottom;">&nbsp;</div>
+									<div align="left" style="width:100%">
+									<div style="float:left;width:30%;"><b>Start Time:</b> <label id="fstart_edit"></label></div>
+									<div style="float:left;width:30%;"><b>Stop Time:</b> <label id="fstop_edit"></label></div>
+									<div style="float:left;width:30%;"><b>Elapsed Time:</b> <label id="felapse_edit"></label></div>
+									</div>
+									<div style="clear:both;height:10px;">&nbsp;</div>
+									<div style="clear:both;">Title:<br/><span id="kindnesstitle_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div style="float:left;">Description:</div><div style="float:right;">&nbsp;</div>
+									<div style="clear:both;"><span id="kindnessdescription_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div style="float:left;">Location:</div><div style="float:right;">&nbsp;</div>
+									<div style="clear:both;"><span id="kindnesslocation_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div id="icomment"></div>
+								</div>
+							</div>
+					</div>
+					<div id="offlinevolunteerfilter_Dialog" title="eAdministrator Filter" style="display:none;">
+					<form method="post" action="'.base_path().str_replace("q=", "", $_SERVER["QUERY_STRING"]).'">
+						<fieldset style="margin-top:10px;">
+							<legend>Show only coordinators where</legend>
+							
+							<table>
+								<tr>
+									<td style="width:85px; text-align:right; padding-right:10px;">Role is</td>
+									<td>
+										<select name="volunteer_master_admin_aFilter1" style="margin-bottom:10px;">
+											<option value="">All Roles</option>
+											<option value="cybrarian" '.((@$volunteer_master_admin_aFilter1 == "cybrarian") ? 'selected="selected"':'').'>Cybrarian</option>
+										</select>
+									</td>
+									<td rowspan="2" style="text-align:right; padding-left:10px;"><input type="submit" name="volunteer_master_admin_sOp" class="form-submit" value="Filter" /></td>
+								</tr>
+								<tr>
+									<td style="text-align:right; padding-right:10px;">Status is</td>
+									<td>
+										<select name="volunteer_master_admin_aFilter2">
+											<option value="">All Status</option>
+											<option value="active" '.((@$volunteer_master_admin_aFilter2 == "active") ? 'selected="selected"':'').'>Active</option>
+											<option value="enrolled" '.((@$volunteer_master_admin_aFilter2 == "enrolled") ? 'selected="selected"':'').'>Enrolled</option>
+										</select>
+									</td>
+								</tr>
+							</table>
+						</fieldset>
+					</form>
+					</div>
+					';
+	
+		$sTableHeader .= '
+						<div align="right">
+							<input type="text" style="font-size:11px;width:105px;" id="off-search-input" name="off-search-input" value=""/>
+						    <select id="off-field-search" style="font-size:11px;">
+								<option value="">Fields</option>
+								<option value="username">Username</option>
+							</select>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-search" name="off-search" value="Search"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-kindness" name="off-kindness" value="Kindness Status"/>
+							<!--<input type="button" style="cursor:pointer;font-size:11px;" id="off-assign-user" name="off-add-user" value="Add" onClick="add_offline_user();" />-->
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-assign-user" name="off-assign-user" value="Assign Hours" onClick="assign_offline_user();"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-activate-user" name="off-activate-user" value="Activate"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-deactivate-user" name="off-deactivate-user" value="Deactivate"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-remove" name="off-remove" value="Remove" onClick="remove_offline_user();"/>
+						    <!--<input type="button" style="cursor:pointer;font-size:11px;" id="off-filter" name="off-filter" value="Filter"/>-->
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="off-schedule" name="off-schedule" value="Schedule"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-selectall" name="off-selectall" value="Toggle"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-refresh" name="off-refresh" value="Refresh"/>
+						</div>
+						
+						<div id="offlineTable">';
+						
+	$iMaxRec = 25;
+	
+	$sTableContent .= loadOfflineTable();
+	
+	$sPagerHTML = ($sTableContent != "") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	
+	$sTableFooter = '</div></div></div><div id="mystudies_master_admin_Container"></div>';
+	
+	return $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+}
+function loadOfflineTable($searchtype = "", $searchvalue = ""){
+
+
+	$sTableContent = '<table>
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="offline_volunteer_master_admin_bCheckAll" name="volunteer_master_admin_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:120px;">Username</th>
+								<th style="width:72px;">Status</th>
+								<th>Roles</th>
+								<th style="text-align:center;font-size:10px;">Hours per week requested</th>
+								<th style="text-align:center;font-size:10px;">Hours per week assigned</th>
+								<th style="text-align:center;font-size:10px;">Kindness Hours</th>
+								<th style="text-align:center;font-size:10px;">Kindness Workz Pending</th>
+								<th style="text-align:center;font-size:10px;">Kindness Workz Approved</th>
+								<th style="text-align:center;font-size:10px;">Kindness Workz Disapproved</th>
+							</tr>';
+
+	$queryName = "";
+	if($searchtype == "username"){
+	$queryName = "AND B.name like '%{$searchvalue}%'";
+	$queryNameCount = "WHERE B.name like '%{$searchvalue}%'";
+	}							
+							 
+	$sqlVolunteer = "SELECT A.uid, B.name, A.activate, A.position, A.coordinator
+					FROM cybrarian_optin A
+					INNER JOIN users B ON B.uid = A.uid
+					{$queryName}
+					ORDER BY A.activate ASC";
+	
+	$sqlCount = "SELECT COUNT(A.uid)
+				FROM cybrarian_optin A
+				INNER JOIN users B ON B.uid = A.uid 
+				{$queryNameCount}";
+	
+	if (isset($volunteer_master_admin_aFilter1) && $volunteer_master_admin_aFilter1 != ""){
+		$sVolType = $volunteer_master_admin_aFilter1;
+	}
+	
+	if (isset($volunteer_master_admin_aFilter2) && $volunteer_master_admin_aFilter2 != ""){
+		$iStatus = ($volunteer_master_admin_aFilter2 == 'active') ? 1:0;
+		$sqlVolunteer .= " AND A.activate = '".$iStatus."'";
+		$sqlCount .= $sqlVolunteer;
+	}
+	
+	//$sqlVolunteer = sprintf($sqlVolunteer, $iUserId);
+	//$sqlCount = sprintf($sqlCount, $iUserId);
+	$iMaxRec = 25;
+	
+	$oVolunteerResult = pager_query($sqlVolunteer, $iMaxRec, 0, $sqlCount);
+	
+	while ($oVolunteer = db_fetch_object($oVolunteerResult)){
+		$nUserId = $oVolunteer->uid;
+		$strPosition = ucwords($oVolunteer->position);
+		$aStats = _volunteer_master_admin_offline_stat($nUserId);
+		$sStatus = "active";
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+		$iTotalRequest = $aStats["iTotalRequest"];
+		
+		$iNeededHopeful = $iTotalRequest - $iHopefulCount;
+		$sHopeful = '';
+		$aAssignedHopeful = _coordinator_hopeful_mentor_count($nUserId, "list");
+		
+		if (count($aAssignedHopeful) > 0){
+			$sHopeful = '<span style="font-size:1.2em; font-weight:bold;">Assigned eAdministrators:</span>';
+			
+			for ($x=0; $x<count($aAssignedHopeful); $x++){
+				$aHopeful = $aAssignedHopeful[$x];
+				$iHopefulId = $aHopeful["uid"];
+				$sHopefulName = $aHopeful["name"];
+				
+				$sHopeful .= '<div>'.$sHopefulName.'</div>';
+			}
+		}else{
+			$sHopeful = '<div>No eAdministrators have been assigned to this user, yet.</div>';
+		}
+		
+		if ($oVolunteer->activate == 0) $sStatus = "enrolled";
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="offline_volunteer_master_admin_bCheckThis" name="offline_volunteer_master_admin_bCheckThis[]" value="'.$nUserId.'" /></td>
+								<td style="padding-top:'.(($iNeededHopeful > 0 && $sStatus == 'active') ? 0:3).'px; vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$nUserId.'" style="cursor:pointer;">'.$oVolunteer->name.'</span> '.(($iNeededHopeful > 0 && $sStatus == 'active') ? '<!--<sup id="volunteer_master_admin_iUserId" value="'.$nUserId.'_'.$strRole.'" style="cursor:pointer;">assign</sup>-->':'<!--<sup id="volunteer_master_admin_iUserId" value="'.$nUserId.'_'.$strRole.'" style="cursor:pointer;">update</sup>-->').'
+									<div id="kindness_assigned_hopeful_block_'.$nUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+										'.$sHopeful.'
+									</div>
+								</td>
+								<td style="padding-top:3px; vertical-align:top;">'.$sStatus.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$strPosition.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$iTotalRequest.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iHoursAssigned"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iKindnessHours"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iKindnessPending"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iKindnessApproved"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iKindnessDispproved"].'</td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No voluneers to list based, yet.</td>
+										</tr>';
+						
+	$sTableContent .= '</table>';
+	
+	return $sTableContent;
+}
+
+function volunteer_master_admin_list(){
+	if (count($_REQUEST) > 0){
+		foreach ($_REQUEST as $sKey => $sData) {
+			${$sKey} = $sData;
+		}
+	}
+	
+	//Headers
+	//Username, Status, Roles, Total Items Processed, Hopeful Items Waiting for User, Hopefuls waiting for User, Hopefuls Assigned
+	
+	//drupal_add_js("http://jqueryui.com/ui/jquery.ui.tabs.js");
+	
+	// For some reason, JS files are not being added via drupal_add_js.
+	// Below is a workaround to add those files.
+	$sVolunteerJS = file_get_contents(drupal_get_path('module', 'volunteer_master_admin')."/volunteer_master_admin.js");
+	
+	drupal_add_js($sVolunteerJS, 'inline');
+	
+	// Original code
+	//drupal_add_js(drupal_get_path("module", "volunteer_master_admin")."/volunteer_master_admin.js");
+	
+	$sTableContent = '';
+	$sTableHeader = '';
+	
+	$sTableHeader .= '<div id="coordinatorfilter_Dialog" title="eAdministrator Filter" style="display:none;">
+					<form method="post" action="'.base_path().str_replace("q=", "", $_SERVER["QUERY_STRING"]).'">
+						<fieldset style="margin-top:10px;">
+							<legend>Show only eAdministrators where</legend>
+							
+							<table>
+								<tr>
+									<td style="width:85px; text-align:right; padding-right:10px;">Role is</td>
+									<td>
+										<select name="volunteer_master_admin_aFilter1" style="margin-bottom:10px;">
+											<option value="">All Roles</option>
+											<option value="mentor" '.((@$volunteer_master_admin_aFilter1 == "mentor") ? 'selected="selected"':'').'>Mentor</option>
+										</select>
+									</td>
+									<td rowspan="2" style="text-align:right; padding-left:10px;"><input type="submit" name="volunteer_master_admin_sOp" class="form-submit" value="Filter" /></td>
+								</tr>
+								<tr>
+									<td style="text-align:right; padding-right:10px;">Status is</td>
+									<td>
+										<select name="volunteer_master_admin_aFilter2">
+											<option value="">All Status</option>
+											<option value="active" '.((@$volunteer_master_admin_aFilter2 == "active") ? 'selected="selected"':'').'>Active</option>
+											<option value="enrolled" '.((@$volunteer_master_admin_aFilter2 == "enrolled") ? 'selected="selected"':'').'>Enrolled</option>
+										</select>
+									</td>
+								</tr>
+							</table>
+						</fieldset>
+					</form>
+					</div>';
+	
+	$sTableHeader .= _volunteer_master_admin_cybrary_position_opening_list();
+	
+	$sTableHeader .= '
+				<div id="addofflinevolunteer_Dialog" title="Add Offline Volunteer" style="display:none;">
+					<div id="addoffline_content">&nbsp;</div>
+				</div>
+				<div id="assignofflinevolunteer_Dialog" title="Assign Offline Volunteer" style="display:none;">
+					<div id="assignoffline_content">&nbsp;</div>
+				</div>
+				<div id="removeofflinevolunteer_Dialog" title="Assign Offline Volunteer" style="display:none;">
+					<div id="removeoffline_content">&nbsp;</div>
+				</div>
+				<div id="totalKindnessWorkz_Dialog" title="Total Kindness Workz Processed" style="display:none;">
+					<div id="totalKindnessWorkz_div"></div>
+				</div>
+				<div id="volPendingKindnessWorkz_Dialog" title="Volunteer Kindness Workz Waiting for eAdministrator" style="display:none;">
+					<div id="volPendingKindnessWorkz_div"></div>
+				</div>
+				&nbsp;&nbsp;<h3>eAdministrators</h3>
+				<div class="demo">
+				<div id="Volunteerstabs">
+					<ul>
+						<li><a href="#tabs-1" style="text-decoration:none;font-size:12px;">eAdministrators</a></li>
+					</ul>';
+					
+	$sTableHeader .= '<div id="tabs-1">';
+	
+		$sTableHeader .= '
+						<div align="right">
+							<input type="text" style="font-size:11px;width:105px;" id="co-search-input" name="co-search-input" value=""/>
+						    <select id="co-field-search" style="font-size:11px;">
+								<option value="">Fields</option>
+								<option value="username">Username</option>
+							</select>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="co-search" name="co-search" value="Search"/>
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="co-unblock" name="co-unblock" value="Activate"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="co-block" name="co-block" value="Deactivate"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="co-delete" name="co-delete" value="Remove"/>
+						    <!--<input type="button" style="cursor:pointer;font-size:11px;" id="co-filter" name="co-filter" value="Filter"/>-->
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="co-toggle" name="co-toggle" value="Toggle"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="co-refresh" name="co-refresh" value="Refresh"/>
+						</div>';
+						
+	$sTableHeader .= '<div id="coordinatorsTable">';
+	
+	$sTableContent .= loadCoordinatorTable();
+
+	
+	$iMaxRec = 25;
+	
+	$sPagerHTML = ($sTableContent != "") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	
+	$sTableFooter = '</div><div id="mystudies_master_admin_Container"></div>';
+	$sTableFooter .= '</div>
+	                 </div>
+				    </div>';
+	
+	$sTableFooter .= volunteer_master_admin_get_offline_volunteer();
+	
+	return $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+}
+
+function loadCoordinatorTable($searchtype = "", $searchvalue = ""){
+	global $user;
+
+	$sTableContent = '<table>
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="volunteer_master_admin_bCheckAll" name="volunteer_master_admin_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:120px;">Username</th>
+								<th style="width:72px;">Status</th>
+								<th>Roles</th>
+								<th style="text-align:center;font-size:9px;">Total Kindness Workz Processed</th>
+								<th style="text-align:center;font-size:9px;">Volunteer Kindness Workz Waiting for eAdministrator</th>
+								<th style="text-align:center;font-size:9px;">Volunteers waiting for eAdministrator</th>
+								<th style="text-align:center;font-size:9px;">Volunteers Assigned</th>
+								<th style="text-align:center;font-size:9px;">Volunteers Requested</th>
+							</tr>';
+	
+	$queryName = "";
+	if($searchtype == "username"){
+	$queryName = "AND B.name like '%{$searchvalue}%'";
+	}
+	
+	$sqlVolunteer = "SELECT A.uid, B.name, A.bStatus, A.type
+					FROM volunteer_optin A
+					INNER JOIN users B ON B.uid = A.uid
+					WHERE A.type = 'eadministrator' {$queryName} ORDER BY A.bStatus ASC";
+	
+	$sqlCount = "SELECT COUNT(A.uid)
+				FROM volunteer_optin A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.type = 'eadministrator' {$queryName}";
+	
+	$sVolType = 'eadministrator';
+	
+	if (isset($volunteer_master_admin_aFilter1) && $volunteer_master_admin_aFilter1 != ""){
+		$sVolType = $volunteer_master_admin_aFilter1;
+	}
+	
+	if (isset($volunteer_master_admin_aFilter2) && $volunteer_master_admin_aFilter2 != ""){
+		$iStatus = ($volunteer_master_admin_aFilter2 == 'active') ? 1:0;
+		$sqlVolunteer .= " AND A.bStatus = '".$iStatus."'";
+		$sqlCount .= $sqlVolunteer;
+	}
+	
+	//$sqlVolunteer = sprintf($sqlVolunteer, $sVolType);
+	//$sqlCount = sprintf($sqlCount, $sVolType);
+	$iMaxRec = 25;
+	
+	$oVolunteerResult = pager_query($sqlVolunteer, $iMaxRec, 0, $sqlCount);
+	
+	while ($oVolunteer = db_fetch_object($oVolunteerResult)){
+		$iUserId = $oVolunteer->uid;
+		$sRole = $oVolunteer->type == "eadministrator" ? "eAdministrator": "";
+		$aStats = _volunteer_master_admin_stat($iUserId);
+		$sStatus = "active";
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+		
+		$iHopefulCount = _volunteer_master_admin_hopefuls($iUserId, true);
+		$aAssignedHopeful = _coordinator_mentor_hopeful_count($iUserId, "list");
+		$aPendingItemsVolunteers = _coordinator_mentor_hopeful_pending_count($iUserId, "list");
+		
+		$iTotalRequest = $aStats["iTotalRequest"];
+		
+		$iNeededHopeful = $iTotalRequest - $iHopefulCount;
+		$sHopeful = '';
+		
+		if (count($aAssignedHopeful) > 0){
+			$sHopeful = '<span style="font-size:1.2em; font-weight:bold;">Assigned Volunteers:</span>';
+			for ($x=0; $x<count($aAssignedHopeful); $x++){
+				$aHopeful = $aAssignedHopeful[$x];
+				$iHopefulId = $aHopeful["uid"];
+				$sHopefulName = $aHopeful["name"];
+				$sHopeful .= '<div>'.$sHopefulName.'</div>';
+			}
+		}else{
+			$sHopeful = '<div>No Volunteers have been assigned to this user, yet.</div>';
+		}
+		
+		if (count($aPendingItemsVolunteers) > 0){
+			$sWaitingVolunteers = '<span style="font-size:1.2em; font-weight:bold;">Waiting Volunteers:</span>';
+			for ($x=0; $x<count($aPendingItemsVolunteers); $x++){
+				$aVolunteer = $aPendingItemsVolunteers[$x];
+				$iVId = $aVolunteer["uid"];
+				$sVName = $aVolunteer["name"];
+				$sWaitingVolunteers .= '<div>'.$sVName.'</div>';
+			}
+		}else{
+			$sWaitingVolunteers = '<div>No Volunteers have been waiting to this user, yet.</div>';
+		}
+		
+		if ($oVolunteer->bStatus == 0) $sStatus = "enrolled";
+		
+		if($aStats["iHopefulCount"] == $iTotalRequest){
+		$updatelink = '<sup id="kindness_master_admin_coordinator_iUserId" onclick="add_offline_user('.$iUserId.');" style="cursor: pointer;" value="'.$iUserId.'">update</sup>';
+		} else{
+		$updatelink = '<sup id="kindness_master_admin_coordinator_iUserId" onclick="add_offline_user('.$iUserId.');" style="cursor: pointer;" value="'.$iUserId.'">assign</sup>';
+		}
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="volunteer_master_admin_bCheckThis" name="volunteer_master_admin_bCheckThis[]" value="'.$iUserId.'" /></td>
+								<td style="padding-top:'.(($iNeededHopeful > 0 && $sStatus == 'active') ? 0:3).'px; vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$iUserId.'" style="cursor:pointer;">'.$oVolunteer->name.' '.$updatelink.'</span> '.(($iNeededHopeful > 0 && $sStatus == 'active') ? '<!--<sup id="volunteer_master_admin_iUserId" value="'.$iUserId.'_'.$sRole.'" style="cursor:pointer;">assign</sup>-->':'<!--<sup id="volunteer_master_admin_iUserId" value="'.$iUserId.'_'.$sRole.'" style="cursor:pointer;">update</sup>-->').'
+									<div id="kindness_assigned_hopeful_block_'.$iUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;z-index:1;">
+										'.$sHopeful.'
+									</div>
+								</td>
+								<td style="padding-top:3px; vertical-align:top;">'.$sStatus.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$sRole.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><a href="javascript:void(0);" onclick="totalKindnessWorkz_Dialog('."'".$iUserId."'".');" style="text-decoration:none;" title="click here"><span style="color:white;">'.$aStats["iTotalItems"].'</span></a></td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><a href="javascript:void(0);" onclick="volPendingKindnessWorkz_Dialog('."'".$iUserId."'".');" style="text-decoration:none;" title="click here"><span style="color:white;">'.$aStats["iHopefulItems"].'</span></a></td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><span id="kindness_hover_volunteer_pending_'.$iUserId.'" style="cursor:pointer;">'.$aStats["iHopefulWaiting"].'</a>
+									<div id="kindness_volunteer_pending_block_'.$iUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:550px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+										'.$sWaitingVolunteers.'
+									</div>
+								</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iHopefulCount"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$iTotalRequest.'</td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No voluneers to list, yet.</td>
+										</tr>';
+										
+	$sTableContent .= '</table>';
+	
+    return $sTableContent;
+}
+
+function _volunteer_master_admin_cybrary_position_opening_list(){
+global $user;
+
+$sTableHeader = '
+				<div id="school_Dialog" title="Add a School" style="display:none;">
+					<div id="schoolListOption"></div>
+				</div>
+				&nbsp;&nbsp;<h3>Cybrary Positions Opening</h3>
+				<div class="demo">
+				<div id="Schoolstabs">
+					<ul>
+						<li><a href="#school-tabs-1" style="text-decoration:none;font-size:12px;">Schools</a></li>
+						<li><a href="#school-tabs-2" style="text-decoration:none;font-size:12px;" id="schools-tab">Positions</a></li>
+					</ul>';
+					
+	$sTableHeader .= '<div id="school-tabs-1">';
+	
+		$sTableHeader .= '
+						<div align="right">
+							<input type="text" style="font-size:11px;width:105px;" id="school-search-input" name="school-search-input" value=""/>
+						    <select id="school-field-search" style="font-size:11px;">
+								<option value="">Fields</option>
+								<option value="school">School</option>
+							</select>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="school-search" name="school-search" value="Search"/>
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="school-add" name="school-add" value="Add School"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="school-delete" name="school-delete" value="Remove"/>
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="school-selectall" name="school-selectall" value="Toggle"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="school-refresh" name="school-refresh" value="Refresh"/>
+							<!--<input type="button" style="cursor:pointer;font-size:11px;" id="school-unselectall" name="school-unselectall" value="Unselect All"/>-->
+						</div>';
+						
+	$sTableHeader .= '<div id="addposition_Dialog" title="Add Position" style="display:none;">
+						<div id="addposition_content" style="clear:both;width:510px;padding-top:12px;">
+							<input type="hidden" id="posschoolid" name="posschoolid" value="'.$iSchoolId.'"/>
+							<div style="float:left;width:25%">Position Name:</div><div style="float:left;width:35%;"><input type="text" id="posname" name="posname" value=""/></div><div style="float:left;width:25%">Maximum Users:</div><div style="float:left;width:10%"><select id="posmax" name="posmax"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;width:25%">Duties:</div><div style="float:left;width:75%;"><textarea id="posduties" name="posduties" cols="18" rows="8"></textarea></div>
+						</div>
+				 	  </div>
+					  <div id="editposition_Dialog" title="Edit Position" style="display:none;">
+					  <div id="editposition_content">&nbsp;</div>
+					  </div>
+					  <div id="removeposition_Dialog" title="Edit Position" style="display:none;">
+					  <div id="removeposition_content">&nbsp;</div>
+					  </div>
+					  <div id="schools-table">';
+						
+	$sTableContent .= _volunteer_master_admin_school_table();
+	
+	$sPagerHTML = ($sTableContent != "") ? ''.theme("pager", null, 25):'';
+	
+	$sTableFooter = '</table><div id="mystudies_master_admin_Container"></div>';
+	
+	$sTableFooter .= '
+						</div>
+					</div>
+	                 <div id="school-tabs-2">
+						<div id="positions_volunteer_content">&nbsp;</div>
+					 </div>
+	                 </div>
+					 
+				    </div>';
+					
+	return $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+}
+
+function _volunteer_master_admin_school_table($searchtype = "", $searchvalue = ""){
+	
+	$sTableContent = '<table>
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="volunteer_master_admin_school_bCheckAll" name="volunteer_master_admin_school_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:200px;">School Name</th>
+								<th style="text-align:center;font-size:10px;width:140px;">Total Positions Type</th>
+								<th style="text-align:center;font-size:10px;width:140px;">Positions Available</th>
+								<th style="text-align:center;font-size:10px;width:140px;">Positions Taken</th>
+							</tr>';
+	
+	$queryName = "";
+	if($searchtype == "school"){
+	$queryName = "WHERE A.school_name like '%{$searchvalue}%'";
+	}	
+	
+	$sqlVolunteer = "SELECT A.id, A.school_name
+					FROM cybrarian_schools A
+					{$queryName}";
+	
+	$sqlCount = "SELECT COUNT(A.id)
+				FROM cybrarian_schools A
+				{$queryName}";
+	
+	$sVolType = 'eadministrator';
+	
+	if (isset($volunteer_master_admin_aFilter1) && $volunteer_master_admin_aFilter1 != ""){
+		$sVolType = $volunteer_master_admin_aFilter1;
+	}
+	
+	if (isset($volunteer_master_admin_aFilter2) && $volunteer_master_admin_aFilter2 != ""){
+		$iStatus = ($volunteer_master_admin_aFilter2 == 'active') ? 1:0;
+		$sqlVolunteer .= " AND A.school = '".$iStatus."'";
+		$sqlCount .= $sqlVolunteer;
+	}
+	
+	//$sqlVolunteer = sprintf($sqlVolunteer);
+	//$sqlCount = sprintf($sqlCount);
+	$iMaxRec = 25;
+	
+	$oVolunteerResult = pager_query($sqlVolunteer, $iMaxRec, 0, $sqlCount);
+	
+	while ($oVolunteer = db_fetch_object($oVolunteerResult)){
+		$iSchoolId = $oVolunteer->id;
+		$sName = $oVolunteer->school_name;
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+		$sPositionName = '';
+		
+		$sqlPos = "SELECT cybpos_id, cybpos_name
+					FROM cybrarian_positions
+					WHERE cybschool_id = %d";
+					
+		$oSQLPosResult = db_query($sqlPos, $iSchoolId);
+	
+		$aAssignedPos = array();
+		while ($oSQLPos = db_fetch_object($oSQLPosResult)){
+			array_push($aAssignedPos, $oSQLPos->cybpos_name);
+		}
+
+		if (count($aAssignedPos) > 0){
+			$sPositionName = '<span style="font-size:1.2em; font-weight:bold;">Assigned Positions:</span>';
+			
+			foreach($aAssignedPos as $posindex => $sPosName){
+			$sPositionName .= '<div>'.ucwords($sPosName).'</div>';
+			}
+		}else{
+			$sPositionName = '<div>No positions have been created to this school, yet.</div>';
+		}
+		
+		$intTotalPositionType = db_result(db_query("SELECT count(cybpos_id) FROM {cybrarian_positions} WHERE cybschool_id = '".$iSchoolId."'"));
+		$intAvailable = db_result(db_query("SELECT max_available FROM {cybrarian_positions} WHERE cybschool_id = '".$iSchoolId."'"));
+		$intTotalPositionTaken = db_result(db_query("SELECT count(cyb_id) FROM {cybrarian_optin} WHERE school = '".$sName."'"));
+		if($intAvailable > 0){
+		$intTotalPositionAvailable = $intAvailable - $intTotalPositionTaken;
+		} else{
+		$intTotalPositionAvailable = 0;
+		}
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="volunteer_master_admin_school_bCheckThis" name="volunteer_master_admin_school_bCheckThis[]" value="'.$iSchoolId.'-'.$sName.'" /></td>
+								<td style="padding-top:'.(($iNeededHopeful > 0 && $sStatus == 'active') ? 0:3).'px; vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$iSchoolId.'" style="cursor:pointer;">'.$sName.'</span> '.(($iNeededHopeful > 0 && $sStatus == 'active') ? '<!--<sup id="volunteer_master_admin_iUserId" value="'.$iSchoolId.'_'.$sName.'" style="cursor:pointer;">assign</sup>-->':'<!--<sup id="volunteer_master_admin_iUserId" value="'.$iSchoolId.'_'.$sName.'" style="cursor:pointer;">update</sup>-->').'
+									<div id="kindness_assigned_hopeful_block_'.$iSchoolId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+										'.$sPositionName.'
+									</div>
+								</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$intTotalPositionType.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$intTotalPositionAvailable.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$intTotalPositionTaken.'</td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No schools to list yet.</td>
+										</tr>';
+	
+	return $sTableContent;
+}
+
+function volunteer_master_admin_list_process(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	drupal_add_js('setTimeout("location=\''.base_path().$volunteer_master_admin_sPrevURL.'\'", 5000)', "inline");
+	$sMessage = (count($volunteer_master_admin_bCheckThis) > 0) ? '':'You have not selected any volunteers.';
+	
+	for ($x=0; $x<count($volunteer_master_admin_bCheckThis); $x++){
+		$aUser = explode("-", $volunteer_master_admin_bCheckThis[$x]);
+		$iUserId = $aUser[0];
+		$sUserRole = $aUser[1];
+		
+		/* $aOption = explode("-", $mystudies_master_admin_sOption);
+		
+		if (count($aOption) == 2){
+			$sOptionOp = $aOption[0];
+			$sOptionRole = $aOption[1];
+		} */
+		
+		if ($volunteer_master_admin_bOp == "Update"){
+			if ($volunteer_master_admin_sOption == 0 || $volunteer_master_admin_sOption == 1){
+				$sqlUpdate = "UPDATE volunteer_optin
+								SET bStatus = '%s'
+								WHERE uid = %d
+									AND type = '%s'";
+				$bSuccess = db_query($sqlUpdate, array($volunteer_master_admin_sOption, $iUserId, $sUserRole));
+				
+				if ($bSuccess) $sMessage = 'User(s) successfully updated.';
+			}elseif ($volunteer_master_admin_sOption == 2){
+				$iHopefulCount = _volunteer_master_admin_hopefuls($iUserId, true);
+				$sHopeful = _volunteer_master_admin_hopefuls($iUserId);
+				
+				$sqlDelete1 = "DELETE FROM volunteer_optin WHERE uid = %d AND `type` = '%s'";
+				$sqlDelete2 = "DELETE FROM volunteer_mentor_hopeful WHERE iMentorId = %d";
+				
+				$bSuccess1 = db_query($sqlDelete1, array($iUserId, $sUserRole));
+				$bSuccess2 = db_query($sqlDelete2, $iUserId);
+				
+				if ($bSuccess1 && $bSuccess2){
+					$sMessage = 'User(s) successfully deleted.';
+					
+					switch ($sUserRole){
+						case "mentor": $iRoleId = 6; break;
+						case "tutor": $iRoleId = 4; break;
+						case "private": $iRoleId = 16; break;
+					}
+					
+					// -- BEGIN User Hierarchy
+					if ($iHopefulCount > 0){
+						$sqlHierarchy = "DELETE FROM hopefuls_volunteer WHERE iHopefulId IN (%s) AND iVolunteerId = %d AND iRoleId = %d";
+						db_query($sqlHierarchy, array($sHopeful, $iUserId, $iRoleId));
+					}
+					// -- END User Hierarchy
+					
+					$sqlDelete = "DELETE FROM users_roles WHERE uid = %d AND rid = %d";
+					db_query($sqlDelete, array($iUserId, $iRoleId));
+				}
+			}
+		}
+	}
+	
+	drupal_set_message($sMessage);
+	
+	return "";
+}
+
+function volunteer_master_admin_list_assign($iUserId, $sRole){
+	$sqlUser = "SELECT A.name, B.bStatus, B.iRequest
+				FROM users A
+				INNER JOIN volunteer_optin B ON B.uid = A.uid
+				WHERE A.uid = %d
+					AND B.type = '%s'";
+	$oUserResult = db_query($sqlUser, array($iUserId, $sRole));
+	$oUser = db_fetch_object($oUserResult);
+	
+	$aHiddenAssigned = array();
+	$aHiddenUnassigned = array();
+	
+	$iHopefulCount = _volunteer_master_admin_hopefuls($iUserId, true);
+	$iNeededHopeful = $oUser->iRequest - $iHopefulCount;
+	
+	if ($iNeededHopeful > 0){
+		// For some reason, JS files are not being added via drupal_add_js.
+		// Below is a workaround to add those files.
+		$sVolunteerJS = file_get_contents(drupal_get_path('module', 'volunteer_master_admin')."/volunteer_master_admin.js");
+		
+		drupal_add_js($sVolunteerJS, 'inline');
+		
+		// Original code
+		//drupal_add_js(drupal_get_path("module", "volunteer_master_admin")."/volunteer_master_admin.js");
+	}
+	
+	$sTableHeader = '<h2>'.$sRole.' '.$oUser->name.'</h2>
+					<form name="volunteer_master_hopeful_form" method="post" action="'.base_path().'admin/user/master_reviewer/list/assign/process">
+						<input type="hidden" name="volunteer_master_admin_iUserId" value="'.$iUserId.'" />
+						<input type="hidden" name="volunteer_master_admin_sRole" value="'.$sRole.'" />
+						<input type="hidden" name="volunteer_master_admin_sPrevURL" value="'.str_replace("q=", "", $_SERVER["QUERY_STRING"]).'" />
+						<input type="hidden" name="mystudies_master_admin_iNeededHopeful" value="'.$iNeededHopeful.'" />
+						
+						<table>
+							<tr>
+								<td colspan="3" style="padding-bottom:10px">
+									You can add or remove multiple hopefuls at the same time (Ctrl + click, Apple Key + click).<br/>
+									This '.$sRole.' requested '.$oUser->iRequest.' hopeful(s).
+								</td>
+							</tr>
+							<tr>
+								<th style="width:275px;">Assigned hopeful(s)</th>
+								<th style="width:50px;"></th>
+								<th style="width:275px;">Available hopeful(s)</th>
+							</tr>
+							<tr>
+								<td>';
+	
+	$sAssigned = '';
+	$aAssignedHopeful = _coordinator_mentor_hopeful_count($iUserId, "list");
+	
+	if (count($aAssignedHopeful) > 0){
+		for ($x=0; $x<count($aAssignedHopeful); $x++){
+			$aHopeful = $aAssignedHopeful[$x];
+			$sAssigned .= '<option value="'.$aHopeful["uid"].'">'.$aHopeful["name"].'</option>';
+			$aHiddenAssigned[] = $aHopeful["uid"];
+		}
+	}else{
+		$sAssigned .= '<option value="">No volunteers have been assigned, yet.</option>';
+	}
+	
+	$sAssignedHopeful = '<select name="volunteer_master_admin_aAssignedHopeful[]" size="10" style="width:275px; margin-top:5px;" multiple="multiple">'.$sAssigned.'</select>';
+	
+	$sqlAvailableHopful = "SELECT B.uid, B.name,
+								(
+									SELECT C.iMentorId
+									FROM volunteer_mentor_hopeful C
+									INNER JOIN users D ON D.uid = C.iMentorId
+									WHERE C.iHopefulId = B.uid
+								) AS iAssignedId,
+								(
+									SELECT F.name
+									FROM volunteer_mentor_hopeful E
+									INNER JOIN users F ON F.uid = E.iMentorId
+									WHERE E.iHopefulId = B.uid
+								) AS sAssignedName
+							FROM users_roles A
+							INNER JOIN users B ON B.uid = A.uid
+							WHERE A.rid = 9
+							ORDER BY B.name";
+	$oAvailableHopfulResult = db_query($sqlAvailableHopful);
+	$sUnassigned = '';
+	
+	while ($oAvailableHopeful = db_fetch_object($oAvailableHopfulResult)){
+		//if ($oAvailableHopeful->iAssignedId != "" && $oAvailableHopeful->sAssignedName == "") continue;
+		
+		$sAssignedTo = ($oAvailableHopeful->iAssignedId == "") ? 'unassigned':$oAvailableHopeful->sAssignedName;
+		$sUnassigned .= '<option value="'.$oAvailableHopeful->uid.'"'.(($oAvailableHopeful->iAssignedId == "") ? ' style="font-weight:bold;':'').'">'.$oAvailableHopeful->name.' ('.$sAssignedTo.')</option>';
+		$aHiddenUnassigned[] = $oAvailableHopeful->uid;
+	}
+	
+	if ($sUnassigned == ''){
+		$sUnassigned = '<option value="">There are no available '.$sVolunteer.'s.</option>';
+	}
+	
+	$sUnassignedHopeful = '<select id="volunteer_master_admin_aAvailableHopeful" name="volunteer_master_admin_aAvailableHopeful[]" size="10" style="width:275px; margin-top:5px;" multiple="multiple" '.(($iNeededHopeful == 0) ? 'disabled="disabled"':'').'>'.$sUnassigned.'</select>';
+	
+	$sHiddenItems = '<input type="hidden" id="volunteer_master_admin_iAssignedUserId" name="volunteer_master_admin_iAssignedUserId" value="'.implode(",", $aHiddenAssigned).'" />
+					<input type="hidden" id="volunteer_master_admin_iUnassignedUserId" name="volunteer_master_admin_iUnassignedUserId" value="'.implode(",", $aHiddenUnassigned).'" />';
+	
+	$sTableFooter = $sAssignedHopeful.'
+						</td>
+						<td style="text-align:center; vertical-align:middle;">
+							'.((count($aAssignedHopeful) == 0) ? '':'<input type="submit" id="volunteer_master_admin_bRemoveHopeful" name="volunteer_master_admin_bRemoveHopeful" class="form-submit" value=">>" title="Remove Volunteer" />').'
+							'.(($iNeededHopeful == 0) ? '':'<br/><br/><input type="submit" id="volunteer_master_admin_bAddHopeful" name="volunteer_master_admin_bAddHopeful" class="form-submit" value="<<" title="Add Hopeful" />').'
+						</td>
+						<td>'.$sUnassignedHopeful.'</td></tr></table>
+					</form>';
+	
+	return $sTableHeader.$sHiddenItems.$sTableFooter;
+}
+
+function volunteer_master_admin_list_assign_process(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	drupal_add_js('setTimeout("location=\''.base_path().$volunteer_master_admin_sPrevURL.'\'", 5000)', "inline");
+	
+	$bReassign = false;
+	$iReassignCount = 0;
+	
+	if (isset($volunteer_master_admin_bAddHopeful)){
+		if (count($volunteer_master_admin_aAvailableHopeful) > 0){
+			foreach ($volunteer_master_admin_aAvailableHopeful as $iUserId){
+				$biAssignedVolunteer = _volunteer_master_admin_hopeful_check($iUserId);
+				
+				if ($biAssignedVolunteer){
+					$bReassign = true;
+					$iReassignCount++;
+					
+					$sqlDelete = "DELETE FROM volunteer_mentor_hopeful WHERE iHopefulId = %d AND iMentorId = %d";
+					db_query($sqlDelete, array($iUserId, $biAssignedVolunteer));
+					
+					// -- BEGIN User Hierarchy
+					$sqlHierarchy = "DELETE FROM hopefuls_volunteer WHERE iHopefulId = %d AND iVolunteerId = %d AND iRoleId = 6";
+					db_query($sqlHierarchy, array($iUserId, $biAssignedVolunteer));
+					// -- END User Hierarchy
+				}
+				
+				$sqlInsert = "INSERT INTO volunteer_mentor_hopeful VALUES(NULL, %d, %d)";
+				db_query($sqlInsert, array($volunteer_master_admin_iUserId, $iUserId));
+				
+				// -- BEGIN User Hierarchy
+				$sqlHierarchy = "INSERT INTO hopefuls_volunteer SET iHopefulId = %d, iVolunteerId = %d, iRoleId = '6'";
+				db_query($sqlHierarchy, array($iUserId, $volunteer_master_admin_iUserId));
+				// -- END User Hierarchy
+			}
+		}
+	}else{
+		if (count($volunteer_master_admin_aAssignedHopeful) > 0){
+			$sqlDelete = "DELETE FROM volunteer_mentor_hopeful WHERE iHopefulId IN (%s) AND iMentorId = %d";
+			db_query($sqlDelete, array(implode(',', $volunteer_master_admin_aAssignedHopeful), $volunteer_master_admin_iUserId));
+			
+			// -- BEGIN User Hierarchy
+			$sqlHierarchy = "DELETE FROM hopefuls_volunteer WHERE iHopefulId IN (%s) AND iVolunteerId = %d AND iRoleId = 6";
+			db_query($sqlHierarchy, array(implode(",", $volunteer_master_admin_aAssignedHopeful), $volunteer_master_admin_iUserId));
+			// -- END User Hierarchy
+		}
+	}
+	
+	$sWhatProc = (isset($volunteer_master_admin_bAddHopeful)) ? "added":"removed";
+	$iCount = (isset($volunteer_master_admin_bAddHopeful)) ? count($volunteer_master_admin_aAvailableHopeful):count($volunteer_master_admin_aAssignedHopeful);
+	
+	if ($bReassign){
+		$AppendMsg = ' and reassigned '.$iReassignCount;
+		$iCount -= $iReassignCount;
+	}
+	
+	drupal_set_message('You have '.$sWhatProc.' '.$iCount.' hopeful(s)'.$AppendMsg.'.');
+	
+	return "";
+}
+
+function _volunteer_master_admin_hopeful_check($iUserId){
+	$sqlCheck = "SELECT iMentorId
+				FROM volunteer_mentor_hopeful
+				WHERE iHopefulId = %d";
+	
+	$iMentorId = db_result(db_query($sqlCheck, $iUserId));
+	
+	return ($iMentorId != "") ? $iMentorId:false;
+}
+
+function _volunteer_master_admin_stat($iUserId){
+	$sHopeful = _volunteer_master_admin_hopefuls($iUserId);
+	$iHopefulCount = _volunteer_master_admin_hopefuls($iUserId, true);
+	
+	$sqlTotalItems		= "SELECT COUNT(DISTINCT A.cybact_id)
+						   FROM cybrarian_activity A
+						   LEFT JOIN cybrarian_optin B ON B.uid = A.uid
+						   WHERE B.coordinator = %d
+						   AND A.bApproved = 1";
+						   
+	$sqlHopefulItems	= "SELECT COUNT(A.id)
+						   FROM drupal.cybrarian_kindness A
+						   LEFT JOIN cybrarian_activity B ON A.cybactivity_id = B.cybact_id
+						   WHERE A.uid IN (%s)
+						   AND B.bApproved = 0";
+								
+	$sqlHopefulWaiting	= "SELECT COUNT(DISTINCT A.uid)
+							FROM cybrarian_activity A
+							WHERE A.uid IN (%s)
+								AND A.bApproved = '0'";
+								
+	$sqlTotalRequest	= "SELECT iRequest
+							FROM volunteer_optin
+							WHERE uid = %d
+								AND `type` = 'eadministrator'";
+	
+	$iTotalItems		= ($iHopefulCount == 0) ? 0:db_result(db_query($sqlTotalItems, array($iUserId, $sHopeful)));
+	$iHopefulItems		= ($iHopefulCount == 0) ? 0:db_result(db_query($sqlHopefulItems, $sHopeful));
+	$iHopefulWaiting	= ($iHopefulCount == 0) ? 0:db_result(db_query($sqlHopefulWaiting, $sHopeful));
+	$iTotalRequest		= db_result(db_query($sqlTotalRequest, $iUserId));
+	
+	return array(
+				"iTotalItems"		=> $iTotalItems,
+				"iHopefulItems"		=> $iHopefulItems,
+				"iHopefulWaiting"	=> $iHopefulWaiting,
+				"iHopefulCount"		=> $iHopefulCount,
+				"iTotalRequest"		=> $iTotalRequest,
+			);
+}
+
+function _volunteer_master_admin_offline_stat($iUserId){
+						   
+	$sqlKindnessApproved = "SELECT COUNT(cybact_id)
+						   FROM drupal.cybrarian_activity
+						   WHERE uid = %d
+						   AND bApproved = 1";
+	
+	$sqlKindnessDispproved = "SELECT COUNT(cybact_id)
+						   FROM drupal.cybrarian_activity
+						   WHERE uid = %d
+						   AND bApproved = 2";
+	
+	$sqlKindnessPending = "SELECT COUNT(A.id)
+						   FROM drupal.cybrarian_kindness A
+						   LEFT JOIN drupal.cybrarian_activity B ON A.cybactivity_id = B.cybact_id 
+						   WHERE A.uid = %d
+						   AND bApproved = 0";	
+						   
+	$sqlHoursAssigned	= "SELECT A.volunteer_hours_assigned
+							FROM cybrarian_optin A
+							WHERE uid = %d";
+	
+	$sqlKindnessHours	= db_query("SELECT A.created, A.ended
+							FROM cybrarian_activity A
+							WHERE A.uid = '{$iUserId}' AND A.bApproved = 1");
+	
+	$sqlConvertedBucks = "SELECT SUM(iDuration)/60 AS iConvertedHours
+							FROM cybrarian_statement
+							WHERE iUserId = %d AND iRefId = 0";
+	
+	while ($aKhours = db_fetch_object($sqlKindnessHours)){
+		$totalended += $aKhours->ended; 
+		$totalcreated += $aKhours->created;
+	}		
+	$Khours = format_interval($totalended - $totalcreated);
+	
+	$seconds =  $totalended - $totalcreated;
+	$iKindness_Hours = round($seconds / (60 * 60));
+	
+	$sqlTotalRequest	= "SELECT volunteer_hours
+						   FROM cybrarian_optin
+						   WHERE uid = %d";
+	
+	$iKindnessDispproved = db_result(db_query($sqlKindnessDispproved, $iUserId));
+	$iKindnessApproved 	 = db_result(db_query($sqlKindnessApproved, $iUserId));
+	$iKindnessPending 	 = db_result(db_query($sqlKindnessPending, $iUserId));
+	$iHoursAssigned  	 = db_result(db_query($sqlHoursAssigned, $iUserId));
+	$iTotalRequest		 = db_result(db_query($sqlTotalRequest, $iUserId));
+	
+	$iConvertedHours = abs((float)db_result(db_query($sqlConvertedBucks, $iUserId)));
+	$iConvertedHours = ($iConvertedHours > 0) ? $iConvertedHours:0;
+	$iConvertedHours = number_format($iConvertedHours, 2);
+	$iConvertedHours = ($iConvertedHours > 0) ? number_format($iConvertedHours, 2):0;
+	$iTimeHour = intval($iConvertedHours);
+	$iTimeMin = round(($iConvertedHours - floor($iConvertedHours)) * 60);
+	
+	return array(
+				"iKindnessApproved"		=> $iKindnessApproved,
+				"iKindnessDispproved"	=> $iKindnessDispproved,
+				"iHoursAssigned"		=> $iHoursAssigned,
+				"iKindnessPending"		=> $iKindnessPending,
+				"iKindnessHours"		=> $Khours == "" ? 0 : $Khours,
+				"isKindnessHours"		=> $iKindness_Hours,
+				"iTotalRequest"			=> $iTotalRequest,
+				"iConvertedHours"		=> $iTimeHour.' hour(s) '.$iTimeMin.' minute(s)'
+			);
+}
+
+function _volunteer_master_admin_hopefuls($iUserId, $bStat=false){
+	$sField = ($bStat) ? "COUNT(uid)":"GROUP_CONCAT(uid SEPARATOR ', ')";
+	$sqlHopeful = "SELECT ".$sField." FROM cybrarian_optin WHERE coordinator = %d";	
+	
+	$siHopeful = db_result(db_query($sqlHopeful, $iUserId));
+	
+	return $siHopeful;
+}

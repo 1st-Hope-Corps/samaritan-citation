@@ -1,0 +1,6 @@
+; $Id$
+name = LiveCam Module
+description = A module that shows the real-time general view of the Cybrary.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

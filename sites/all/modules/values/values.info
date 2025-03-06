@@ -1,0 +1,6 @@
+; $Id$
+name = Values Module
+description = Module that will help the Tutor and Child to learn more using External Entertainment URLs, Articles, Pictures, and Videos about Values.
+version = 6.x-2.1
+package = HopeNet
+core = 6.x

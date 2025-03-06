@@ -1,0 +1,8 @@
+; $Id$
+name = Volunteer Module
+description = A module that shows Volunteer related functionality.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x
+dependencies[] = profile
+;dependencies[] = askeet

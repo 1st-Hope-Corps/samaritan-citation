@@ -1,0 +1,6 @@
+name = Drupal for Facebook Extensions 
+description = Custom Extensions to the Drupal for Facebook module
+package = HopeNet
+core = 6.x
+php = 5
+dependencies[] = fb

@@ -1,0 +1,7 @@
+; $Id$
+name = Hope Development Bank Module
+description = A module that lets drupal connect to the Hope Development Bank.
+version = 6.x-1.5
+package = HopeNet
+core = 6.x
+dependencies[] = profile

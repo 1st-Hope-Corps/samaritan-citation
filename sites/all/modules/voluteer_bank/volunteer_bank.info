@@ -1,0 +1,6 @@
+; $Id$
+name = Volunteer Bank Module
+description = A module that provides users with the hopenet banking system.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

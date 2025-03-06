@@ -1,0 +1,32 @@
+<items>
+	<item>
+		<uid>1</uid>
+		<name><![CDATA[What is the 1st Hope Corps?]]></name>
+		<thumb><![CDATA[hud_files/images/hopenet_about_1st_hope_corps.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>2</uid>
+		<name><![CDATA[How does the Hope Shuttle work?]]></name>
+		<thumb><![CDATA[hud_files/images/hopenet_about_shuttle.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>3</uid>
+		<name><![CDATA[How does HopeNet work?]]></name>
+		<thumb><![CDATA[hud_files/images/hopenet_about_hopenet.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>4</uid>
+		<name><![CDATA[Why the Hope Corps?]]></name>
+		<thumb><![CDATA[hud_files/images/hopenet_about_why_hope_corps.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>5</uid>
+		<name><![CDATA[The Legend of Hope]]></name>
+		<thumb><![CDATA[hud_files/images/hopenet_about_legend.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+</items>

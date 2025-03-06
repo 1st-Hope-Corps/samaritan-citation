@@ -1,0 +1,6 @@
+; $Id$
+name = HopeNet Rating System
+description = A module that can include star ratings to any content.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

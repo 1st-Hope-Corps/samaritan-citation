@@ -1,0 +1,697 @@
+<?php
+// $Id$
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array- holds the current path as would be returned from arg() function
+ * @return help		- text for the path
+ **/
+function oscommerce_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#oscommerce":
+			$sOutput = '<p>'. t("OsCommerce module integration.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+ * Valid permissions for this module
+ * @return array	- An array of valid permissions for the socialgo module
+ **/
+function oscommerce_perm(){
+	return array('access oscommerce', 'access oscommerce content');
+}
+
+function oscommerce_init(){
+	
+}
+
+function oscommerce_menu(){
+	$aItems['admin/settings/oscommerce'] = array(
+		'title' => 'OsCommerce Integration Settings',
+		'description' => "Sets the OsCommerce URL to access.",
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('oscommerce_admin'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['store'] = array(
+		'title' => 'My Livelihood',
+		'page callback' => 'oscommerce_redirect',
+		'access arguments' => array('access oscommerce'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['store/upload'] = array(
+		'title' => 'Upload Product',
+		'page callback' => 'oscommerce_upload',
+		'access arguments' => array('access oscommerce'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['store/sync'] = array(
+		'title' => '',
+		'page callback' => 'oscommerce_sync',
+		'access arguments' => array('access oscommerce'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+function oscommerce_admin(){
+	$aForm['oscommerce_url'] = array(
+		'#type' => 'textfield',
+		'#title' => t('OsCommerce URL'),
+		'#default_value' => variable_get('oscommerce_url', 'http://www.YourOsCommerceDomainHere.com'),
+		'#size' => 50,
+		'#maxlength' => 50,
+		'#description' => t('The URL of the OsCommerce site to access. Do not put a trailing forward slash, "/".'),
+		'#required' => TRUE
+	);
+	
+	return system_settings_form($aForm);
+}
+
+function oscommerce_admin_validate($oForm, &$aFormState){
+	$sOsCommerceURL = trim($aFormState['values']['oscommerce_url']);
+	
+	if (!preg_match('!^((ftp|(http(s)?))://)?(\.?([a-z0-9-]+))+\.[a-z]{2,6}(:[0-9]{1,5})?(/[a-zA-Z0-9.,;\?|\'+&%\$#=~_-]+)*$!i', $sOsCommerceURL)){
+		form_set_error('oscommerce_url', t('Invalid URL format.'));
+	}
+}
+
+function oscommerce_redirect(){
+	global $user;
+	
+	$aTrail = array(
+					l("Home", "<front>"),
+					l("Children's Portal", "node/20"),
+					l("My Livelihood", "store")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	//$sB64Pass = base64_encode(str_pad(variable_get("pass_unmasked_".$user->name, "12345"), 5, "_", STR_PAD_RIGHT));
+	//$sB64Pass = base64_encode(variable_get("pass_unmasked_".$user->name, "12345"));
+	//$sHTML = 'Go to <a href="'.variable_get('oscommerce_url', '#').'/login.php?io=bXlnaXptb3oubmluZy5jb20/eWVz&u='.base64_encode($user->mail).'&p='.$sB64Pass.'" target="_new">Store</a>';
+	
+	$sBaseURL = variable_get('oscommerce_url', '#').'/login.php?io=bXlnaXptb3oubmluZy5jb20/eWVz';
+	$B64Email = base64_encode($user->mail);
+	$sB64Pass = base64_encode(variable_get("pass_unmasked_".$user->name, "12345"));
+
+	$sStoreURL = $sBaseURL.'&u='.$B64Email.'&p='.$sB64Pass.'&q=store';
+	$sCommissaryURL = $sBaseURL.'&u='.$B64Email.'&p='.$sB64Pass.'&q=comm';
+	
+	$sHTML = '<table style="width:60%; margin-left:auto; margin-right:auto; margin-top:40px;">
+				<tr>
+					<td style="width:50%; text-align:center;"><a href="'.$sStoreURL.'" target="_blank" style="color:#BC5500; font-size:1.3em; font-weight:bold;">My sStore</a></td>
+					<td style="width:50%; text-align:center;"><a href="'.$sCommissaryURL.'" target="_blank" style="color:#BC5500; font-size:1.3em; font-weight:bold;">Commissary</a></td>
+				</tr>
+			</table>';
+	
+	return $sHTML;
+}
+
+function oscommerce_upload(){
+	global $user;
+	
+	$aTrail = array(
+					l("Home", "<front>"),
+					l("Children's Portal", "node/20"),
+					l("My Livelihood", "store"),
+					l("Upload Product", "store/upload")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	drupal_add_css(drupal_get_path("module", "oscommerce")."/oscommerce.css");
+	
+	$iParentID = (isset($_GET["i"])) ? $_GET["i"]:0;
+	
+	$sCategories = _oscommerce_post("category", "i=".$iParentID."&uid=".$user->uid);
+	$aCategories = ($sCategories != "") ? explode("|", $sCategories):array();
+	
+	//dump_this($aCategories);
+	
+	if (!isset($_GET["c"])){
+		_oscommerce_init_breadcrumb();
+		
+		$sHTML = (isset($_GET["s"]) && $_GET["s"] == 1) ? '<div class="success">Your product has been posted successfully. Please allow a few minutes for this to appear in our store.<br />Thank you for using this service.</div>':"";
+		
+		$sHTML .= _oscommerce_list_breadcrumb($_SESSION["aBreadcrumb"]) .
+					'<p style="padding-bottom:20px;">Please post your product in the correct category. Select the most appropriate 
+					subcategory as much as possible so that other members can easily locate your product.</p>' .
+					_oscommerce_list_cat($aCategories);
+	}else{
+		drupal_add_js('var oscommerce_sBasePath = "'.base_path().'";', "inline");
+		drupal_add_js(drupal_get_path("module", "oscommerce")."/oscommerce.js");
+		
+		if ($user->uid == 1){
+			$sExtraHTML = '<tr>
+								<td class="title">
+									<u>Product Type:</u> <b>required</b>
+								</td>
+								<td class="input">
+									<input type="radio" id="sProductType1" name="sProductType" value="hard" /> <label for="sProductType1" style="margin-right:15px;">Hard</label>
+									<input type="radio" id="sProductType2" name="sProductType" value="download" checked /> <label for="sProductType2">Download</label>
+								</td>
+							</tr>';
+		}else{
+			$sExtraHTML = '<input type="hidden" name="sProductType" value="download">';
+		}
+		
+		$sErr1 = "- Product Image's filesize is greater than 1 MB<br />";
+		$sErr2 = "- Downloadable Product/Item's filesize is greater than 10 MB<br />";
+		
+		if (isset($_GET["err"]) && $_GET["err"] != ""){
+			if ($_GET["err"] == 1){
+				$sError = $sErr1;
+			}elseif($_GET["err"] == 2){
+				$sError = $sErr2;
+			}else{
+				$sError = $sErr1.$sErr2;
+			}
+			
+			$sHTML = '<div class="error">'.$sError.'</div>';
+		}else{
+			$sHTML = "";
+		}
+		
+		$sHTML .= '
+				<div id="oscommerce_file_progress_notice" style="display:none; padding:10px; font-size:1.5em; background-color:#FFFFFF; text-align:center; border: 5px solid #24332B; position:absolute;">
+					<img src="'.base_path().'sites/default/files/upload_progress.gif" style="padding:10px;" /><br/>
+					<span id="oscommerce_file_progress_container"><span id="oscommerce_file_progress">0</span> Bytes<br/></span>
+					Your product is being uploaded...
+				</div>
+				<div style="padding-bottom:20px;">You will be posting a product under '._oscommerce_list_breadcrumb($_SESSION["aBreadcrumb"], true).'</div>
+				<form id="CE_Form" name="CE_Form" method="post" enctype="multipart/form-data" action="'.variable_get('oscommerce_url', '#').'/ning/osc_prod_proc.php" onsubmit="return SubCheckForm(this);">
+					<input type="hidden" name="MAX_FILE_SIZE" value="11264000">
+					<input type="hidden" name="iCatID" value="'.$_GET["c"].'">
+					<input type="hidden" name="iMemberID" value="'.$user->uid.'">
+					<input type="hidden" name="sCategory" value="'._oscommerce_extract_cat($_SESSION["aBreadcrumb"]).'">
+					<input type="hidden" name="sRefererURL" value="http://'.$_SERVER["SERVER_NAME"].base_path().'store/upload?c='.$_GET["c"].'">
+					<input type="hidden" name="sRedirectTo" value="http://'.$_SERVER["SERVER_NAME"].base_path().'store/upload">
+					
+					<table align="center">
+						<tr>
+							<td>
+								<table cellpadding="4" cellspacing="4" style="width:620px;">
+									'.$sExtraHTML.'
+									<tr>
+										<td class="title">
+											<u>Product Image:</u> <b>required</b>
+											<div class="hint">
+												Including an image greatly improves your chances of selling your product. Use 
+												the Browse button to provide the location where your image is stored. If you 
+												do not have an image, you can skip this step.
+											</div>
+										</td>
+										<td class="input">
+											<input type="file" id="sProduct" name="sProductImage" accept="image/jpeg" class="text" />
+											<div class="hint">
+												* <u class="hint">Minimum dimensions</u>: At least 110 pixels wide or high.<br />
+												* <u class="hint">Recommended dimensions</u>: 500 x 500 pixels.<br />
+												* <u class="hint">Image dimension ratio</u>: The shortest side should be, at least,<br />
+												10% of the longest side (for example, 20 x 200 pixels).<br />
+												* <u class="hint">File type</u>: JPEG.<br />
+												* <u class="hint">Filesize</u>: The filesize should not exceed 1 Megabyte (1 MB).
+											</div>
+										</td>
+									</tr>
+									<tr>
+										<td class="title">
+											<u>Product Name:</u> <b>required</b>
+											<div class="hint">Max. 250 characters</div>
+										</td>
+										<td class="input">
+											<input type="text" id="sProductName" name="sProductName" class="text" maxlength="250" />
+											<div class="hint">Example: Olympus Camedia C-50 Digital Camera</div>
+										</td>
+									</tr>
+									<tr id="oscommerce_download_field">
+										<td class="title">
+											<u>Downloadable Product/Item:</u> <b>required</b>
+											<div class="hint">
+												This will be the product/item that your buyers will download after paying for it.
+											</div>
+										</td>
+										<td class="input">
+											<input type="file" id="sProductToDownload" name="sProductToDownload" class="text" />
+											<div class="hint">
+												* <u class="hint">Filesize</u>: The filesize should not exceed 10 Megabytes (10 MB).
+											</div>
+										</td>
+									</tr>
+									<tr>
+										<td class="title">
+											<u>Manufacturer:</u> <b>required</b>
+											<div class="hint"></div>
+										</td>
+										<td class="input">
+											<input type="text" id="sManufacturer" name="sManufacturer" class="text" maxlength="250" />
+											<div class="hint">Example: Sony, Kitchen Aid, Microsoft</div>
+										</td>
+									</tr>
+									<tr>
+										<td class="title">
+											<u>Model Number:</u>
+											<div class="hint">Product code assigned by the manufacturer; can be numbers, letters, or both</div>
+										</td>
+										<td class="input">
+											<input type="text" id="sModel" name="sModel" class="text" maxlength="50" />
+											<div class="hint">Example: C-50</div>
+										</td>
+									</tr>
+									<!--
+									<tr>
+										<td class="title">
+											<u>Product Condition:</u> <b>required</b>
+											<div class="hint"></div>
+										</td>
+										<td class="input">
+											<select id="sProductCondition" name="sProductCondition">
+												<option value="">Select condition...</option>
+												<option value="New">New</option>
+												<option value="Refurbished">Refurbished</option>
+												<option value="UsedLikeNew">Used but Like New</option>
+												<option value="UsedVeryGood">Used but still Very Good</option>
+												<option value="UsedGood">Used but still Good</option>
+												<option value="UsedAcceptable">Used but still Acceptable</option>
+											</select>
+											<div class="hint"></div>
+										</td>
+									</tr>
+									//-->
+									<tr>
+										<td class="title">
+											<u>Product Description:</u> <b>required</b>
+											<div class="hint">The description you provide should pertain to the product in general, not your particular item. There is a 2,000 character maximum.</div>
+										</td>
+										<td class="input">
+											<textarea id="sDescription" name="sDescription"></textarea>
+											<div class="hint">Example: This ham has been smoked for 12 hours...</div>
+										</td>
+									</tr>
+									<tr>
+										<td class="title">
+											<u>Price:</u> <b>required</b>
+											<div class="hint">The price for which you plan to sell the item.</div>
+										</td>
+										<td class="input">
+											HC $
+											<input type="text" id="mPrice" name="mPrice" class="text" maxlength="18" style="width:95px; text-align:right;" onkeyup="this.value = RestrictKeys(this.value, 2);" />
+											<div class="hint">Example: 49.99</div>
+										</td>
+									</tr>
+									<tr>
+										<td class="title">
+											<u>Quantity:</u> <b>required</b>
+											<div class="hint">The quantity of the item you are making available for sale.</div>
+										</td>
+										<td class="input">
+											<input type="text" id="iQuantity" name="iQuantity" class="text" maxlength="4" style="width:35px; text-align:right;" onkeyup="this.value = RestrictKeys(this.value, 1);" />
+											<div class="hint"></div>
+										</td>
+									</tr>
+									<tr>
+										<td class="title">
+											<u>Image Slideshow:</u>
+											<div class="hint">
+												Including an Image Slideshow (HTML Embed Code) will greatly improve your chances of selling your product to the next level. 
+												Seeing all angles of the products while buyers are viewing it\'s description.
+											</div>
+										</td>
+										<td class="input">
+											<textarea id="sPhotoEmbed" name="sPhotoEmbed" style="height:90px"></textarea>
+											<div class="hint"></div>
+										</td>
+									</tr>
+									<tr>
+										<td class="title">
+											<u>Video Presentation:</u>
+											<div class="hint">
+												Including a Video Presentation (HTML Embed Code) will, also, greatly improve your chances of selling your product to the next level. 
+												Seeing the product in action will entice the buyers more. Making them more curious of knowing your product more.
+											</div>
+										</td>
+										<td class="input">
+											<textarea id="sVideoEmbed" name="sVideoEmbed" style="height:90px"></textarea>
+											<div class="hint"></div>
+										</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+						<tr>
+							<td style="text-align:center; padding-top:10px;">
+								<input type="submit" id="bSaveFromNing" name="bSaveFromNing" value="Save" class="button" />
+								<input type="button" id="bCancel" name="bCancel" value="Cancel" class="button" onclick="javascript:history.back(1)" />
+							</td>
+						</tr>
+					</table>
+				</form>';
+	}
+	
+	return $sHTML;
+}
+
+function oscommerce_sync(){
+	$iInserted = 0;
+	$iAlreadyInDB = 0;
+	
+	$sqlDrupalIDs = "SELECT uid, name, mail FROM {users} WHERE uid > 0 ORDER BY uid";
+	$oDrupalIDs = db_query($sqlDrupalIDs);
+	$sInserted = "";
+	
+	while ($oDrupalID = db_fetch_object($oDrupalIDs)){
+		$iDrupalId = $oDrupalID->uid;
+		$aProfile = _oscommerce_get_details($iDrupalId);
+		
+		$sEmail = $oDrupalID->mail;
+		$sPass = str_pad(variable_get("pass_unmasked_".$oDrupalID->name, "12345"), 5, "_", STR_PAD_RIGHT);
+		$sGender = ($aProfile["profile_gender"] == "Male") ? "m":"f";
+		$sFirstName = ucwords($aProfile["profile_first_name"]);
+		$sLastName = ucwords($aProfile["profile_last_name"]);
+		$sAddress = str_pad(ucwords($aProfile["profile_address"]), 5, "_", STR_PAD_RIGHT);
+		
+		$aDOB = unserialize($aProfile["profile_dob"]);
+		$dDOB = str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."/".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT)."/".$aDOB["year"];
+		
+		$sPostFields = "key=bXlnaXptb3oubmluZy5jb20/eWVz";
+		$sPostFields .= "&action=process";
+		$sPostFields .= "&gender=".$sGender;
+		$sPostFields .= "&firstname=".$sFirstName;
+		$sPostFields .= "&lastname=".$sLastName;
+		$sPostFields .= "&dob=".$dDOB;
+		$sPostFields .= "&email_address=".$sEmail;
+		$sPostFields .= "&company=";
+		$sPostFields .= "&street_address=".$sAddress;
+		$sPostFields .= "&suburb=";
+		$sPostFields .= "&postcode=1207";
+		$sPostFields .= "&city=Makati City";
+		$sPostFields .= "&state=NCR";
+		$sPostFields .= "&country=168";
+		$sPostFields .= "&ning=".$iDrupalId;
+		$sPostFields .= "&telephone=+6328970471";
+		$sPostFields .= "&fax=";
+		$sPostFields .= "&newsletter=1";
+		$sPostFields .= "&password=".$sPass;
+		$sPostFields .= "&confirmation=".$sPass;
+		
+		$iCustCount = (int) _oscommerce_post("verify", "q=".$sEmail);
+		$sResponse = ($iCustCount == 1) ? 1:_oscommerce_post("create", $sPostFields);
+		
+		if ($sResponse == ""){
+			$iInserted++;
+			$sInserted .= ($sInserted != "") ? ", ":"";
+			$sInserted .= $sEmail;
+		}elseif ($sResponse == 1){
+			$iAlreadyInDB++;
+		}else{
+			echo $iDrupalId;
+			echo "<pre>";
+			print_r($aProfile);
+			echo "</pre>";
+			echo $sResponse."<br /><br />";
+		}
+	}
+	
+	echo "Total created account: ".$iInserted."<br />";
+	echo "Created accounts: ".$sInserted."<br />";
+	echo "Total already in database: ".$iAlreadyInDB;
+}
+
+function oscommerce_user($sOperation, &$aFormVals, &$oUser, $sCategory=NULL){
+	global $user;
+	
+	$iDrupalId = $oUser->uid;
+	$sEmail = $oUser->mail;
+	$sPass = str_pad($aFormVals["pass"], 5, "_", STR_PAD_RIGHT);
+	$aProfile = _oscommerce_get_details($iDrupalId);
+	
+	$sGender = ($aProfile["profile_gender"] == "Male") ? "m":"f";
+	$sFirstName = ucwords($aProfile["profile_first_name"]);
+	$sLastName = ucwords($aProfile["profile_last_name"]);
+	$sAddress = str_pad(ucwords($aProfile["profile_address"]), 5, "_", STR_PAD_RIGHT);
+	
+	$aDOB = unserialize($aProfile["profile_dob"]);
+	$dDOB = str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."/".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT)."/".$aDOB["year"];
+	
+	switch ($sOperation){
+		case "login":
+			variable_set("pass_unmasked_".$oUser->name, $sPass);
+			
+			$sSalt = substr(md5($sPass), 0, 2);
+			$sPass = md5($sSalt.$sPass).":".$sSalt;
+			
+			$sqlUpdateUser = "UPDATE {customers} 
+								SET customers_password = '".$sPass."' 
+								WHERE ning_id = %d";
+			
+			db_set_active('oscommerce');
+			db_query($sqlUpdateUser, $iDrupalId);
+			db_set_active('default');
+			
+			break;
+		
+		case "insert":
+			$sPostFields = "key=bXlnaXptb3oubmluZy5jb20/eWVz";
+			$sPostFields .= "&action=process";
+			$sPostFields .= "&gender=".$sGender;
+			$sPostFields .= "&firstname=".$sFirstName;
+			$sPostFields .= "&lastname=".$sLastName;
+			$sPostFields .= "&dob=2019-06-12";
+			$sPostFields .= "&email_address=".$sEmail;
+			$sPostFields .= "&company=";
+			$sPostFields .= "&street_address=".$sAddress;
+			$sPostFields .= "&suburb=";
+			$sPostFields .= "&postcode=1207";
+			$sPostFields .= "&city=Makati City";
+			$sPostFields .= "&state=NCR";
+			$sPostFields .= "&country=168";
+			$sPostFields .= "&ning=".$iDrupalId;
+			$sPostFields .= "&telephone=+6328970471";
+			$sPostFields .= "&fax=";
+			$sPostFields .= "&newsletter=1";
+			$sPostFields .= "&password=".$sPass;
+			$sPostFields .= "&confirmation=".$sPass;
+			
+			// $iCustCount = (int) _oscommerce_post("verify", "q=".$sEmail);
+			// $sResponse = ($iCustCount == 1) ? "":_oscommerce_post("create", $sPostFields);
+			_oscommerce_post("create", $sPostFields);
+			
+			break;
+		
+		case "update":
+			variable_set("pass_unmasked_".$oUser->name, $sPass);
+			
+			$iCustId = _oscommerce_get_id($iDrupalId);
+			$sSalt = substr(md5($sPass), 0, 2);
+			$sPass = md5($sSalt.$sPass).":".$sSalt;
+			
+			$sqlUpdateUser = "UPDATE {customers} 
+								SET customers_gender = '".$sGender."',
+									customers_firstname = '".$sFirstName."',
+									customers_lastname = '".$sLastName."',
+									customers_dob = '".$dDOB."',
+									customers_email_address = '".$sEmail."',
+									customers_password = '".$sPass."' 
+								WHERE ning_id = %d";
+			$sqlUpdateAddr = "UPDATE {address_book} 
+								SET entry_gender = '".$sGender."',
+									entry_firstname = '".$sFirstName."',
+									entry_lastname = '".$sLastName."',
+									entry_street_address = '".$sAddress."' 
+								WHERE customers_id = %d";
+			
+			db_set_active('oscommerce');
+			
+			db_query($sqlUpdateUser, $iDrupalId);
+			db_query($sqlUpdateAddr, $iCustId);
+			
+			db_set_active('default');
+			
+			break;
+		
+		case "delete":
+			variable_del("pass_unmasked_".$oUser->name);
+			
+			$iCustId = _oscommerce_get_id($iDrupalId);
+			$sqlDeleteUser = "DELETE FROM {customers} WHERE ning_id = %d";
+			$sqlDeleteAddr = "DELETE FROM {address_book} WHERE customers_id = %d";
+			
+			db_set_active('oscommerce');
+			
+			db_query($sqlDeleteUser, $iDrupalId);
+			db_query($sqlDeleteAddr, $iCustId);
+			
+			db_set_active('default');
+			
+			break;
+	}
+}
+
+/**
+ * Reusable functions AKA callbacks
+ **/
+function _oscommerce_get_id($iUserId){
+	db_set_active('oscommerce');
+	
+	$sqlCustId = "SELECT customers_id FROM {customers} WHERE ning_id = %d";
+	$oCustId = db_query($sqlCustId, $iUserId);
+	$iCustId = db_fetch_object($oCustId)->customers_id;
+	
+	db_set_active('default');
+	
+	return $iCustId;
+}
+
+function _oscommerce_get_details($iUserId){
+	$sqlProfile = "SELECT B.uid, A.name, B.value 
+					FROM {profile_fields} A INNER JOIN {profile_values} B ON A.fid = B.fid 
+					WHERE B.uid = %d";
+	
+	$oQueryResult = db_query($sqlProfile, $iUserId);
+	$aDetails = array();
+	
+	while ($oDetails = db_fetch_object($oQueryResult)){
+		$aDetails[$oDetails->name] = $oDetails->value;
+	}
+	
+	return $aDetails;
+}
+
+function _oscommerce_init_breadcrumb(){
+	$sBase = base_path()."store/upload";
+	
+	if (isset($_SESSION["aBreadcrumb"]) && isset($_GET["p"])){
+		$bInArray = false;
+		
+		foreach ($_SESSION["aBreadcrumb"] as $aBreadcrumbFeed){
+			if (in_array($_GET["p"], $aBreadcrumbFeed)){
+				$bInArray = true;
+				break;
+			}
+		}
+		
+		if ($bInArray && $_SESSION["aBreadcrumb"][count($_SESSION["aBreadcrumb"])-1][0] != $_GET["p"]){
+			array_pop($_SESSION["aBreadcrumb"]);
+		}elseif (!$bInArray){
+			$aBreadcrumbRaw = array($_GET["p"], $sBase."?i=".$_GET["i"]."&p=".urlencode($_GET["p"]));
+			$_SESSION["aBreadcrumb"][] = $aBreadcrumbRaw;
+		}
+	}else{
+		$aBreadcrumbRaw = array("Main Categories", $sBase);
+		$_SESSION["aBreadcrumb"] = array();
+		$_SESSION["aBreadcrumb"][] = $aBreadcrumbRaw;
+	}
+}
+
+function _oscommerce_list_breadcrumb($aInputBreadcrumb, $bDisplayOnly=false){
+	$sThisBreadcrumb = "";
+	$x = 0;
+	
+	foreach ($aInputBreadcrumb as $aBreadcrumbFeed){
+		if ($bDisplayOnly && $aBreadcrumbFeed[0] == "Main Categories") continue;
+		
+		$sThisBreadcrumb .= ($x > 0) ? " > ":"";
+		$sThisBreadcrumb .= (isset($_GET["c"]) && count($_SESSION["aBreadcrumb"])-2 == $x) ? $aBreadcrumbFeed[0]:"<a href=\"".$aBreadcrumbFeed[1]."\">".$aBreadcrumbFeed[0]."</a>";
+		$x++;
+	}
+	
+	return ($bDisplayOnly) ? $sThisBreadcrumb:'<div style="padding-bottom:20px; font-size:0.9em;">'.$sThisBreadcrumb.'</div>';
+}
+
+function _oscommerce_extract_cat($aInputBreadcrumb){
+	$sThisCat = "";
+	$x = 0;
+	
+	foreach ($_SESSION["aBreadcrumb"] as $aBreadcrumbFeed){
+		if ($aBreadcrumbFeed[0] == "Main Categories") continue;
+		
+		$sThisCat .= ($x > 0) ? " > ":"";
+		$sThisCat .= $aBreadcrumbFeed[0];
+		$x++;
+	}
+	
+	return $sThisCat;
+}
+
+function _oscommerce_list_cat($aCategories){
+	$iColWidth = 400;
+	$sTableBegin = '<table cellpadding="2" cellspacing="0"><tr>';
+	$sTableEnd = '</tr></table>';
+	
+	$sColBegin = '<td style="vertical-align:top; width:'.$iColWidth.'px;"><table cellpadding="4" cellspacing="0">';
+	$sColEnd = '</table></td>';
+	
+	$iCatCount = count($aCategories);
+	
+	if ($iCatCount > 0){
+		$iCountMod = $iCatCount % 10;
+		$iCountAdd = ($iCountMod > 0) ? 10-$iCountMod:0;
+		
+		$iCountPerCol = ($iCatCount + $iCountAdd) / 2;
+		$sColumn = "";
+		$y = 1;
+		
+		for ($x=0; $x<$iCatCount; $x++){
+			$aCatData = explode(",", $aCategories[$x]);
+			$iCatDataLen = count($aCatData);
+			
+			$sColumn .= ($y == 1) ? $sColBegin:"";
+			$sLink = base_path()."store/upload?i=".$aCatData[0]."&p=".urlencode($aCatData[2]);
+			$sColumn .= '<tr><td class="catList"><a href="'.$sLink.'">'.$aCatData[2].'</a></td></tr>';
+			
+			if ($y == $iCountPerCol || $x == ($iCatCount - 1)){
+				$sColumn .= $sColEnd;
+				$y = 1;
+			}else{
+				$y++;
+			}
+		}
+	}else{
+		// $sColumn = "<tr><td style=\"vertical-align:top; width:".$iColWidth."px;\">If there are no sub-categories, redirect to Product Upload form.</td></tr>";
+		header("location: ".base_path()."store/upload?c=".$_GET["i"]);
+	}
+
+	return $sTableBegin.$sColumn.$sTableEnd;
+}
+
+/**
+ * @sPostURL	string	URL/variable
+ * @sPostFields	string	data to post
+ **/
+function _oscommerce_post($sPostURL, $sPostFields=""){
+	$sOsCommerceURL = variable_get('oscommerce_url', '#');
+	
+	switch ($sPostURL){
+		case "create": $sPostURL = $sOsCommerceURL."/create_account.php"; break;
+		case "verify": $sPostURL = $sOsCommerceURL."/ning/osc_cust_verify.php"; break;
+		case "category": $sPostURL = $sOsCommerceURL."/ning/osc_cat.php"; break;
+	}
+	//echo $sPostURL."?".$sPostFields;
+	# Initialize cURL
+	$oCURL = curl_init();
+	curl_setopt($oCURL, CURLOPT_URL, $sPostURL);
+	curl_setopt($oCURL, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
+	curl_setopt($oCURL, CURLOPT_POST, 1);
+	curl_setopt($oCURL, CURLOPT_POSTFIELDS, $sPostFields);
+	curl_setopt($oCURL, CURLOPT_SSL_VERIFYPEER, false);
+	
+	# Setting CURLOPT_RETURNTRANSFER variable to 1 will force cURL not to print out the results of 
+	# its query. Instead, it will return the results as a string return value from curl_exec() 
+	# instead of the usual true/false.
+	curl_setopt($oCURL, CURLOPT_RETURNTRANSFER, 1);
+	
+	$sResponse = curl_exec($oCURL);
+	
+	return json_decode($sResponse, true);
+}

@@ -1,0 +1,26 @@
+<items>
+	<item>
+		<uid>1</uid>
+		<name><![CDATA[1st Hope Corps]]></name>
+		<thumb><![CDATA[home_files/images/slider_sword_into_plow.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>2</uid>
+		<name><![CDATA[HopeNet]]></name>
+		<thumb><![CDATA[home_files/images/slider_hopenet.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>3</uid>
+		<name><![CDATA[Cybrary]]></name>
+		<thumb><![CDATA[home_files/images/slider_cybrary.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>4</uid>
+		<name><![CDATA[Hope Team]]></name>
+		<thumb><![CDATA[home_files/images/slider_hope_team.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+</items>

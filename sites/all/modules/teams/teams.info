@@ -1,0 +1,6 @@
+; $Id$
+name = Community Teams 
+description = "This module will allow you to connect your Drupal installation to your Team KickApps Community"
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

@@ -1,0 +1,568 @@
+<?php
+// $Id$
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array- holds the current path as would be returned from arg() function
+ * @return help		- text for the path
+ **/
+function rating_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#rating":
+			$sOutput = '<p>'. t("Rating System for Developers.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+ * Valid permissions for this module
+ * @return array	- An array of valid permissions for the socialgo module
+ **/
+function rating_perm(){
+	return array('access rating', 'access rating content');
+}
+
+function rating_init(){
+
+}
+
+function rating_menu(){
+	$aItems['rating/star/refresh/%/%/%/%'] = array(
+		'page callback' => 'rating_include_star_refresh',
+		'page arguments' => array(3, 4, 5, 6),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['rating/cast/vote'] = array(
+		'page callback' => 'rating_include_review_process',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['rating/load/form/%/%/%'] = array(
+		'page callback' => 'rating_include_review',
+		'page arguments' => array(3, 4, 5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['rating/load/list/%/%/%/%'] = array(
+		'page callback' => 'rating_list',
+		'page arguments' => array(3, 4, 5, 6),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+function rating_user($sOperation, &$aFormVals, &$oUser, $sCategory=NULL){
+
+	switch ($sOperation){
+		case "insert":
+			
+			break;
+		
+		case "update":
+			
+			break;
+		
+		case "delete":
+			
+			break;
+	}
+}
+
+function _rating_require(){
+	drupal_add_css(drupal_get_path("module", "rating")."/rating.css");
+	drupal_add_js(drupal_get_path("module", "rating")."/rating.js");
+}
+
+function rating_include_review($sType, $sSubType, $iContentId, $sTitle="", $sFilter="all"){
+	_rating_require();
+	
+	$iVoteCount = _rating_check_vote($sType, $sSubType, $iContentId);
+	
+	if ($iVoteCount == 0){
+		$sOptions = "";
+		$aTitle = array("Helpfulness", "Easy to Use and understand", "Fun to use", "Graphics and artwork", "Overall score");
+		$aTitleShort = array("help", "easy", "fun", "art", "all");
+		
+		for ($i=0; $i<count($aTitle); $i++){
+			$sShortTitle = $aTitleShort[$i];
+			$sOptions .= '<tr>
+							<td style="width:82px">
+								<input type="hidden" id="'.$sType."_".$sShortTitle.'_'.$iContentId.'" name="'.$sType."_".$sShortTitle.'_'.$iContentId.'" value="0" />
+								
+								<ul id="'.$sType."_".$sShortTitle.'_'.$iContentId.'" class="rating nostar">
+									<li class="one"><a href="javascript:void(0);" title="1 Star" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\', '.$iContentId.', 1)">1</a></li>
+									<li class="two"><a href="javascript:void(0);" title="2 Stars" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\', '.$iContentId.', 2)">2</a></li>
+									<li class="three"><a href="javascript:void(0);" title="3 Stars" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\', '.$iContentId.', 3)">3</a></li>
+									<li class="four"><a href="javascript:void(0);" title="4 Stars" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\', '.$iContentId.', 4)">4</a></li>
+									<li class="five"><a href="javascript:void(0);" title="5 Stars" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\',  '.$iContentId.', 5)">5</a></li>
+								</ul>
+							</td>
+							<td style="padding:3px 0px 0px 5px;">'.$aTitle[$i].'</td>
+						</tr>';
+		}
+		
+		$sStaticStar = ($iContentId != 0) ? rating_include_star($sFilter, $sType, $sSubType, $iContentId, $sTitle):"";
+		$sOutput = $sStaticStar.
+					'<div id="rating_ShowRating_'.$iContentId.'" style="cursor:pointer; padding-bottom:10px;" '.(($iContentId == 0) ? 'onclick="rating_ShowRating();"':'').'>Click here to rate this.</div>
+					<div id="rating_RatingContainer_'.$iContentId.'" style="display:none; margin-top:5px;">
+						<input type="hidden" id="rating_type_'.$iContentId.'" name="rating_type_'.$iContentId.'" value="'.$sType.'" />
+						<input type="hidden" id="rating_sub_type_'.$iContentId.'" name="rating_sub_type_'.$iContentId.'" value="'.$sSubType.'" />
+						
+						<table>
+							'.$sOptions.'
+							<tr>
+								<td colspan="2">
+									<div>One line title/summary</div>
+									<div><small>Required: 15 words maximum</small></div>
+									<div><input type="text" id="rating_sTitle_'.$iContentId.'" name="rating_sTitle_'.$iContentId.'" class="rating_text" /></div>
+									<br/>
+									<div>Likes</div>
+									<div><small>Required: 20 words maximum</small></div>
+									<div><textarea id="rating_sLikes_'.$iContentId.'" name="rating_sLikes_'.$iContentId.'" class="rating_textarea"></textarea></div>
+									<br/>
+									<div>Dislikes</div>
+									<div><small>Required: If no dislikes then write "none".</small></div>
+									<div><textarea id="rating_sDislikes_'.$iContentId.'" name="rating_sDislikes_'.$iContentId.'" class="rating_textarea"></textarea></div>
+									<br/>
+									<div>Review Summary</div>
+									<div><small>Optional</small></div>
+									<div><textarea id="rating_sComment_'.$iContentId.'" name="rating_sComment_'.$iContentId.'" class="rating_textarea"></textarea></div>
+									<br/>
+									<div><button type="button" id="rating_btnSubmit" name="rating_btnSubmit" value="'.$iContentId.'" class="form-submit3" '.(($iContentId == 0) ? 'onclick="rating_PostReview();"':'').'>&nbsp;</button></div>
+								</td>
+							</tr>
+						</table>
+					</div>';
+	}else{
+		//$sOutput = rating_include_star($sFilter, $sType, $sSubType, $iContentId, $sTitle).'<div id="rating_ShowRating_'.$iContentId.'">You already rated this content.</div>';
+	    $sOutput = rating_include_star($sFilter, $sType, $sSubType, $iContentId, $sTitle).'You already rated this content.';
+    }
+	
+	if ($iContentId == 0) exit($sOutput);
+	
+	return $sOutput;
+}
+
+function rating_include_review_process(){
+	global $user;
+	
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	$sqlInsert = "INSERT INTO rating_vote VALUES(NULL, '%s', '%s', %d, %d, %d, %d, %d, %d, %d, '%s', '%s', '%s', '%s', %d, '%s', '%s')";
+	db_query($sqlInsert, array($sType, $sSubType, $iContentId, $iHelp, $iEasy, $iFun, $iArt, $iAll, $user->uid, $sTitle, $sLikes, $sDislikes, $sComment, time(), $_SERVER["REMOTE_ADDR"], $sPlace));
+	
+	$iContentId = db_last_insert_id("rating_vote", "id");
+	
+	exit(json_encode(array("SUCCESS" => true, "RETURN" => $iContentId)));
+}
+
+function rating_include_review_form($sType, $sSubType, $iContentId){
+	_rating_require();
+	
+	$sOptions = "";
+	$aTitle = array("Helpfulness", "Easy to Use and understand", "Fun to use", "Graphics and artwork", "Overall score");
+	$aTitleShort = array("help", "easy", "fun", "art", "all");
+	
+	for ($i=0; $i<count($aTitle); $i++){
+		$sShortTitle = $aTitleShort[$i];
+		$sOptions .= '<tr>
+						<td style="width:82px">
+							<input type="hidden" id="'.$sType."_".$sShortTitle.'_'.$iContentId.'" name="'.$sType."_".$sShortTitle.'_'.$iContentId.'" value="0" />
+							
+							<ul id="'.$sType."_".$sShortTitle.'_'.$iContentId.'" class="rating nostar">
+								<li class="one"><a href="javascript:void(0);" title="1 Star" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\', '.$iContentId.', 1)">1</a></li>
+								<li class="two"><a href="javascript:void(0);" title="2 Stars" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\', '.$iContentId.', 2)">2</a></li>
+								<li class="three"><a href="javascript:void(0);" title="3 Stars" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\', '.$iContentId.', 3)">3</a></li>
+								<li class="four"><a href="javascript:void(0);" title="4 Stars" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\', '.$iContentId.', 4)">4</a></li>
+								<li class="five"><a href="javascript:void(0);" title="5 Stars" onclick="rating_CastVote(\''.$sShortTitle.'\', \''.$sType.'\',  '.$iContentId.', 5)">5</a></li>
+							</ul>
+						</td>
+						<td style="padding:3px 0px 0px 5px;">'.$aTitle[$i].'</td>
+					</tr>';
+	}
+	
+	$sOutput = '<div id="rating_RatingFormContainer" style="display:none; margin-top:5px;">
+					<input type="hidden" id="rating_type_'.$iContentId.'" name="rating_type_'.$iContentId.'" value="'.$sType.'" />
+					<input type="hidden" id="rating_sub_type_'.$iContentId.'" name="rating_sub_type_'.$iContentId.'" value="'.$sSubType.'" />
+					<input type="hidden" id="rating_value" name="rating_value" value="'.$iContentId.'" />
+					
+					<table>
+						'.$sOptions.'
+						<tr>
+							<td colspan="2">
+								<div>One line title/summary</div>
+								<div><small>Required: 15 words maximum</small></div>
+								<div><input type="text" id="rating_sTitle_'.$iContentId.'" name="rating_sTitle_'.$iContentId.'" class="rating_text" /></div>
+								<br/>
+								<div>Likes</div>
+								<div><small>Required: 20 words maximum</small></div>
+								<div><textarea id="rating_sLikes_'.$iContentId.'" name="rating_sLikes_'.$iContentId.'" class="rating_textarea"></textarea></div>
+								<br/>
+								<div>Dislikes</div>
+								<div><small>Required: If no dislikes then write "none".</small></div>
+								<div><textarea id="rating_sDislikes_'.$iContentId.'" name="rating_sDislikes_'.$iContentId.'" class="rating_textarea"></textarea></div>
+								<br/>
+								<div>Review Summary</div>
+								<div><small>Optional</small></div>
+								<div><textarea id="rating_sComment_'.$iContentId.'" name="rating_sComment_'.$iContentId.'" class="rating_textarea"></textarea></div>
+								<br/>
+								<div><button id="rating_btnSubmit" name="rating_btnSubmit" value="'.$iContentId.'" class="form-submit3">&nbsp;</button></div>
+							</td>
+						</tr>
+					</table>
+				</div>';
+	
+	return $sOutput;
+}
+
+function rating_include_star($sFilter, $sType, $sSubType, $iContentId, $sTitle=""){
+	_rating_require();
+	
+	$iAvgVote = _rating_average($sFilter, $sType, $sSubType, $iContentId);
+	$iVoteCount = _rating_check_vote($sType, $sSubType, $iContentId, false);
+	
+	switch ($iAvgVote){
+		case 1: $sRating = "onestar"; break;
+		case 2: $sRating = "twostar"; break;
+		case 3: $sRating = "threestar"; break;
+		case 4: $sRating = "fourstar"; break;
+		case 5: $sRating = "fivestar"; break;
+		case 0:
+		default:
+			$sRating = "nostar";
+			break;
+	}
+	
+	$sRatingReview = ($iVoteCount > 0 && $sTitle != "") ? '<span onclick="rating_ShowListAdmin(\''.$sType.'\', \''.$sSubType.'\', '.$iContentId.', \''.$sTitle.'\')" style="cursor:pointer;">Click here to view ratings/reviews.</span>':'';
+	
+	$sOutput = '<div id="rating_static_star_'.$iContentId.'">
+					<ul class="rating '.$sRating.'" style="margin-bottom:5px;">
+						<li class="one">1</li>
+						<li class="two">2</li>
+						<li class="three">3</li>
+						<li class="four">4</li>
+						<li class="five">5</li>
+					</ul>
+				</div>
+                <div>
+                   '.$sRatingReview.'
+                </div>
+                ';
+	
+	return $sOutput;
+}
+
+function rating_include_star_refresh($sFilter, $sType, $sSubType, $iContentId){
+	$iAvgVote = _rating_average($sFilter, $sType, $sSubType, $iContentId);
+	
+	switch ($iAvgVote){
+		case 1: $sRating = "onestar"; break;
+		case 2: $sRating = "twostar"; break;
+		case 3: $sRating = "threestar"; break;
+		case 4: $sRating = "fourstar"; break;
+		case 5: $sRating = "fivestar"; break;
+		case 0:
+		default:
+			$sRating = "nostar";
+			break;
+	}
+	
+	$sOutput = '<ul class="rating '.$sRating.'" style="margin-bottom:5px;">
+					<li class="one">1</li>
+					<li class="two">2</li>
+					<li class="three">3</li>
+					<li class="four">4</li>
+					<li class="five">5</li>
+				</ul>';
+	
+	exit($sOutput);
+}
+
+function rating_list($sType, $sSubType, $iContentId, $sFilter="all"){
+	$sOutput = "";
+	$sqlList = "SELECT A.id, A.iUID, B.name, A.iHelp, A.iEasy, A.iFun, A.iArt, A.iAll, A.sTitle, A.sLikes, A.sDislikes,
+					IF(A.sComment != '', A.sComment, 'Nothing was specified.')AS sComment, A.iTimestamp
+				FROM rating_vote A
+				INNER JOIN users B ON B.uid = A.iUID
+				WHERE A.sType = '%s'
+					/* AND A.sSubType = '%s' */
+					AND A.iContentId = %d ";
+	$aArgument = array($sType, $sSubType, $iContentId);
+	$bAdmin = _rating_check_if_admin();
+	
+	switch ($sFilter){
+		case "child":
+			$aChidId = _rating_get_hopenet();
+			
+			//if (count($aChidId) > 0){
+				//$sqlList .= "AND iUID NOT IN (%s)";
+				//$aArgument[] = implode(", ", $aChidId);
+                $sqlList .= "AND sPlace = '%s'";
+                $aArgument[] = 'hud';
+			//}
+			
+			break;
+		case "hopenet":
+			$aChidId = _rating_get_hopenet();
+			
+			//if (count($aChidId) > 0){
+				//$sqlList .= "AND iUID IN (%s)";
+				//$aArgument[] = implode(", ", $aChidId);
+                $sqlList .= "AND sPlace = '%s'";
+                $aArgument[] = 'volunteer';
+			//}
+			
+			break;
+		case "all":
+		default:
+			break;
+	}
+	
+	$oListResult = db_query($sqlList." ORDER BY A.iTimestamp DESC", $aArgument);
+	
+	while ($oList = db_fetch_object($oListResult)){
+		$aCriteria = array($oList->iHelp, $oList->iEasy, $oList->iFun, $oList->iArt, $oList->iAll);
+		$sOutput .= ($sOutput != "") ? '<tr><td colspan="2"><hr/></td></tr>':'';
+		
+		for ($x=0; $x<count($aCriteria); $x++){
+			$iVote = $aCriteria[$x];
+			
+			switch ($iVote){
+				case 1: $sRating = "onestar"; break;
+				case 2: $sRating = "twostar"; break;
+				case 3: $sRating = "threestar"; break;
+				case 4: $sRating = "fourstar"; break;
+				case 5: $sRating = "fivestar"; break;
+				case 0:
+				default:
+					$sRating = "nostar";
+					break;
+			}
+			
+			switch ($x){
+				case 0: $iHelp = $sRating; break;
+				case 1: $iEasy = $sRating; break;
+				case 2: $iFun = $sRating; break;
+				case 3: $iArt = $sRating; break;
+				case 4: $iAll = $sRating; break;
+			}
+		}
+		
+		$sOutput .= '<tr>
+						<td colspan="2">Rated by '.$oList->name.' on '.date("Y-m-d H:i:s", $oList->iTimestamp).'</td>
+					</tr>
+					<tr>
+						<td style="width:82px">
+							<ul class="rating '.$iHelp.'">
+								<li class="one">1</li>
+								<li class="two">2</li>
+								<li class="three">3</li>
+								<li class="four">4</li>
+								<li class="five">5</li>
+							</ul>
+						</td>
+						<td style="padding:3px 0px 0px 5px;">Helpfulness</td>
+					</tr>
+					<tr>
+						<td style="width:82px">
+							<ul class="rating '.$iEasy.'">
+								<li class="one">1</li>
+								<li class="two">2</li>
+								<li class="three">3</li>
+								<li class="four">4</li>
+								<li class="five">5</li>
+							</ul>
+						</td>
+						<td style="padding:3px 0px 0px 5px;">Easy to Use and understand</td>
+					</tr>
+					<tr>
+						<td style="width:82px">
+							<ul class="rating '.$iFun.'">
+								<li class="one">1</li>
+								<li class="two">2</li>
+								<li class="three">3</li>
+								<li class="four">4</li>
+								<li class="five">5</li>
+							</ul>
+						</td>
+						<td style="padding:3px 0px 0px 5px;">Fun to use</td>
+					</tr>
+					<tr>
+						<td style="width:82px">
+							<ul class="rating '.$iArt.'">
+								<li class="one">1</li>
+								<li class="two">2</li>
+								<li class="three">3</li>
+								<li class="four">4</li>
+								<li class="five">5</li>
+							</ul>
+						</td>
+						<td style="padding:3px 0px 0px 5px;">Graphics and artwork</td>
+					</tr>
+					<tr>
+						<td style="width:82px">
+							<ul class="rating '.$iAll.'">
+								<li class="one">1</li>
+								<li class="two">2</li>
+								<li class="three">3</li>
+								<li class="four">4</li>
+								<li class="five">5</li>
+							</ul>
+						</td>
+						<td style="padding:3px 0px 10px 5px;">Overall score</td>
+					</tr>
+					<tr>
+						<td style="width:85px; vertical-align:top;">Title:</td>
+						<td>'.$oList->sTitle.'</td>
+					</tr>
+					<tr>
+						<td style="vertical-align:top;">Likes:</td>
+						<td>'.$oList->sLikes.'</td>
+					</tr>
+					<tr>
+						<td style="vertical-align:top;">Dislikes:</td>
+						<td>'.$oList->sDislikes.'</td>
+					</tr>
+					<tr>
+						<td>Review:</td>
+						<td>'.nl2br($oList->sComment).'</td>
+					</tr>';
+	}
+	
+	if ($sOutput == "") $sOutput = '<tr><td>No review has been posted for this content/item, yet.</td></tr>';
+	
+	exit('<style>.rating{margin-bottom: 0px;}</style><div style="position:absolute; top:3px; width:96%; text-align:right; cursor:pointer;" onclick="$(\'div#rating_RatingContainer\').html(\'\').css(\'height\', \'3px\').css(\'height\', \'auto\').hide(\'slow\');">[close]</div><table style="font-size:0.8em; width:390px;">'.$sOutput.'</table>');
+}
+
+function _rating_average($sFilter, $sType, $sSubType, $iContentId){
+	$sqlAverage = "SELECT COUNT(id) AS iVoteCount, SUM(iAll) AS iVoteTally,
+						FLOOR(AVG(iAll)) AS iAvgVoteFloor, ROUND(AVG(iAll)) AS iAvgVoteRound
+					FROM rating_vote
+					WHERE sType = '%s'
+						/* AND sSubType = '%s' */
+						AND iContentId = %d ";
+	$aArgument = array($sType, $sSubType, $iContentId);
+	
+	switch ($sFilter){
+		case "child":
+			$aChidId = _rating_get_hopenet();
+			
+			//if (count($aChidId) > 0){
+				//$sqlAverage .= "AND iUID NOT IN (%s)";
+				//$aArgument[] = implode(", ", $aChidId);
+                $sqlAverage .= "AND sPlace = '%s'";
+                $aArgument[] = 'hud';
+			//}
+			
+			break;
+		case "hopenet":
+			$aChidId = _rating_get_hopenet();
+			
+			//if (count($aChidId) > 0){
+				//$sqlAverage .= "AND iUID IN (%s)";
+				//$aArgument[] = implode(", ", $aChidId);
+			    $sqlAverage .= "AND sPlace = '%s'";
+                $aArgument[] = 'volunteer';
+            //}
+			
+			break;
+		case "all":
+		default:
+			break;
+	}
+	
+	$oAverageResult = db_query($sqlAverage, $aArgument);
+	$oAverage = db_fetch_object($oAverageResult);
+	
+	$iVoteCount = $oAverage->iVoteCount;
+	$iVoteTally = $oAverage->iVoteTally;
+	$iAvgVoteFloor = $oAverage->iAvgVoteFloor;
+	$iAvgVoteRound = $oAverage->iAvgVoteRound;
+	
+	return $iAvgVoteFloor;
+}
+
+function _rating_check_vote_hud($sType, $sSubType, $iContentId, $bUseUser=true){
+    global $user;
+    
+    if ($iContentId != 0){
+        $aParam = array($sType, $sSubType, $iContentId);
+        $sqlCheck = "SELECT COUNT(id)
+                    FROM rating_vote
+                    WHERE sType = '%s'
+                        /* AND sSubType = '%s' */
+                        AND iContentId = %d
+                        AND sPlace = 'hud'";
+        
+        if ($bUseUser){
+            $aParam[] = $user->uid;
+            $sqlCheck .= " AND iUID = %d";
+        }
+        
+        $iVoteCount = db_result(db_query($sqlCheck, $aParam));
+    }else{
+        $iVoteCount = 0;
+    }
+    
+    return $iVoteCount;
+}
+
+function _rating_check_vote($sType, $sSubType, $iContentId, $bUseUser=true){
+	global $user;
+	
+	if ($iContentId != 0){
+		$aParam = array($sType, $sSubType, $iContentId);
+		$sqlCheck = "SELECT COUNT(id)
+					FROM rating_vote
+					WHERE sType = '%s'
+						/* AND sSubType = '%s' */
+						AND iContentId = %d";
+		
+		if ($bUseUser){
+			$aParam[] = $user->uid;
+			$sqlCheck .= " AND iUID = %d";
+		}
+		
+		$iVoteCount = db_result(db_query($sqlCheck, $aParam));
+	}else{
+		$iVoteCount = 0;
+	}
+	
+	return $iVoteCount;
+}
+
+function _rating_check_if_admin(){
+	global $user;
+	
+	$sqlCheck = "SELECT COUNT(id) FROM mystudies_volunteer WHERE `type` = 'admin' AND uid = %d";
+	$iCount = $iVoteCount = db_result(db_query($sqlCheck, $user->uid));
+	
+	return ($iCount == 1) ? true:false;
+}
+
+function _rating_get_hopenet(){
+	$aUserId = array();
+	$sqlUsers = "SELECT DISTINCT uid FROM mystudies_volunteer";
+	$oUsersResult = db_query($sqlUsers);
+	
+	while ($oUsers = db_fetch_object($oUsersResult)){
+		$aUserId[] = $oUsers->uid;
+	}
+	
+	return $aUserId;
+}
+
+?>

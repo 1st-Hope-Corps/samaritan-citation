@@ -1,0 +1,174 @@
+<?php
+define("PQP_INDEX_REC_PER_PAGE", 25);
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+ 
+function pqp_index_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#pqp_index":
+			$sOutput = '<p>'. "PQP module.".'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function pqp_index_perm(){
+	return array('access pqp_index content', 'access pqp_index child content', 'administer pqp_index');
+}
+
+function pqp_index_menu(){
+	$aItems = array();
+	
+	$aItems['pqp_index/addnew'] = array(
+		'title' => 'pqp_index Portal',
+		'page callback' => 'pqp_index_addnew',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+function pqp_index_addnew(){
+
+}
+
+/*-------------------------------------------
+CONSOLE FUNCTIONS
+-------------------------------------------*/
+function pqp_index_console_getMicroTime(){
+		$time = microtime();
+		$time = explode(' ', $time);
+		return $time[1] + $time[0];
+}
+
+function pqp_index_console_log($data) {
+		$logItem = array(
+			"data" => $data,
+			"type" => 'log'
+		);
+		$GLOBALS['debugger_logs']['console'][] = $logItem;
+		$GLOBALS['debugger_logs']['logCount'] += 1;
+	}
+	
+	function pqp_index_console_logMemory($object = false, $name = 'PHP') {
+		$memory = memory_get_usage();
+		if($object) $memory = strlen(serialize($object));
+		$logItem = array(
+			"data" => $memory,
+			"type" => 'memory',
+			"name" => $name,
+			"dataType" => gettype($object)
+		);
+		$GLOBALS['debugger_logs']['console'][] = $logItem;
+		$GLOBALS['debugger_logs']['memoryCount'] += 1;
+	}
+
+	function pqp_index_console_logError($exception, $message) {
+		$logItem = array(
+			"data" => $message,
+			"type" => 'error',
+			"file" => $exception->getFile(),
+			"line" => $exception->getLine()
+		);
+		$GLOBALS['debugger_logs']['console'][] = $logItem;
+		$GLOBALS['debugger_logs']['errorCount'] += 1;
+	}
+	
+	function pqp_index_console_logSpeed($name = 'Point in Time') {
+	
+	#$dir = '/vol/var/www/drupal/';
+	$dir = realpath('./');
+	require_once($dir.'/sites/all/modules/pqp_index/classes/PhpQuickProfiler.php');
+	
+	$logItem = array(
+			"data" => PhpQuickProfiler::getMicroTime(),
+			"type" => 'speed',
+			"name" => $name
+		);
+		$GLOBALS['debugger_logs']['console'][] = $logItem;
+		$GLOBALS['debugger_logs']['speedCount'] += 1;
+	}
+	
+	function pqp_index_console_getLogs() {
+		if(!$GLOBALS['debugger_logs']['memoryCount']) $GLOBALS['debugger_logs']['memoryCount'] = 0;
+		if(!$GLOBALS['debugger_logs']['logCount']) $GLOBALS['debugger_logs']['logCount'] = 0;
+		if(!$GLOBALS['debugger_logs']['speedCount']) $GLOBALS['debugger_logs']['speedCount'] = 0;
+		if(!$GLOBALS['debugger_logs']['errorCount']) $GLOBALS['debugger_logs']['errorCount'] = 0;
+		return $GLOBALS['debugger_logs'];
+	}
+	
+/*-------------------------------------------
+EOF CONSOLE FUNCTIONS
+-------------------------------------------*/
+
+function pqp_index_init() {
+	pqp_index_sampleConsoleData();
+	//pqp_index_sampleDatabaseData();
+	//pqp_index_sampleMemoryLeak();
+	//pqp_index_sampleSpeedComparison();
+}
+	
+function pqp_index_sampleConsoleData() {
+	try {
+		//pqp_index_console_log('Begin logging data');
+		//pqp_index_console_logMemory($this, 'PQP Class : Line '.__LINE__);
+		//pqp_index_console_logSpeed('Time taken to get to line '.__LINE__);
+		//pqp_index_console_log(array('Name' => 'Ryan', 'Last' => 'Campbell'));
+		//pqp_index_console_logSpeed('Time taken to get to line '.__LINE__);
+		////pqp_index_console_logMemory($this, 'PQP Example Class : Line '.__LINE__);
+		//pqp_index_console_log('Ending log below with a sample error.');
+		//throw new Exception('Unable to write to log!');
+	}
+	catch(Exception $e) {
+		//pqp_index_console_logError($e, 'Sample error logging.');
+	}
+}
+
+function pqp_index_sampleDatabaseData() {
+	$dir = '/vol/var/www/drupal/';
+	require_once($dir.'/sites/all/modules/pqp_index/classes/MySqlDatabase.php');
+
+		$db = new MySqlDatabase(
+			'localhost', 
+			'drupal',
+			'drupadmin');
+		$db->connect(true);
+		$db->changeDatabase('drupal');
+		
+		$sql = 'SELECT uid FROM users';
+		$rs = $db->query($sql);
+		
+		$sql = 'SELECT COUNT(uid) FROM users';
+		$rs = $db->query($sql);
+		
+		$sql = 'SELECT COUNT(uid) FROM users WHERE uid != 1';
+		$rs = $db->query($sql);
+}
+	
+function pqp_index_sampleMemoryLeak() {
+	/*$ret = '';
+	$longString = 'This is a really long string that when appended with the . symbol 
+				  will cause memory to be duplicated in order to create the new string.';
+	for($i = 0; $i < 10; $i++) {
+		$ret = $ret . $longString;
+		pqp_index_console_logMemory($ret, 'Watch memory leak -- iteration '.$i);
+	}*/
+}
+	
+function pqp_index_sampleSpeedComparison() {
+	//pqp_index_console_logSpeed('Time taken to get to line '.__LINE__);
+	//pqp_index_console_logSpeed('Time taken to get to line '.__LINE__);
+	//pqp_index_console_logSpeed('Time taken to get to line '.__LINE__);
+	//pqp_index_console_logSpeed('Time taken to get to line '.__LINE__);
+	//pqp_index_console_logSpeed('Time taken to get to line '.__LINE__);
+	//pqp_index_console_logSpeed('Time taken to get to line '.__LINE__);
+}

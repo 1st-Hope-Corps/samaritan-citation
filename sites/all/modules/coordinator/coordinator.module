@@ -1,0 +1,3204 @@
+<?php
+define("COORDINATOR_REC_PER_PAGE", 25);
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function coordinator_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#coordinator":
+			$sOutput = '<p>'. "Coordinator module.".'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function coordinator_perm(){
+	return array('access coordinator content', 'access coordinator child content', 'administer coordinator');
+}
+
+function coordinator_menu(){
+	$aItems = array();
+	
+	$aItems['coordinator'] = array(
+		'title' => 'Good Deeds',
+		'page callback' => 'coordinator_dashboard',
+		'access arguments' => array('administer coordinator'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['coordinator/administer/deactivate'] = array(
+		'page callback' => 'coordinator_mentor_deactivate',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/administer'] = array(
+		'title' => 'eAdministrator Volunteer',
+		'page callback' => 'coordinator_mentor',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/comments'] = array(
+		'page callback' => 'coordinator_callback_comments',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/administer/pending'] = array(
+		'title' => 'eAdministrator - Pending Volunteer Workz',
+		'page callback' => 'coordinator_mentor_pending',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/administer/pending/process'] = array(
+		'title' => 'eAdministrator - Pending Volunteer Workz',
+		'page callback' => 'coordinator_mentor_pending_process',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/administer/approve'] = array(
+		'title' => 'eAdministrator - Approved Volunteer Workz',
+		'page callback' => 'coordinator_mentor_approved',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/administer/disapprove'] = array(
+		'title' => 'eAdministrator - Disapproved Volunteer Workz',
+		'page callback' => 'coordinator_mentor_disapproved',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/%/enroll'] = array(
+		'page callback' => 'coordinator_volunteer_enrol',
+		'page arguments' => array(1),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/administer/assign/volunteers'] = array(
+		'page callback' => 'coordinator_volunteer_assign_volunteer',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/dashboard'] = array(
+		'title' => 'eAdministrator Dashboard',
+		'page callback' => 'coordinator_dashboard',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 1
+	);
+	
+	$aItems['coordinator/create'] = array(
+		'title' => 'eAdministrator Form',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('coordinator_create'),
+		'access arguments' => array('access coordinator child content'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 2
+	);
+	
+	$aItems['coordinator/list'] = array(
+		'title' => 'Pending',
+		'page callback' => 'coordinator_list',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 3
+	);
+	
+	$aItems['coordinator/approved'] = array(
+		'title' => 'Approved',
+		'page callback' => 'coordinator_approved',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 4
+	);
+	
+	$aItems['coordinator/settings'] = array(
+		'title' => 'Settings',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('coordinator_settings'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 5
+	);
+	
+	$aItems['coordinator/convert'] = array(
+		'title' => 'Convert',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('coordinator_convert'),
+		'access arguments' => array('access coordinator child content'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 6
+	);
+		
+	$aItems['coordinator/details/%/%'] = array(
+		'title' => 'Good Deed Details',
+		'page callback' => 'coordinator_list_details',
+		'page arguments' => array(2, 3),
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/details/submit'] = array(
+		'title' => 'Good Deed Approval/Denial',
+		'page callback' => 'coordinator_list_details_submit',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/details/%/edit'] = array(
+		'title' => 'eAdministrator Form Update',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('coordinator_list_details_edit', 2),
+		'access arguments' => array('access coordinator child content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/details'] = array(
+		'page callback' => 'coordinator_callback_details',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/convert'] = array(
+		'page callback' => 'coordinator_callback_convert',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/dash'] = array(
+		'page callback' => 'coordinator_callback_dash',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/pending'] = array(
+		'page callback' => 'coordinator_callback_pending',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/approved'] = array(
+		'page callback' => 'coordinator_callback_approved',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/form'] = array(
+		'page callback' => 'coordinator_callback_form',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/workz'] = array(
+		'page callback' => 'coordinator_callback_coordinator_workz',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['coordinator/callback/edit'] = array(
+		'page callback' => 'coordinator_list_edit_details',
+		'access arguments' => array('access coordinator content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+function coordinator_list_edit_details(){
+	global $user;
+
+	$aKindnessReply = array();
+
+	foreach ($_REQUEST as $sKey => $sData){
+		${$sKey} = $sData;
+	}
+
+	$iHour = $iKindnessHour;
+	$iMinute = $iKindnessMinute;
+	
+	if ($iHour == 0 && $iMinute == 0){
+	//if ($iMinute == 0){
+		$aKindnessReply["ERR_MSG"]="You must specify a valid time for the Duration (hours) and (minutes).";
+		$aReply = array("STATUS" => "Fail", "RETURN" => $aKindnessReply["ERR_MSG"]);
+	}else{
+		$dDate = $iKindnessYear."-".str_pad($iKindnessMonth, 2, '0', STR_PAD_LEFT)."-".str_pad($iKindnessDay, 2, '0', STR_PAD_LEFT);
+		$iDurationMins = $iKindnessHour + $iKindnessMinute;
+		
+		$sqlUpdate = db_query("UPDATE {kindness_submit}
+					SET 
+						dDatetime = '{$dDate}',
+						iDuration = '{$iDurationMins}',
+						sTitle = '".ucwords($sKindnessTitle)."',
+						sDesc = '".ucfirst($sKindnessDesc)."',
+						sToWhom = '".ucwords($sKindnessWhom)."',
+						sLocation = '".ucwords($sKindnessLocation)."',
+						sToWhomType = '".ucwords($sKindnessRecipientType)."'
+					WHERE id = '{$sKindnessSubmitID}' AND iUserId = '{$user->uid}'");
+					
+		if($iKindnessType == 'resubmitkindness'){
+			$sqlDelete = "DELETE FROM cybrarian_comment WHERE iSubmitId = '%d'";
+			db_query($sqlDelete, $sKindnessSubmitID);
+        }
+		
+		$aReply = array("STATUS" => "Success", "RETURN" => "Your Kindness Form has been updated.");
+	}
+	
+	echo json_encode($aReply);
+	exit;
+}
+
+function _coordinator_load_template($sPage) {
+	return file_get_contents(drupal_get_path('module', 'coordinator') . '/templates/' . $sPage . '.tpl.php');
+}
+
+function _coordinator_volunteer_check($iUserId, $sType){
+	$sqlCheck = "SELECT vid FROM volunteer_optin WHERE uid = %d AND `type` = '%s'";
+	$iVolunteerId = db_result(db_query($sqlCheck, array($iUserId, $sType)));
+	
+	return ($iVolunteerId > 0);
+}
+
+function coordinator_mentor(){
+	global $user, $sEnroll, $iHopePoints, $iAssignedHopeful, $iPendingWorkz, $iWaitingHopefuls, $iApprovedWorkz, $iRequest, $iAvailableVolunteers;
+	
+	/*drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+			l("Dashboard", "coordinator/administer")
+		)
+	);*/
+
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Dashboard", "coordinator/administer")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	drupal_add_js(
+		'$(document).ready(
+			function(){
+				//$("div.main_content h2").remove();
+				//$("td").find(".jboxh").parent().remove();
+			}
+		);',
+		"inline"
+	);
+	
+	$iUserId = $user->uid;
+	$iAvailableVolunteers =_coordinator_mentor_volunteer_available();
+	$iAvailableVolunteers = empty($iAvailableVolunteers) ? 0 : $iAvailableVolunteers;
+	$iRequest = _coordinator_mentor_request_count($iUserId);
+	$iRequest = empty($iRequest) ? 0 : $iRequest;
+	$iHopePoints = userpoints_get_current_points($iUserId, "all");
+	$iAssignedHopeful = _coordinator_mentor_hopeful_count($iUserId) * 1;
+	$aAssignedHopeful = _coordinator_mentor_hopeful_count($iUserId, "list");
+	$iPendingWorkz = _coordinator_mentor_kindness($iUserId);
+	$iWaitingHopefuls = _coordinator_mentor_kindness($iUserId, "volunteer");
+	$iApprovedWorkz = _coordinator_mentor_kindness($iUserId, "all") == null ? 0 : _coordinator_mentor_kindness($iUserId, "all");
+	
+	$bEnrolled = _coordinator_volunteer_check($iUserId, "eadministrator");
+	$bActive = _coordinator_volunteer_status($iUserId, "eadministrator");
+
+	if(_mystudies_check_hopeful($iUserId) == 'notahopeful'){	
+		if (!$bEnrolled && $iUserId > 1){
+			$sEnroll = '<br /><br /><p>To enroll as a eAdministrator, click '.l("here", "coordinator/administer/enroll").'. </p>';
+		}elseif (!$bActive){
+			$sEnroll = '<br /><br /><h3>You have enrolled as a eAdministrator but is not cleared by the admin, yet. Until then, you cannot use this feature.</h3>';
+		}
+	}
+	
+	$sOutput = drupal_eval(_coordinator_load_template("page-mentor"));
+
+	if ($bEnrolled && $bActive){
+		if (count($aAssignedHopeful) > 0){
+			for ($x=0; $x<count($aAssignedHopeful); $x++){
+				$aHopeful = $aAssignedHopeful[$x];
+				$iHopefulId = $aHopeful["uid"];
+				$sHopefulName = $aHopeful["name"];
+				
+				$sHopeful .= '<div>'.l($sHopefulName, "user/".$iHopefulId, array('attributes' => array("target" => "_blank"))).'</div>';
+			}
+		}else{
+			$sHopeful .= '<div>No Volunteers have been assigned to you, yet.</div>';
+		}
+		
+		$sOutput .= '<div id="kindness_hopeful_block" style="display:none; width:240px; padding:5px; position:absolute; left:650px; top:780px; z-index:1000; background-color:#FFFFFF; border:2px solid #acacac;">
+						<h3>Your assigned Volunteers are:</h3>
+						'.$sHopeful.'
+					</div>';
+		
+		$sOutput .= drupal_eval(_coordinator_load_template("page-mentor-dash"));
+	}
+	
+	if (isset($_GET["deactivated"])){
+		$sJavaScript = '$(document).ready(
+							function(){
+								$("#kindness_VolunteerDeactivateSuccessDialog").dialog(
+									{
+										modal: true,
+										autoOpen: true,
+										resizable: false,
+										width: 450,
+										buttons: {
+											"Ok": function(){
+												$(this).dialog("close");
+											}
+										}
+									}
+								);
+							}
+						)';
+		
+		drupal_add_js($sJavaScript, "inline");
+		
+		$sOutput .= '<div id="kindness_VolunteerDeactivateSuccessDialog" title="Account Deactivated">
+						<p>You successfully deactivated your Volunteer- eAdminstrator account.</p>
+					</div>';
+	}
+	echo $test;
+	return $sOutput;
+}
+
+function _coordinator_volunteer_status($iUserId, $sUserType){
+	$sqlCheck = "SELECT bStatus FROM volunteer_optin WHERE uid = %d AND type = '%s'";
+	$iStatus = db_result(db_query($sqlCheck, array($iUserId, $sUserType)));
+
+	return ($iStatus > 0);
+}
+
+function coordinator_volunteer_enrol($sType){
+	global $user;
+	
+	$iUserId = $user->uid;
+	$sqlInsert1 = "INSERT INTO volunteer_optin VALUES(NULL, %d, '%s', 0, '0')";
+	$sqlInsert2 = "INSERT INTO users_roles VALUES(%d, %d)";
+	
+	db_query($sqlInsert1, array($iUserId, 'eadministrator'));
+	db_query($sqlInsert2, array($iUserId, 21));
+	
+	// Point System for Volunteer Opt-in
+	userpoints_userpointsapi(array("uid" => $iUserId, "tid" => 198, "description" => "User opted-in to be a Volunteer - eAdministrator."));
+	
+	drupal_goto("coordinator/administer");
+}
+
+function coordinator_volunteer_assign_volunteer(){
+	global $user;
+	
+	/*drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+			l("Dashboard", "coordinator/administer")
+		)
+	);*/
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Dashboard", "coordinator/administer")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	drupal_add_js('setTimeout("location=\''.base_path().'coordinator/administer\'", 5000)', "inline");
+	
+	$iUserId = $user->uid;
+	$iReqCount = $_REQUEST["kindness_coordinator_volunteers_count"];
+	$iCurrHopefulCount = _coordinator_mentor_hopeful_count($iUserId);
+	
+	if ($iReqCount < $iCurrHopefulCount && $iCurrHopefulCount > 0){
+		$iHopefulToRemove = $iCurrHopefulCount - $iReqCount;
+		$sqlGetHopeful = "SELECT uid FROM cybrarian_optin WHERE coordinator = %d ORDER BY RAND() LIMIT %d";
+		$oGetHopefulResult = db_query($sqlGetHopeful, array($iUserId, $iHopefulToRemove));
+		$aHopefulToRemove = array();
+
+		while ($oGetHopeful = db_fetch_object($oGetHopefulResult)){
+			$aHopefulToRemove[] = $oGetHopeful->uid;
+		}
+		
+		//$sqlDelete = "DELETE FROM volunteer_mentor_hopeful WHERE iHopefulId IN (%s)";
+		//db_query($sqlDelete, implode(",", $aHopefulToRemove));
+		
+		$sqlDelete = "UPDATE cybrarian_optin SET coordinator = '0' WHERE uid IN (%s)";
+		db_query($sqlDelete, implode(",", $aHopefulToRemove));
+		
+		// -- BEGIN User Hierarchy
+		//$sqlHierarchy = "DELETE FROM hopefuls_volunteer WHERE iHopefulId IN (%s) AND iVolunteerId = %d AND iRoleId = %d";
+		//db_query($sqlHierarchy, array(implode(",", $aHopefulToRemove), $iUserId, 6));
+		// -- END User Hierarchy
+		
+		$sqlUpdate = "UPDATE volunteer_optin
+						SET iRequest = IF(iRequest=0, 0, iRequest - %d)
+						WHERE uid = %d
+							AND type = 'coordinator'";
+		db_query($sqlUpdate, array($iHopefulToRemove, $iUserId));
+		
+		$sMessage = $iHopefulToRemove." Volunteers".(($iHopefulToRemove > 1) ? "s have":" has")." been removed from your roster.";
+		
+	}elseif ($iReqCount > $iCurrHopefulCount && $iCurrHopefulCount > 0){
+		$iHopefulToAdd = $iReqCount - $iCurrHopefulCount;
+		$sqlUpdate = "UPDATE volunteer_optin
+						SET iRequest = iRequest + %d
+						WHERE uid = %d
+							AND type = 'eadministrator'";
+		db_query($sqlUpdate, array($iHopefulToAdd, $iUserId));
+
+		$sMessage = "You have requested ".$iHopefulToAdd." additional Volunteer(s).";
+		
+	}elseif ($iReqCount == $iCurrHopefulCount && $iCurrHopefulCount > 0){
+	
+		$sMessage = 'You already have '.$iCurrHopefulCount.' Volunteer'.(($iCurrHopefulCount > 1) ? "s":"").'.';
+		
+	}else{
+		$sqlUpdate = "UPDATE volunteer_optin
+						SET iRequest = %d
+						WHERE uid = %d
+							AND type = 'eadministrator'";
+		db_query($sqlUpdate, array($iReqCount, $iUserId));
+
+		$sMessage = "You have requested ".$iReqCount." Volunteer(s).";
+	}
+	
+	$sOutput = '<div class="jboxh" style="width:980px"><div class="jboxhead"><h2>Pending Kindness Workz</h2></div></div>
+					<div class="jbox" style="width:980px">
+						<div class="jboxhead"><h2></h2></div>
+						<div class="jboxbody">
+							<div class="jboxcontent" style="color:#000">
+								<center>'.$sMessage.'</center>
+							</div>
+						</div>
+						<div class="jboxfoot"><p></p></div>
+					</div>';
+	
+	return $sOutput;
+}
+
+function _coordinator_mentor_volunteer_available(){
+
+/*
+	$sqlCount = "SELECT COUNT(cyb_id)
+					FROM users_roles
+					WHERE rid = 9
+						AND uid NOT IN (SELECT iHopefulId FROM volunteer_mentor_hopeful)";*/
+						
+	$sqlCount = "SELECT COUNT(cyb_id)
+					FROM cybrarian_optin
+					WHERE coordinator = 0";
+						
+	$iCount = db_result(db_query($sqlCount));
+	
+	return $iCount;
+}
+
+function _coordinator_mentor_request_count($iUserId){
+	$sqlCount = "SELECT iRequest FROM volunteer_optin WHERE uid = %d AND type = 'eadministrator'";
+	$iCount = db_result(db_query($sqlCount, $iUserId));
+	
+	return $iCount;
+}
+
+function _coordinator_mentor_hopeful_count($iUserId, $sType="count"){
+	$sField = ($sType == "count") ? "COUNT(A.cyb_id)":"A.uid, B.name";
+	$sqlCount = "SELECT %s
+				FROM cybrarian_optin A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.coordinator = %d";
+					
+	$oSQLResult = db_query($sqlCount, array($sField, $iUserId));
+	
+	if ($sType == "count"){
+		$iCount = db_result($oSQLResult);
+		
+		return $iCount;
+	}elseif ($sType == "list"){
+		$aAssignedVolunteer = array();
+		
+		while ($oSQL = db_fetch_object($oSQLResult)){
+			$aAssignedVolunteer[] = array("uid" => $oSQL->uid, "name" => $oSQL->name);
+		}
+		
+		return $aAssignedVolunteer;
+	}
+}
+
+function _coordinator_mentor_hopeful_pending_count($iUserId, $sType="count"){
+	$sField = ($sType == "count") ? "COUNT(A.cyb_id)":"A.uid, B.name";
+	
+	$sqlCount = "SELECT %s
+				FROM cybrarian_optin A
+				INNER JOIN users B ON B.uid = A.uid
+				LEFT JOIN cybrarian_activity C ON C.uid = A.uid
+				LEFT JOIN cybrarian_kindness D ON D.cybactivity_id = C.cybact_id
+				WHERE A.coordinator = %d
+				AND C.bApproved = 0
+				AND D.ID is not null";
+					
+	$oSQLResult = db_query($sqlCount, array($sField, $iUserId));
+	
+	if ($sType == "count"){
+		$iCount = db_result($oSQLResult);
+		
+		return $iCount;
+	}elseif ($sType == "list"){
+		$aAssignedVolunteer = array();
+		
+		while ($oSQL = db_fetch_object($oSQLResult)){
+			$aAssignedVolunteer[] = array("uid" => $oSQL->uid, "name" => $oSQL->name);
+		}
+		
+		return $aAssignedVolunteer;
+	}
+}
+
+function _coordinator_hopeful_mentor_count($iUserId, $sType="count"){
+	$sField = ($sType == "count") ? "COUNT(A.cyb_id)":"A.uid, B.name";
+	$sqlCount = "SELECT %s
+				FROM cybrarian_optin A
+				INNER JOIN users B ON B.uid = A.coordinator
+				WHERE A.uid = %d";
+					
+	$oSQLResult = db_query($sqlCount, array($sField, $iUserId));
+	
+	if ($sType == "count"){
+		$iCount = db_result($oSQLResult);
+		
+		return $iCount;
+	}elseif ($sType == "list"){
+		$aAssignedVolunteer = array();
+		
+		while ($oSQL = db_fetch_object($oSQLResult)){
+		    if($oSQL->name !== ""){
+				$aAssignedVolunteer[] = array("uid" => $oSQL->uid, "name" => $oSQL->name);
+			}
+		}
+		
+		return $aAssignedVolunteer;
+	}
+}
+
+function _coordinator_hopeful_mentor($iUserId, $sType="id"){
+	$sqlMentor = "SELECT A.iMentorId, B.name
+				FROM volunteer_mentor_hopeful A
+				INNER JOIN users B ON B.uid = A.iMentorId
+				WHERE iHopefulId = %d";
+	
+	/*$sqlMentor = "SELECT A.iVolunteerId, B.name
+				FROM hopefuls_volunteer A
+				INNER JOIN users B ON B.uid = A.iVolunteerId
+				WHERE iHopefulId = %d AND iRoleId = 6";*/
+				
+	$oMentorResult = db_query($sqlMentor, $iUserId);
+	$oMentor = db_fetch_object($oMentorResult);
+	
+	$iMentorId = $oMentor->iMentorId;
+	$sMentorName = $oMentor->name;
+	
+	return ($sType == "id") ? $iMentorId:$sMentorName;
+}
+
+function _coordinator_mentor_hopeful($iUserId){
+	$sqlSelect = "SELECT A.uid
+					FROM cybrarian_optin A
+					INNER JOIN users B ON B.uid = A.uid
+					WHERE A.coordinator = %d";
+	
+	$oSelectResult = db_query($sqlSelect, $iUserId);
+	$aHopefuls = array();
+	
+	while ($oSelect = db_fetch_object($oSelectResult)){
+		$aVolunteers[] = $oSelect->uid;
+	}
+	
+	return $aVolunteers;
+}
+
+function _coordinator_mentor_kindness($iUserId, $sType="eadministrator"){
+	global $user;
+	
+	$iMentorId = $user->uid;
+	$aHopefuls = _coordinator_mentor_hopeful($iMentorId);
+
+	if (count($aHopefuls) > 0){
+		switch ($sType){
+			case "eadministrator":
+				$sqlMentor = "SELECT cybact_id FROM cybrarian_activity WHERE uid IN (%s) AND bApproved = '0'";
+				$oMentorResult = db_query($sqlMentor, implode(",", $aHopefuls));
+				$iCount = 0;
+				
+				while ($oMentor = db_fetch_object($oMentorResult)){
+					$sqlCheck = "SELECT COUNT(id) FROM cybrarian_comment WHERE bApproved = '0' AND iSubmitId = %d AND iUserId = %d";
+					$iCheckCount = db_result(db_query($sqlCheck, $oMentor->cybact_id, $iMentorId));
+					
+					if ($iCheckCount == 0) $iCount++;
+				}
+				
+				break;
+			case "volunteer":
+				/*$sqlMentor = "SELECT cybact_id, uid FROM cybrarian_activity WHERE iUserId IN (%s) AND bApproved = '0'";
+				$oMentorResult = db_query($sqlMentor, implode(",", $aHopefuls));
+				$aHopeful = array();
+				
+				while ($oMentor = db_fetch_object($oMentorResult)){
+					$sqlCheck = "SELECT COUNT(id) FROM cybrarian_comment WHERE iSubmitId = %d AND iUserId = %d";
+					$iCheckCount = db_result(db_query($sqlCheck, $oMentor->cybact_id, $iMentorId));
+					
+					if ($iCheckCount == 0) $aHopeful[] = $oMentor->uid;
+				}
+				
+				$iCount = count(array_unique($aHopeful));
+				*/
+				$aStats = _volunteer_master_admin_stat($iUserId);
+				$iCount = $aStats["iHopefulWaiting"];
+				
+				break;
+			case "all":
+				$sqlMentor = "SELECT COUNT(A.cybact_id)
+								FROM cybrarian_activity A
+								INNER JOIN cybrarian_comment B ON B.iSubmitId = A.cybact_id 
+								WHERE A.uid IN (%s)
+									AND B.iUserId = %d";
+				$iCount = db_result(db_query($sqlMentor, array(implode(",", $aHopefuls), $iMentorId)));
+				
+				break;
+		}
+
+		return $iCount;
+	}
+	
+	return 0;
+}
+
+function coordinator_mentor_pending(){
+	global $user;
+	
+	/*drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+			l("Dashboard", "coordinator/administer"),
+			l("Pending", "coordinator/administer/pending")
+		)
+	);*/
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Dashboard", "coordinator/administer"),
+			        l("Pending", "coordinator/administer/pending")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	
+	drupal_add_js(
+		'$(document).ready(
+			function(){
+				//$("div.main_content h2").remove();
+				//$("td").find(".jboxh").parent().remove();
+			}
+		);',
+		"inline"
+	);
+	
+	$iUserId = $user->uid;
+	$aHopefuls = _coordinator_mentor_hopeful($user->uid);
+	$iKindnessCount = 0;
+	
+	if (count($aHopefuls) > 0){
+		$sqlKindness = "SELECT A.cybact_id, A.uid, B.uid, B.name, A.created, A.ended, C.sTitle, C.sDesc, C.sLocation, C.bPromised
+						FROM cybrarian_activity A
+						INNER JOIN users B ON B.uid = A.uid
+						LEFT JOIN cybrarian_kindness C ON C.cybactivity_id = A.cybact_id 
+						WHERE A.bApproved = 0
+						AND A.uid IN (%s)
+						ORDER BY B.name ASC, A.created DESC";			
+					
+		$sqlCount = "SELECT COUNT(cybact_id) FROM cybrarian_activity A INNER JOIN users B ON B.uid = A.uid WHERE A.bApproved = 0 AND A.uid IN (%s)";
+		
+		$sqlKindness = sprintf($sqlKindness, implode(",", $aHopefuls));
+		$sqlCount = sprintf($sqlCount, implode(",", $aHopefuls));
+		
+		$oKindnessResult = pager_query($sqlKindness, KINDNESS_REC_PER_PAGE, 0, $sqlCount);
+		
+		$sOutput = "";
+		$sPrevName = "";
+		
+		$sTableHeader = '<div class="divider"></div>
+						<div id="cbtop">
+							<div class="cbb">
+								<div class="left-border">
+									<div class="right-border">
+										<form action="'.base_path().'coordinator/administer/pending/process" method="post" onsubmit="" name="KindnessPendingForm" id="KindnessPendingForm">';
+		
+		$sTableFooter = '				</form>
+									</div>
+								</div>
+							</div>
+						</div>';
+		
+		while ($oKindness = db_fetch_object($oKindnessResult)){
+			$iId = $oKindness->cybact_id;
+			
+			$sqlCheck = "SELECT COUNT(id) FROM cybrarian_comment WHERE bApproved = '0' AND iSubmitId = %d";
+			$iCheckCount = db_result(db_query($sqlCheck, $iId));
+			
+			if ($iCheckCount > 0){
+				continue;
+			}else{
+				$iKindnessCount++;
+			}
+			
+			$sDuration = format_interval($oKindness->ended - $oKindness->created);
+			
+			$seconds =  $oKindness->ended - $oKindness->created;
+			$minutes = ($seconds / 60) % 60;
+			$hours = round($seconds / (60 * 60));
+			$totalhours = 0;
+			
+			if($hours > 0) $totalhours = ($hours * 60);
+			
+			$iDuration = $totalhours + $minutes;
+			
+			$sHopeful = $oKindness->name;
+			$iHopefulId = $oKindness->uid;
+			$sTitle = ucwords(stripslashes($oKindness->sTitle));
+			$sTitle = $sTitle == '' ? 'Incomplete' : $sTitle;
+			$sLocation = $oKindness->sLocation == '' ? 'Incomplete' : $oKindness->sLocation;
+			$sDesc = $oKindness->sDesc == '' ? 'Incomplete' : stripslashes($oKindness->sDesc);
+			$sOrigin = $oKindness->bPromised == 1 ? "Forgot Kindness Workz" : "Kindness Workz";
+			
+			if($sTitle !== 'Incomplete' && $sLocation !== 'Incomplete'){
+				if ($sPrevName != $sHopeful){
+					$sOutput .= '<div class="jboxh" style="width:980px;'.(($sPrevName != "") ? ' padding-top:5px;':'').'">
+									<div class="jboxhead">
+										<h2>Pending Kindness Workz of <em>'.$sHopeful.'</em></h2>
+									</div>
+								</div>';
+				}else{
+					if ($iKindnessCount > 0) $sOutput .= '<hr class="divider" style="width:980px;margin:5px 0 5px 0" />';
+				}
+				
+				$sIdUid = $iId.'_'.$oKindness->uid;
+				
+				$sOutput .= '<div class="jbox" style="width:980px">
+									<div class="jboxhead"><h2></h2></div>
+									<div class="jboxbody">
+										<div class="jboxcontent" style="color:#000">
+											<table>
+												<tr>
+													<td style="padding:3px 10px 0 0;"><input type="checkbox" id="id_uid" name="id_uid" value="'.$sIdUid.'" /></td>
+													<td>
+														<input type="hidden" id="'.$sIdUid.'_duration" name="'.$sIdUid.'_duration" value="'.$iDuration.'" />
+														<table>
+															<tr>
+																<td colspan="3"><b>Title</b>: '. $sTitle .'</td>
+															</tr>
+															<tr>
+																<td style="width:300px;"><b>Date Submitted</b>: '.date('g:i:s A', $oKindness->ended).'</td>
+																<td style="width:415px;"><b>Start Time</b>: '.date('g:i:s A', $oKindness->created).'</td>
+																<td rowspan="2"><a href="/messages/new/'.$iHopefulId.'/'.urlencode('Message regarding '.$sTitle).'" target="_blank"><span><img src="/themes/theme2010/images/btn_blue_kindness_message.gif"></span></a></td>
+															</tr>
+															<tr>
+																<td><b>Location</b>: '.$sLocation.'</td>
+																<td><b>Stop Time</b>: '.date('g:i:s A', $oKindness->ended).'</td>
+															</tr>
+															<tr>
+																<td style="padding-top:10px;">
+																	<b>Description</b>:<br/>'.$sDesc.'
+																</td>
+																<td><b>Duration</b>: '.format_interval($oKindness->ended - $oKindness->created).'</td>
+															</tr>
+															<tr>
+																<td style="padding-top:10px;">
+																	<b>Origin</b>: '.$sOrigin.'
+																</td>
+																<td>&nbsp;</td>
+															</tr>
+														</table>
+													</td>
+												</tr>
+											</table>
+										</div>
+									</div>
+									<div class="jboxfoot"><p></p></div>
+								</div>';
+				
+				$sPrevName = $oKindness->name;
+			}
+		}
+	}
+	
+	
+	
+	if ($iKindnessCount > 0){
+		$sOutput .= '<div style="text-align:right;padding:5px 30px 0 0;">
+						<span>'.theme("pager", null, KINDNESS_REC_PER_PAGE).'</span>
+						
+						<button type="button" class="light-button-blue-gradient" id="kindness_btn_approve" style="min-width:100px" name="kindness_btn_approve" value="approve">Approve</button>
+						<button type="button" class="light-button-blue-gradient" id="kindness_btn_approve" style="min-width:100px" name="kindness_btn_approve" value="disapprove">Disapprove</button>
+						<button type="button" class="danger-button-gradient" id="kindness_btn_delete" style="min-width:100px" name="kindness_btn_delete" value="delete">Delete</button>
+					</div>
+					
+					<div id="kindness_mentor_comment" style="display:none; width:350px; border: 5px solid #173102; padding:5px; background-color:#E2E2D3;">
+						<form action="'.base_path().'coordinator/administer/pending/process" method="post">
+							<input type="hidden" id="iItemId" name="iItemId" value="" />
+							<input type="hidden" id="iChildId" name="iChildId" value="" />
+							<input type="hidden" id="iAdultId" name="iAdultId" value="'.$iUserId.'" />
+							<input type="hidden" id="iDuration" name="iDuration" value="" />
+							<input type="hidden" id="bApprove" name="bApprove" value="" />
+							
+							Comment for <span id="kindness_mentor_comment_type"></span> the selected Kindness Workz(s):<br />
+							<textarea id="sComment" name="sComment" style="width:350px; height:100px;"></textarea><br />
+							<div align="right" style="padding-top:5px;">
+								<input type="button" name="kindness_button_Cancel" id="kindness_button_Cancel" value="Cancel" class="form-submit" />
+								<input type="submit" name="kindness_button_Submit" id="kindness_button_Submit" value="Submit" class="form-submit" />
+							</div>
+						</form>
+					</div>';
+	}else{
+		$sOutput .= '<center>
+						<div class="jboxh" style="width:980px; margin-top:10px;"><div class="jboxhead"><h2>Pending Kindness Workz</h2></div></div>
+						<div class="jbox" style="width:980px">
+							<div class="jboxhead"><h2></h2></div>
+							<div class="jboxbody">
+								<div class="jboxcontent" style="color:#000">
+									<center>No pending deeds to approve, yet.</center>
+								</div>
+							</div>
+							<div class="jboxfoot"><p></p></div>
+						</div>
+					</center>';
+	}
+	
+	$sPreHTML = drupal_eval(_coordinator_load_template("page-mentor"));
+	$sOutput = $sPreHTML.$sTableHeader.$sOutput.$sTableFooter;
+	
+	return $sOutput;
+}
+
+function coordinator_mentor_pending_process(){
+	global $user;
+	
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	//drupal_add_js('setTimeout("location=\''.$sBasePath.'coordinator/administer/pending\'", 5000)', "inline");
+	/*drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+			l("Dashboard", "coordinator/administer"),
+			l("Pending", "coordinator/administer/pending")
+		)
+	);*/
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Dashboard", "coordinator/administer"),
+					l("Pending", "coordinator/administer/pending")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	$aItemId = explode(",", $iItemId);
+	$aChildId = explode(",", $iChildId);
+	$aDuration = explode(",", $iDuration);
+	
+	$sqlUpdate = "UPDATE cybrarian_activity SET bApproved = '%s' WHERE cybact_id = %d";
+	$sqlInsert1 = "INSERT INTO cybrarian_comment VALUES(NULL, %d, %d, '%s', '%s', '%s')";
+	$sqlInsert2 = "INSERT INTO cybrarian_statement VALUES(NULL, %d, %d, %d, '%s')";
+	
+	for ($i=0; $i<count($aItemId); $i++){
+		if ($aItemId[$i] > 0){
+			db_query($sqlUpdate, array($bApprove, $aItemId[$i]));
+			
+			$cApprove = $bApprove == 1 ? $bApprove : 0;
+			db_query($sqlInsert1, array($aItemId[$i], $user->uid, $sComment, $cApprove, date("Y-m-d H:i:s")));
+		}
+		
+		if ($bApprove == 1) db_query($sqlInsert2, array($aItemId[$i], $aChildId[$i], $aDuration[$i], date("Y-m-d H:i:s")));
+	}
+	
+	$sOutput .= '<div class="jboxh" style="width:980px"><div class="jboxhead"><h2>Pending Kindness Workz</h2></div></div>
+					<div class="jbox" style="width:980px">
+						<div class="jboxhead"><h2></h2></div>
+						<div class="jboxbody">
+							<div class="jboxcontent" style="color:#000">
+								<center>The selected Kindness Workz have been '.(($bApprove == 1) ? "approved":"disapproved").'.</center>
+							</div>
+						</div>
+						<div class="jboxfoot"><p></p></div>
+					</div>';
+	
+	//return $sOutput;
+	drupal_goto("coordinator/administer/pending");
+}
+
+function coordinator_mentor_approved(){
+	global $user;
+	
+	/*drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+			l("Dashboard", "coordinator/administer"),
+			l("Approve", "coordinator/administer/approve")
+		)
+	);*/
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Dashboard", "coordinator/administer"),
+					l("Approve", "coordinator/administer/approve")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	drupal_add_js(
+		'$(document).ready(
+			function(){
+				//$("div.main_content h2").remove();
+				//$("td").find(".jboxh").parent().remove();
+			}
+		);',
+		"inline"
+	);
+	
+	$iUserId = $user->uid;
+	$aHopefuls = _coordinator_mentor_hopeful($iUserId);
+	$iKindnessCount = 0;
+	
+	if (count($aHopefuls) > 0){
+		$sqlKindness = "SELECT A.cybact_id, A.uid, B.uid, B.name, A.created, A.ended, C.sTitle, C.sDesc, C.sLocation
+						FROM cybrarian_activity A
+						INNER JOIN users B ON B.uid = A.uid
+						LEFT JOIN cybrarian_kindness C ON C.cybactivity_id = A.cybact_id 
+						INNER JOIN cybrarian_comment D ON D.iSubmitId = A.cybact_id
+						WHERE A.bApproved = 1
+							AND A.uid IN (%s)
+							AND D.iUserId = %d
+						ORDER BY B.name ASC, A.created DESC";	
+		
+		$sqlCount = "SELECT COUNT(cybact_id) FROM cybrarian_activity A 
+					 INNER JOIN users B ON B.uid = A.uid 
+					 WHERE A.bApproved = 1 AND A.uid IN (%s)";
+		
+		$sqlKindness = sprintf($sqlKindness, implode(",", $aHopefuls), $iUserId);
+		$sqlCount = sprintf($sqlCount, implode(",", $aHopefuls), $iUserId);
+		
+		$sqlKindness = str_replace("REPLACE_THIS", "DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate", $sqlKindness);
+		$oKindnessResult = pager_query($sqlKindness, KINDNESS_REC_PER_PAGE, 0, $sqlCount);
+		
+		$sOutput = "";
+		$sPrevName = "";
+		
+		/* $sTableHeader = '<div class="divider"></div>
+						<div id="cbtop">
+							<div class="cbb">
+								<div class="left-border">
+									<div class="right-border">';
+		
+		$sTableFooter = '			</div>
+								</div>
+							</div>
+						</div>'; */
+		
+		$sTableHeader = '<div class="divider"></div>
+						<div id="cbtop">
+							<div class="cbb">
+								<div class="left-border">
+									<div class="right-border">';
+		
+		$sTableFooter = '			</div>
+								</div>
+							</div>
+						</div>';
+		
+		while ($oKindness = db_fetch_object($oKindnessResult)){
+			$iKindnessCount++;
+			
+			$iId = $oKindness->cybact_id;
+			$sDuration = format_interval($oKindness->ended - $oKindness->created);
+			$sHopeful = $oKindness->name;
+			$iHopefulId = $oKindness->uid;
+			$sTitle = ucwords(stripslashes($oKindness->sTitle));
+			$sTitle = $sTitle == '' ? 'Incomplete' : $sTitle;
+			$sLocation = $oKindness->sLocation == '' ? 'Incomplete' : $oKindness->sLocation;
+			$sDesc = $oKindness->sDesc == '' ? 'Incomplete' : stripslashes($oKindness->sDesc);
+			
+			if ($sPrevName != $sHopeful){
+				$sOutput .= '<div class="jboxh" style="width:980px"><div class="jboxhead"><h2>Approved Kindness Workz of <em>'.$sHopeful.'</em></h2></div></div>';
+			}else{
+				if ($iKindnessCount > 0) $sOutput .= '<hr class="divider" style="width:980px;margin:5px 0 5px 0" />';
+			}
+			
+			$sIdUid = $iId.'_'.$oKindness->uid;
+			$sTitle = ucwords(stripslashes($oKindness->sTitle));
+			
+			$sOutput .= '<div class="jbox" style="width:980px">
+								<div class="jboxhead"><h2></h2></div>
+								<div class="jboxbody">
+									<div class="jboxcontent" style="color:#000">
+										<table>
+											<tr>
+												<td>
+													<input type="hidden" id="'.$sIdUid.'_duration" name="'.$sIdUid.'_duration" value="'.$oKindness->iDuration.'" />
+													
+													<div id="kindness_workz_comments_container_'.$iId.'" title="Comments for <em>'.$sTitle.'</em>">
+														<div id="kindness_workz_comments_data_'.$iId.'">Loading...</div>
+													</div>
+													<table>
+														<tr>
+															<td colspan="3"><b>Title</b>: '. $sTitle .'</td>
+														</tr>
+														<tr>
+															<td style="width:300px;"><b>Date Submitted</b>: '.date('g:i:s A', $oKindness->ended).'</td>
+															<td style="width:415px;"><b>Start Time</b>: '.date('g:i:s A', $oKindness->created).'</td>
+															<td rowspan="2"><img id="kindness_workz_comments_'.$iId.'" style="cursor:pointer;" src="/themes/theme2010/images/btn_blue_kindness_comments.gif" border="0" /></td>
+														</tr>
+														<tr>
+															<td><b>Location</b>: '.$sLocation.'</td>
+															<td><b>Stop Time</b>: '.date('g:i:s A', $oKindness->ended).'</td>
+														</tr>
+														<tr>
+															<td style="padding-top:10px;">
+																<b>Description</b>:<br/>'.$sDesc.'
+															</td>
+															<td><b>Duration</b>: '.format_interval($oKindness->ended - $oKindness->created).'</td>
+														</tr>
+													</table>
+												</td>
+											</tr>
+										</table>
+									</div>
+								</div>
+								<div class="jboxfoot"><p></p></div>
+							</div>';
+			
+			$sPrevName = $oKindness->name;
+		}
+	}
+	
+	if ($iKindnessCount == 0){
+		$sOutput .= '<center>
+						<div class="jboxh" style="width:980px; margin-top:10px;"><div class="jboxhead"><h2>Approved Kindness Workz</h2></div></div>
+						<div class="jbox" style="width:980px;">
+							<div class="jboxhead"><h2></h2></div>
+							<div class="jboxbody">
+								<div class="jboxcontent" style="color:#000">
+									<center>You have no approved Kindness Workz to display, yet.</center>
+								</div>
+							</div>
+							<div class="jboxfoot"><p></p></div>
+						</div>
+					</center>';
+	}
+	
+	$sPreHTML = drupal_eval(_coordinator_load_template("page-mentor"));
+	$sOutput = $sPreHTML.$sTableHeader.$sOutput.$sTableFooter;
+	
+	return $sOutput;
+}
+
+function coordinator_mentor_disapproved(){
+	global $user;
+	
+	/*drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+			l("Dashboard", "coordinator/administer"),
+			l("Disapprove", "coordinator/administer/disapprove")
+		)
+	);*/
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Dashboard", "coordinator/administer"),
+					l("Disapprove", "coordinator/administer/disapprove")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	drupal_add_js(
+		'$(document).ready(
+			function(){
+				//$("div.main_content h2").remove();
+				//$("td").find(".jboxh").parent().remove();
+			}
+		);',
+		"inline"
+	);
+	
+	$iUserId = $user->uid;
+	$aHopefuls = _coordinator_mentor_hopeful($iUserId);
+	$iKindnessCount = 0;
+	
+	if (count($aHopefuls) > 0){
+		$sqlKindness = "SELECT A.cybact_id, A.uid, B.uid, B.name, A.created, A.ended, C.sTitle, C.sDesc, C.sLocation
+						FROM cybrarian_activity A
+						INNER JOIN users B ON B.uid = A.uid
+						LEFT JOIN cybrarian_kindness C ON C.cybactivity_id = A.cybact_id 
+						INNER JOIN cybrarian_comment D ON D.iSubmitId = A.cybact_id
+						WHERE A.bApproved = 2
+						AND A.uid IN (%s)
+						AND D.iUserId = %d
+						ORDER BY B.name ASC, A.created DESC";	
+
+		$sqlCount = "SELECT COUNT(cybact_id) FROM cybrarian_activity A 
+					 INNER JOIN users B ON B.uid = A.uid 
+					 WHERE A.bApproved = 2 AND A.uid IN (%s)";
+		
+		$sqlKindness = sprintf($sqlKindness, implode(",", $aHopefuls), $iUserId);
+		$sqlCount = sprintf($sqlCount, implode(",", $aHopefuls), $iUserId);
+		
+		$sqlKindness = str_replace("REPLACE_THIS", "DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate", $sqlKindness);
+		$oKindnessResult = pager_query($sqlKindness, KINDNESS_REC_PER_PAGE, 0, $sqlCount);
+		
+		$sOutput = "";
+		$sPrevName = "";
+		
+		$sTableHeader = '<div class="divider"></div>
+						<div id="cbtop">
+							<div class="cbb">
+								<div class="left-border">
+									<div class="right-border">';
+
+		$sTableFooter = '			</div>
+								</div>
+							</div>
+						</div>';
+		
+		while ($oKindness = db_fetch_object($oKindnessResult)){
+			$iKindnessCount++;
+			
+			$iId = $oKindness->cybact_id;
+			$sDuration = format_interval($oKindness->ended - $oKindness->created);
+			$sHopeful = $oKindness->name;
+			$iHopefulId = $oKindness->uid;
+			$sTitle = ucwords(stripslashes($oKindness->sTitle));
+			$sTitle = $sTitle == '' ? 'Incomplete' : $sTitle;
+			$sLocation = $oKindness->sLocation == '' ? 'Incomplete' : $oKindness->sLocation;
+			$sDesc = $oKindness->sDesc == '' ? 'Incomplete' : stripslashes($oKindness->sDesc);
+			
+			if ($sPrevName != $sHopeful){
+				$sOutput .= '<div class="jboxh" style="width:980px"><div class="jboxhead"><h2>Disapproved Kindness Workz of <em>'.$sHopeful.'</em></h2></div></div>';
+			}else{
+				if ($iKindnessCount > 0) $sOutput .= '<hr class="divider" style="width:980px;margin:5px 0 5px 0" />';
+			}
+			
+			$sIdUid = $iId.'_'.$oKindness->uid;
+			$sTitle = ucwords(stripslashes($oKindness->sTitle));
+			
+			$sOutput .= '<div class="jbox" style="width:980px">
+								<div class="jboxhead"><h2></h2></div>
+								<div class="jboxbody">
+									<div class="jboxcontent" style="color:#000">
+										<table>
+											<tr>
+												<td>
+													<input type="hidden" id="'.$sIdUid.'_duration" name="'.$sIdUid.'_duration" value="'.$oKindness->iDuration.'" />
+													
+													<div id="kindness_workz_comments_container_'.$iId.'" title="Comments for <em>'.$sTitle.'</em>">
+														<div id="kindness_workz_comments_data_'.$iId.'">Loading...</div>
+													</div>
+													<table>
+														<tr>
+															<td colspan="3"><b>Title</b>: '. $sTitle .'</td>
+														</tr>
+														<tr>
+															<td style="width:300px;"><b>Date Submitted</b>: '.date('g:i:s A', $oKindness->ended).'</td>
+															<td style="width:415px;"><b>Start Time</b>: '.date('g:i:s A', $oKindness->created).'</td>
+															<td rowspan="2"><img id="kindness_workz_comments_'.$iId.'" style="cursor:pointer;" src="/themes/theme2010/images/btn_blue_kindness_comments.gif" border="0" /></td>
+														</tr>
+														<tr>
+															<td><b>Location</b>: '.$sLocation.'</td>
+															<td><b>Stop Time</b>: '.date('g:i:s A', $oKindness->ended).'</td>
+														</tr>
+														<tr>
+															<td style="padding-top:10px;">
+																<b>Description</b>:<br/>'.$sDesc.'
+															</td>
+															<td><b>Duration</b>: '.format_interval($oKindness->ended - $oKindness->created).'</td>
+														</tr>
+													</table>
+												</td>
+											</tr>
+										</table>
+									</div>
+								</div>
+								<div class="jboxfoot"><p></p></div>
+							</div>';
+			
+			$sPrevName = $oKindness->name;
+		}
+	}
+	
+	
+	if ($iKindnessCount == 0){
+		$sOutput .= '<center>
+						<div class="jboxh" style="width:980px; margin-top:10px;"><div class="jboxhead"><h2>Disapproved Kindness Workz</h2></div></div>
+						<div class="jbox" style="width:980px">
+							<div class="jboxhead"><h2></h2></div>
+							<div class="jboxbody">
+								<div class="jboxcontent" style="color:#000">
+									<center>You have no disapproved Kindness Workz to display, yet.</center>
+								</div>
+							</div>
+							<div class="jboxfoot"><p></p></div>
+						</div>
+					</center>';
+	}
+	
+	$sPreHTML = drupal_eval(_coordinator_load_template("page-mentor"));
+	$sOutput = $sPreHTML.$sTableHeader.$sOutput.$sTableFooter;
+	
+	return $sOutput;
+}
+
+function coordinator_mentor_deactivate(){
+	global $user;
+	
+	$iUserId = $user->uid;
+	$sqlDelete1 = "DELETE FROM volunteer_optin WHERE uid = %d AND `type` = 'coordinate'";
+	$sqlDelete2 = "DELETE FROM users_roles WHERE uid = %d AND rid = '21'";
+	$sqlDelete3 = "UPDATE cybrarian_optin SET coordinator = '0' WHERE coordinator = %d";
+							
+	db_query($sqlDelete1, $iUserId);
+	db_query($sqlDelete2, $iUserId);
+	db_query($sqlDelete3, $iUserId);
+	
+	// Point System for Volunteer Opt-out
+	userpoints_userpointsapi(array("uid" => $user->uid, "tid" => 199, "description" => "User deactivated his/her Volunteer - Coordinator account."));
+	
+	header("Location: coordinator/administer?deactivated");
+}
+
+function coordinator_callback_details(){
+	$iKindnessHours = _coordinator_get_hours();
+	$iKindnessHours = ($iKindnessHours > 0) ? number_format($iKindnessHours, 2):0;
+	$iTimeHour = intval($iKindnessHours);
+	$iTimeMin = round(($iKindnessHours - floor($iKindnessHours)) * 60);
+	
+	//$sKindnessNotice = "You have accumulated a total of ".$iKindnessHours." Kindness Hours. That's ".$iTimeHour." hours(s) and ".$iTimeMin." minute(s).";
+	$sKindnessNotice = "Workz Hours - Balance: ".$iTimeHour." hours(s) and ".$iTimeMin." minute(s).";
+	
+	echo json_encode(array("RETURN" => array("HOURS" => $iKindnessHours, "NOTICE" => $sKindnessNotice)));
+	
+	exit;
+}
+
+function coordinator_callback_convert(){
+	global $user;
+	
+	$oBankAdmin = _bank_account(1);
+	$oBankChild = _bank_account();
+	$iTime = $_REQUEST["iTime"];
+	$iDuration = ($iTime * 60) * -1;
+	$mKindnessRate = variable_get("kindness_rate", 1);
+	$mAmount = number_format($iTime * $mKindnessRate, 2);
+	
+	$aReqParam = array(
+					"key" => $oBankAdmin->account_number, 
+					"pass" => $oBankAdmin->account_pass, 
+					"amount" => $mAmount,
+					"recipient" => $oBankChild->account_number,
+					"description" => "Converted ".$iTime." Kindness Hour(s) to Valiant(s). Conversion Rate: ".$mKindnessRate
+				);
+	
+	$aBankReply = _bank_post("create", $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		$sqlInsert = "INSERT INTO {kindness_statement} VALUES(NULL, 0, %d, %d, '%s')";
+		db_query($sqlInsert, array($user->uid, $iDuration, date("Y-m-d H:i:s")));
+		
+		$aReply = array("STATUS" => "Success", "RETURN" => "The ".$iTime." Kindness Hour(s) was successfully converted to ".$mAmount." Valiant(s) and was credited to your Bank Account (".$oBankChild->account_number.") with Reference Number ".$aBankReply["RETURN"]["REF"].".");
+	}else{
+		$aReply = array("STATUS" => "Fail", "RETURN" => $aBankReply["ERR_MSG"]);
+	}
+	
+	echo json_encode($aReply);
+	
+	exit;
+}
+
+function coordinator_callback_dash(){
+	global $user;
+	
+	$sUserType = _coordinator_check_user_type();
+	
+	if ($user->uid == 1){
+		$sOutput = _coordinator_dashboard_adult($user->uid, "admin");
+	}else{
+		switch ($sUserType){
+			case "child":
+				$sOutput = _coordinator_callback_dashboard_child($user->uid);
+				
+				break;
+			case "mentor":
+			case "mod":
+				$sOutput = _coordinator_dashboard_adult($user->uid, $sUserType);
+				
+				break;
+		}
+	}
+
+	echo json_encode(array("RETURN" => $sOutput));
+	
+	exit;
+}
+
+function _coordinator_callback_dashboard_child($iChildId){
+	$sqlDeeds = "SELECT COUNT(id)
+				FROM {kindness_submit}
+				WHERE iUserId = %d
+					AND bApprovedMentor = '1'
+					/* AND bApprovedMod = '1'
+					AND bApprovedAdmin = '1'*/";
+	
+	$sqlPending = "SELECT COUNT(id)
+					FROM {kindness_submit}
+					WHERE iUserId = %d
+						AND bApprovedMentor = '%s'
+						AND bApprovedMod = '%s'
+						AND bApprovedAdmin = '%s'";
+	
+	$iKindnessHours = _coordinator_get_hours();
+	$iTimeHour = intval($iKindnessHours);
+	$iTimeMin = ($iKindnessHours - floor($iKindnessHours)) * 60;
+	
+	$iCovertedHours = _coordinator_get_hours(null, true);
+	$iConvertedTimeHour = intval($iCovertedHours);
+	$iConvertedTimeMin = ($iCovertedHours - floor($iCovertedHours)) * 60;
+	
+	$iTotalHours = $iKindnessHours + $iCovertedHours;
+	$iTotalTimeHour = intval($iTotalHours);
+	$iTotalTimeMin = ($iTotalHours - floor($iTotalHours)) * 60;
+	
+	$iDeedCount = db_result(db_query($sqlDeeds, $iChildId));
+	$iPendingMentor = db_result(db_query($sqlPending, array($iChildId, 0, 0, 0)));
+	$iPendingMod = db_result(db_query($sqlPending, array($iChildId, 1, 0, 0)));
+	$iPendingAdmin = db_result(db_query($sqlPending, array($iChildId, 1, 1, 0)));
+	
+	$iMentorId = _coordinator_hopeful_mentor($iChildId);
+	$sMentorName = _coordinator_hopeful_mentor($iChildId, "name");
+	
+    $sOutput = '<h3>Workz Hours - General Status :</h3>
+				<div class="kindness_panel_area">
+					<div class="kindness_left_panel_1">Total Hours Earned:</div>
+					<div class="kindness_right_panel_1" >'.$iTotalTimeHour.' hrs and '.$iTotalTimeMin.' min</div>
+					<div class="kindness_left_panel_1">Hours Converted to Bucks:</div>
+					<div class="kindness_right_panel_1" >'.$iConvertedTimeHour.' hrs and '.$iConvertedTimeMin.' min</div>
+					<div class="kindness_left_panel_1">Hours Balance:</div>
+					<div class="kindness_right_panel_1" >'.$iTimeHour.' hrs and '.$iTimeMin.' min</div>
+				</div>
+				<div class="kindness-strip">&nbsp;</div>
+				<div class="kindness_panel_area">
+					<div class="kindness_left_panel"><span>Your Kindness Workz Mentor :</span></div>
+					<div class="kindness_right_panel">
+						'.l($sMentorName, 'user/'.$iMentorId, array('attributes' => array("target" => "_blank", "style" => "color:#4FDE19"))).'
+					</div>
+					<div class="kindness_left_panel"><span >Approved # of Kindness Workz:</span></div>
+					<div class="kindness_right_panel">'.$iDeedCount.'</div>
+				</div>
+				
+				<!--<div class="kindness_panel_area"> Pending<br /><br />
+					<div class="kindness_left_panel_1" style="width:80px;">Mentor:</div>
+					<div class="kindness_right_panel_1" style="width:300px;">'.$iPendingMentor.' deed (s) waiting to be approved</div>
+					<div class="kindness_left_panel_1" style="width:80px;">Moderator:</div>
+					<div class="kindness_right_panel_1" style="width:300px;">'.$iPendingMod.' deed (s) waiting to be approved</div>
+					<div class="kindness_left_panel_1" style="width:80px;">Admin:</div>
+					<div class="kindness_right_panel_1" style="width:300px;">'.$iPendingAdmin.' deed (s) waiting to be approved</div>
+				</div>-->';
+    
+	return $sOutput;
+}
+
+function coordinator_callback_form(){
+	global $user;
+
+	$aKindnessReply = array();
+
+	foreach ($_REQUEST as $sKey => $sData){
+		${$sKey} = $sData;
+	}
+
+	$iHour = $iKindnessHour;
+	$iMinute = $iKindnessMinute;
+	
+	if ($iHour == 0 && $iMinute == 0){
+	//if ($iMinute == 0){
+		$aKindnessReply["ERR_MSG"]="You must specify a valid time for the Duration (hours) and (minutes).";
+		$aReply = array("STATUS" => "Fail", "RETURN" => $aKindnessReply["ERR_MSG"]);
+	}else if ($iForTruePromise == 0){
+		$aKindnessReply["ERR_MSG"]="You must promise that this Good Deed is true." ;
+		$aReply = array("STATUS" => "Fail", "RETURN" => $aKindnessReply["ERR_MSG"]);
+	}else{
+		$dDate = $iKindnessYear."-".str_pad($iKindnessMonth, 2, '0', STR_PAD_LEFT)."-".str_pad($iKindnessDay, 2, '0', STR_PAD_LEFT);
+		$iDurationMins = $iKindnessHour + $iKindnessMinute;
+		
+		$sqlInsert = "INSERT INTO {kindness_submit} VALUES(NULL, %d, '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '0', '0', '0')";
+		db_query($sqlInsert, array($user->uid, $dDate, $iDurationMins, ucwords($sKindnessTitle), ucfirst($sKindnessDesc), ucwords($sKindnessWhom), ucwords($sKindnessLocation), $iForTruePromise, $sKindnessRecipientType));
+		$aReply = array("STATUS" => "Success", "RETURN" => "Your Kindness Form has been submitted.");
+	}
+	
+	echo json_encode($aReply);
+	
+	exit;
+}
+
+function coordinator_init(){
+	if (_coordinator_in_array($_REQUEST["q"], array("coordinator*"))){
+		drupal_add_css(drupal_get_path("module", "mystudies")."/redmond/jquery-ui-custom.css");
+		
+		// For some reason, JS files are not being added via drupal_add_js.
+		// Below is a workaround to add those files.
+		$sVolunteerJS = file_get_contents(drupal_get_path('module', 'coordinator')."/coordinator.js");
+		//$sVolunteerJS = str_replace(array("\r\n", "\r", "\n", "\t"), '', $sVolunteerJS);
+		
+		drupal_add_js($sVolunteerJS, 'inline');
+		
+		// Original code
+		//drupal_add_js(drupal_get_path("module", "coordinator")."/coordinator.js");
+	}
+}
+
+function _coordinator_in_array($sNeedle, $aHaystack){
+	foreach ($aHaystack as $sReference){
+		if (strstr($sReference, "*")){
+			if (stristr($sNeedle, str_replace("*", "", $sReference))) return true;
+		}else{
+			return ($sNeedle == $sReference);
+		}
+	}
+	
+	return false;
+}
+
+function coordinator_dashboard(){
+	global $user;
+	
+	//drupal_set_breadcrumb(array(l("Home", "<front>"), l("Good Deeds", "coordinator")));
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("Good Deeds", "coordinator")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	_coordinator_hide_tab_from_admin();
+	
+	$sUserType = _coordinator_check_user_type();
+	
+	if (!$sUserType && $user->uid != 1) drupal_access_denied();
+	
+	if ($user->uid == 1){
+		$sOutput = _coordinator_dashboard_adult($user->uid, "admin");
+	}else{
+		switch ($sUserType){
+			case "child":
+				$sOutput = _coordinator_dashboard_child($user->uid);
+				
+				break;
+			case "mentor":
+			case "mod":
+				$sOutput = _coordinator_dashboard_adult($user->uid, $sUserType);
+				
+				break;
+		}
+	}
+	
+	return $sOutput;
+}
+
+function coordinator_list(){
+	global $user;
+	
+	//drupal_set_breadcrumb(array(l("Home", "<front>"), l("Good Deeds", "kindness"), l("Pending", "coordinator/list")));
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Good Deeds", "kindness"),
+					l("Pending", "coordinator/list")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	_coordinator_hide_tab_from_admin();
+	
+	$sUserType = _coordinator_check_user_type();
+	
+	if (!$sUserType && $user->uid != 1) drupal_access_denied();
+	
+	if ($user->uid == 1){
+		$sOutput = _coordinator_list_adult($user->uid, "admin");
+	}else{
+		switch ($sUserType){
+			case "child":
+				$sOutput = _coordinator_list_child($user->uid);
+				
+				break;
+			case "mentor":
+			case "mod":
+			case "admin":
+				$sOutput = _coordinator_list_adult($user->uid, $sUserType);
+				
+				break;
+		}
+	}
+	
+	return $sOutput;
+}
+
+function coordinator_callback_pending(){
+	global $user;
+	
+	echo json_encode(array("RETURN" => _coordinator_callback_list_child($user->uid)));
+	
+	exit;
+}
+
+function coordinator_list_details($iSubmitId, $bPending="true"){
+	global $user;
+	
+	$sUserType = ($user->uid == 1) ? "admin":_coordinator_check_user_type();
+	$sLinkName = ($bPending == "true") ? "Pending":"Approved";
+	$sLinkHref = ($bPending == "true") ? "list":"approved";
+	
+	/*$aTrail = array(
+					l("Home", "<front>"),
+					l("Good Deeds", "coordinator"),
+					l($sLinkName, "coordinator/".$sLinkHref),
+					l("Details", "coordinator/details/".$iSubmitId)
+				);*/
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Good Deeds", "coordinator"),
+					l($sLinkName, "coordinator/".$sLinkHref),
+					l("Details", "coordinator/details/".$iSubmitId)
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	drupal_add_js('var kindness_sBasePath = "'.base_path().'";', "inline");
+	drupal_add_js(drupal_get_path("module", "coordinator")."/coordinator.js");
+	
+	$sqlDetails = "SELECT A.id, A.iUserId, B.name, A.dDatetime, DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate, 
+						A.iDuration AS iKindnessMins, (A.iDuration/60) AS iKindnessHours, A.sTitle, A.sDesc, A.sToWhom,
+						A.sLocation, A.bPromised, A.sToWhomType, A.bApprovedMentor, A.bApprovedMod, A.bApprovedAdmin
+					FROM kindness_submit A
+					INNER JOIN users B ON B.uid = A.iUserId
+					WHERE A.id = %d";
+	$oDetails = db_fetch_object(db_query($sqlDetails, $iSubmitId));
+	
+	$iKindnessHours = (float)$oDetails->iKindnessHours;
+	$iKindnessHours = ($iKindnessHours > 0) ? $iKindnessHours:0;
+	$iTimeHour = intval($iKindnessHours);
+	$iTimeMin = round(($iKindnessHours - floor($iKindnessHours)) * 60);
+	
+	$bWithMentor = user_hierarchy_verify($oDetails->iUserId);
+	$bMentor = ($oDetails->bApprovedMentor == 1) ? true:false;
+	$bMod = ($oDetails->bApprovedMod == 1) ? true:false;
+	$bAdmin = ($oDetails->bApprovedAdmin == 1) ? true:false;
+	
+	if (!$bMentor && !$bMod && !$bAdmin){
+		$sStatus = "Pending (Mentor)";
+	}elseif ($bMentor && !$bMod && !$bAdmin){
+		$sStatus = "Pending (Moderator)";
+	}elseif ($bMentor && $bMod && !$bAdmin){
+		$sStatus = "Pending (Admin)";
+	}elseif ($bMentor && $bMod && $bAdmin){
+		$sStatus = "<b>Approved</b>";
+	}
+
+	$sOutput = '<div><div style="padding-top:5px;">Title:</div>';
+	
+	if($sStatus == 'Pending (Mentor)'){
+	$sOutput .= '<div><input id="sTitle" class="report_top_search" type="text" border="0" name="sTitle" value="'.ucwords($oDetails->sTitle).'"></div>';
+	} else{
+	$sOutput .= '<div>'.ucwords($oDetails->sTitle).'</div>';
+	}
+	
+	$sOutput .= '<div style="padding-top:5px;">Description:</div>';
+	
+    if($sStatus == 'Pending (Mentor)'){
+	$sOutput .= '<div><textarea id="sDescription" class="report_top_large_search" border="0" name="sDescription">'.ucfirst($oDetails->sDesc).'</textarea></div>';
+	} else{
+	$sOutput .= '<div>'.ucfirst($oDetails->sDesc).'</div>';
+	}
+	
+	$sOutput .= '<div style="padding-top:5px;">Did For:</div>';
+	
+    if($sStatus == 'Pending (Mentor)'){
+    $sOutput .= '<div><input id="sWhom" class="report_top_search" type="text" border="0" name="sWhom" value="'.ucwords($oDetails->sToWhom).'">'.'</div>';
+	} else{
+	$sOutput .= '<div>'.ucwords($oDetails->sToWhom).'</div>';
+	}
+	
+	$sOutput .= '<div style="padding-top:5px;">Address/Location:</div>'; 
+	
+    if($sStatus == 'Pending (Mentor)'){
+	$sOutput .= '<div>'.'<input id="sLocation" class="report_top_search" type="text" border="0" name="sLocation" value="'.$oDetails->sLocation.'">'.'</div>';
+    } else{
+	$sOutput .= '<div>'.$oDetails->sLocation.'</div>';
+	}
+	
+	$sOutput .= '<div style="padding-top:5px;">Relationship:</div>';
+						
+	if($sStatus == 'Pending (Mentor)'){
+	$arr_recipientType = array('Family/Relative','Neighbor','Stranger','Community');
+	
+	$sOutput .= '<div><select id="sRecipientType" name="sRecipientType">
+				 <option value="">Select your relationship...</option>';
+	
+	foreach($arr_recipientType as $recpients){
+		if($recpients == $oDetails->sToWhomType){
+		$sOutput .= '<option value="'.$recpients.'" selected>'.$recpients.'</option>';
+		} else{
+		$sOutput .= '<option value="'.$recpients.'">'.$recpients.'</option>';
+		}
+	
+	}				
+	$sOutput .= '</select></div>';
+	} else{
+	$sOutput .= '<div>'.$oDetails->sToWhomType.'</div>';
+	}
+	
+	$sOutput .= '<div style="padding-top:5px;">Duration:</div>';
+	
+	if($sStatus == 'Pending (Mentor)'){	
+	
+	$arr_Hours = array(0 => "0/"."0 hour", 1 => "60/"."1 hour", 2 => "120/"."2 hours", 3 => "180/"."3 hours", 4 => "240/"."4 hours", 5 => "300/"."5 hours", 6 => "360/"."6 hours",
+						7 => '420/'."7 hours", 8 => '480/'."8 hours"
+				);
+				
+	$arr_Mins = array(0 => "00 minute", 1 => "01 minutes", 2 => "02 minutes", 3 => "03 minutes", 4 => "04 minutes", 5 => "05 minutes", 6 => "06 minutes", 7 => "07 minutes", 08 => "08 minutes", 9 => "09 minutes", 10 => "10 minutes",
+					11 => "11 minutes", 12 => "12 minutes", 13 => "13 minutes", 14 => "14 minutes", 15 => "15 minutes", 16 => "16 minutes", 17 => "17 minutes", 18 => "18 minutes", 19 => "19 minutes", 20 => "20 minutes", 21 => "21 minutes", 22 => "22 minutes",
+					23 => "23 minutes", 24 => "24 minutes", 25 => "25 minutes", 26 => "26 minutes", 27 => "27 minutes", 28 => "28 minutes", 29 => "29 minutes", 30 => "30 minutes", 31 => "31 minutes", 32 => "32 minutes", 33 => "33 minutes", 34 => "34 minutes",
+					35 => "35 minutes", 36 => "36 minutes", 37 => "37 minutes", 38 => "38 minutes", 39 => "39 minutes", 40 => "40 minutes", 41 => "41 minutes", 42 => "42 minutes", 43 => "43 minutes", 44 => "44 minutes", 45 => "45 minutes", 46 => "46 minutes",
+					47 => "47 minutes", 48 => "48 minutes", 49 => "49 minutes", 50 => "50 minutes", 51 => "51 minutes", 52 => "52 minutes", 53 => "53 minutes", 54 => "54 minutes", 55 => "55 minutes", 56 => "56 minutes", 57 => "57 minutes", 58 => "58 minutes",
+					59 => "59 minutes"
+					);
+					
+	$sOutput .= 'Hours: <select id="iHour" class="form_selectbox" name="iHour" type="text">';
+	foreach($arr_Hours as $sHours => $sHourstext){
+		$sHoursV = explode('/',$sHourstext);
+		if($sHours == $iTimeHour){
+		$sOutput .= '<option value="'.$sHoursV[0].'" selected>'.$sHoursV[1].'</option>';
+		} else{
+		$sOutput .= '<option value="'.$sHoursV[0].'">'.$sHoursV[1].'</option>';
+		}
+	}
+	
+	$sOutput .= '</select> Mins: <select id="iMinute" class="form_selectbox" name="iMinute" type="text">';
+	
+	foreach($arr_Mins as $sMin => $sMintext){
+		if($sMin == $iTimeMin){
+		$sOutput .= '<option value="'.$sMin.'" selected>'.$sMintext.'</option>';
+		} else{
+		$sOutput .= '<option value="'.$sMin.'">'.$sMintext.'</option>';
+		}
+	}
+	$sOutput .= '</select>';
+	
+    } else{
+	$sOutput .= '<div>'.$iTimeHour.' hour(s) and '.$iTimeMin.' minute(s)'.'</div>';
+	}
+	
+	$sOutput .= '<div style="padding-top:5px;">Date:</div>';
+    
+	$arr_Month = array(1 => "Jan", 2 => "Feb", 3 => "Mar", 4 => "Apr", 5 => "may", 6 => "Jun", 7 => "Jul",
+						8 => "Aug", 9 => "Sep", 10 => "Oct", 11 => "Nov", 12 => "Dec"
+				);
+				
+	if($sStatus == 'Pending (Mentor)'){	
+		$strdate = strtotime($oDetails->dDatetime);
+		$sMonth = date("n", $strdate);	
+		$sDay = date("j", $strdate);
+		$sYear = date("Y", $strdate);
+		
+		$sOutput .= '<select id="iMonth" class="form_selectbox" name="iMonth">';
+		foreach($arr_Month as $sMonthval => $sMonText){
+			if($sMonthval == $sMonth){
+				$sOutput .= '<option value="'.$sMonthval.'" selected>'.$sMonText.'</option>';
+			} else{
+				$sOutput .= '<option value="'.$sMonthval.'">'.$sMonText.'</option>';
+			}
+		}
+		$sOutput .= '</select>';
+		
+		$sOutput .= ' <select id="iDay" class="form_selectbox" name="iDay">';
+		$day = 1;
+		while($day <= 31){
+			if($day == $sDay){
+				$sOutput .= '<option value="'.$day.'" selected>'.$day.'</option>';
+			} else{
+				$sOutput .= '<option value="'.$day.'">'.$day.'</option>';
+			}
+		$day++;
+		}
+		$sOutput .= '</select>';
+		
+		$sOutput .= ' <select id="iYear" class="form_selectbox" name="iYear">';
+		$year = 1900;
+		while($year <= 2050){
+			if($year == $sYear){
+				$sOutput .= '<option value="'.$year.'" selected>'.$year.'</option>';
+			} else{
+				$sOutput .= '<option value="'.$year.'">'.$year.'</option>';
+			}
+		$year++;
+		}
+		$sOutput .= '</select>';
+		
+	} else{
+		$sOutput .= '<div>'.$oDetails->sDate.'</div>';	
+	}
+	
+	if($sStatus == 'Pending (Mentor)'){
+		$sqlCommentCount =  db_result(db_query("SELECT COUNT(id)
+					FROM {cybrarian_comment}
+					WHERE iSubmitId = '{$oDetails->id}'"));
+					
+		if (!$bMentor && !$bMod && !$bAdmin && $oDetails->iUserId == $user->uid && $aStatus !== false && !$aStatus["bApproved"] && $sqlCommentCount !== '0'){
+		$sOutput .= '<div style="padding-top:5px;">'.'<input type="button" value="Resubmit Kindness Report" onclick="Kindness_EditReport('."'"."resubmitkindness"."'".', '."'".$iSubmitId."'".');" id="updateKindessReport" name="updateKindessReport" class="form-submit" /></div>';
+		}else{
+		$sOutput .= '<div style="padding-top:5px;">'.'<input type="button" value="Update Kindness Report" onclick="Kindness_EditReport('."'"."editkindness"."'".', '."'".$iSubmitId."'".');" id="updateKindessReport" name="updateKindessReport" class="form-submit" /></div>';
+		}
+	}
+	
+	$sOutput .= '</div>';
+	$sButtonPost = '<button type="button" id="kindness_button_approve" class="form-submit" style="width:100px;">Approve</button>
+					<button type="button" id="kindness_button_deny" class="form-submit" style="width:100px;">Deny</button>';
+	$sButtons = ((!$bWithMentor) ? '<div align="center" style="padding-top:15px; color:red;">You cannot approve nor deny this Good Deed because there are no mentors and moderator assigned to this child, yet.</div>':'<div id="kindness_button" align="right">'.$sButtonPost.'</div>').'
+				
+				<div id="kindness_comment" style="display:none; width:300px; border: 5px solid #173102; padding:5px; background-color:#E2E2D3;">
+					<form action="'.base_path().'coordinator/details/submit" method="post">
+						<input type="hidden" id="iSubmitId" name="iSubmitId" value="'.$oDetails->id.'" />
+						<input type="hidden" id="iChildId" name="iChildId" value="'.$oDetails->iUserId.'" />
+						<input type="hidden" id="iAdultId" name="iAdultId" value="'.$user->uid.'" />
+						<input type="hidden" id="iDuration" name="iDuration" value="'.$oDetails->iKindnessMins.'" />
+						<input type="hidden" id="bApprove" name="bApprove" value="" />
+						
+						Comment for <span id="kindness_comment_type"></span> this good deed:<br />
+						<textarea id="sComment" name="sComment" style="width:300px; height:100px;"></textarea><br />
+						<div align="right" style="padding-top:5px;">
+							<button id="btnCancel" type="button" name="btnCancel" class="form-submit">Cancel</button>
+							<button id="btnSubmit" type="submit" name="btnSubmit" class="form-submit">Submit</button>
+						</div>
+					</form>
+				</div>';
+	
+	$aStatus = _coordinator_get_status($oDetails->id);
+	
+	if ($aStatus !== false){
+		$sCommentUserType = ($aStatus["iUserId"] == 1) ? "admin":_coordinator_check_user_type($aStatus["iUserId"]);
+	}
+	
+	if (!$bMentor && !$bMod && !$bAdmin && $oDetails->iUserId == $user->uid && 
+			$aStatus !== false && !$aStatus["bApproved"]){
+		
+		/*$sOutput .= '<div align="right" style="padding-top:5px;">
+						<button id="btnEdit" type="button" name="btnEdit" class="form-submit"">Edit Kindness Form</button>
+					</div>';*/
+	}
+	
+	$sOutput .= ($sUserType == "child" || ($bMentor && $bMod && $bAdmin)) ? "":$sButtons;
+	
+	$iCommentCount = 0;
+	$sCommentHeader = '<table style="margin-top:10px; width:100%;">
+						<tr>
+							<td colspan="2"><h2>Comments</h2></td>
+						</tr>';
+	$sCommentFooter = '</table>';
+	$sComment = "";
+	$sqlComment = "SELECT A.iUserId, B.name, A.sComment, 
+						DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate, 
+						IF(A.bApproved = '1', 'Approved', 'Denied') AS sStatus
+					FROM cybrarian_comment A
+					INNER JOIN users B ON B.uid = A.iUserId
+					WHERE A.iSubmitId = %d";
+	$oCommentResult = db_query($sqlComment, $oDetails->id);
+	
+	while ($oComment = db_fetch_object($oCommentResult)){
+		$iCommentCount++;
+		
+		$sComment .= ($sComment != "") ? '<tr><td style="padding-bottom:10px;"></td></tr>':'';
+		$sComment .= '<tr>
+							<td style="width:100px;">Name:</td>
+							<td>'._coordinator_get_name($oComment->iUserId).' <em>('.$oComment->name.')</em></td>
+						</tr>
+						<tr>
+							<td>Date:</td>
+							<td>'.$oComment->sDate.'</td>
+						</tr>
+						<tr>
+							<td>Comment:</td>
+							<td>'.$oComment->sComment.'</td>
+						</tr>
+						<tr>
+							<td>Status:</td>
+							<td>'.$oComment->sStatus.'</td>
+						</tr>';
+	}
+	
+	$sComment = ($iCommentCount > 0) ? $sCommentHeader.$sComment.$sCommentFooter:'';
+	
+	//if ($bAjax)
+		die($sOutput.$sComment);
+	//else
+	//return $sOutput.$sComment;
+}
+
+function coordinator_callback_comments(){
+	$iKindnessId = (isset($_REQUEST["iKindnessId"])) ? $_REQUEST["iKindnessId"]:'';
+	
+	if ($iKindnessId != ""){
+		$sqlComment = "SELECT A.iUserId, B.name, A.sComment, 
+							DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate, 
+							IF(A.bApproved = '1', 'Approved', 'Denied') AS sStatus
+						FROM cybrarian_comment A
+						INNER JOIN users B ON B.uid = A.iUserId
+						WHERE A.iSubmitId = %d";
+		$oCommentResult = db_query($sqlComment, $iKindnessId);
+		
+		$iCommentCount = 0;
+		$sCommentHeader = '<table style="margin-top:10px; width:100%;">';
+		$sCommentFooter = '</table>';
+		$sComment = '';
+		
+		while ($oComment = db_fetch_object($oCommentResult)){
+			$iCommentCount++;
+			
+			$sComment .= ($sComment != "") ? '<tr><td colspan="2" style="padding-bottom:10px;"></td></tr>':'';
+			$sComment .= '<tr>
+								<td style="width:100px;">Name:</td>
+								<td>'._coordinator_get_name($oComment->iUserId).' <em>('.$oComment->name.')</em></td>
+							</tr>
+							<tr>
+								<td>Date:</td>
+								<td>'.$oComment->sDate.'</td>
+							</tr>
+							<tr>
+								<td style="vertical-align:top;">Comment:</td>
+								<td>'.$oComment->sComment.'</td>
+							</tr>
+							<tr>
+								<td>Status:</td>
+								<td>'.$oComment->sStatus.'</td>
+							</tr>';
+		}
+		
+		echo (($iCommentCount > 0) ? $sCommentHeader.$sComment.$sCommentFooter:'');
+	}else{
+		echo 'Invalid entry point. Missing parameter.';
+	}
+	
+	exit;
+}
+
+function coordinator_list_details_edit(&$aFormState, $iSubmitId){
+	$sJavaScript = 'if ($("div.messages.status").length == 1) setTimeout("location=\''.base_path().'coordinator/details/'.$iSubmitId.'/true\'", 3000)';
+	drupal_add_js($sJavaScript, "inline");
+	
+	/*$aTrail = array(
+					l("Home", "<front>"),
+					l("Good Deeds", "coordinator"),
+					l("Kindness Form Update", "coordinator/list/details/".$iSubmitId."/edit")
+				);
+	
+	drupal_set_breadcrumb($aTrail);*/
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("Good Deeds", "coordinator"),
+					l("Kindness Form Update", "coordinator/list/details/".$iSubmitId."/edit")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	$sqlKindness = "SELECT id, iUserId, LEFT(dDatetime, 10) AS dDate, (iDuration/60) AS iKindnessHours, sTitle, sDesc, sToWhom,
+						bApprovedMentor, bApprovedMod, bApprovedAdmin
+					FROM kindness_submit
+					WHERE id = %d";
+	$oKindness = db_fetch_object(db_query($sqlKindness, $iSubmitId));
+		
+	$aForm['kindness_title'] = array(
+		'#type' => 'textfield',
+		'#title' => 'Title',
+		'#required' => true,
+		'#default_value' => $oKindness->sTitle,
+		'#description' => 'Give your Good Deed a title to start with.',
+	);
+	
+	$aForm['kindness_desc'] = array(
+		'#type' => 'textarea',
+		'#title' => 'Description',
+		'#required' => true,
+		'#default_value' => $oKindness->sDesc,
+		'#cols' => 30,
+		'#rows' => 5,
+		'#description' => 'Describe what you did and where it is located.',
+	);
+	
+	$aForm['kindness_duration'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Duration'),
+		'#collapsible' => FALSE,
+		'#collapsed' => TRUE,
+		'#description' => "Specify how long you did your Good Deed."
+	);
+	
+	$aTimeHours = array();
+	$aTimeMins = array();
+	
+	for ($h=0; $h<=480; $h+=60){
+		$sUnit = ($h > 60) ? "hours":"hour";
+		$aTimeHours[$h] = ($h/60)." ".$sUnit;
+	}
+	
+	for ($m=0; $m<=59; $m++){
+		$sUnit = ($m > 0) ? "minutes":"minute";
+		$sMin = str_pad($m, 2, "0", STR_PAD_LEFT);
+		
+		$aTimeMins[$sMin] = $sMin." ".$sUnit;
+	}
+	
+	$iKindnessHours = $oKindness->iKindnessHours;
+	$iTimeHours = intval($iKindnessHours) * 60;
+	$iTimeMins = ($iKindnessHours - floor($iKindnessHours)) * 60;
+	
+	$aForm['kindness_duration']["iHour"] = array(
+		'#type' => 'select',
+		'#title' => 'Duration (hours)',
+		'#required' => true,
+		'#default_value' => $iTimeHours,
+		'#options' => $aTimeHours,
+		'#description' => 'The Hour part of the duration.'
+	);
+	
+	$aForm['kindness_duration']["iMinute"] = array(
+		'#type' => 'select',
+		'#title' => 'Duration (minutes)',
+		'#required' => true,
+		'#default_value' => $iTimeMins,
+		'#options' => $aTimeMins,
+		'#description' => 'The Minute part of the duration.'
+	);
+	
+	$aDate = explode("-", $oKindness->dDate);
+	$aNewData = array("month" => (int)$aDate[1], "day" => (int)$aDate[2], "year" => $aDate[0]);
+	
+	$aForm['kindness_date'] = array(
+		'#type' => 'date',
+		'#title' => 'Date',
+		'#required' => true,
+		'#default_value' => $aNewData,
+		'#description' => 'The Date when you did your Dood Deed.'
+	);
+	
+	$aForm['kindness_whom'] = array(
+		'#type' => 'textfield',
+		'#title' => 'The Name of the person you did your Good Deed for',
+		'#required' => true,
+		'#default_value' => $oKindness->sToWhom
+	);
+	
+	$aForm['iSubmitId'] = array('#type' => 'hidden', '#value' => $iSubmitId);
+	$aForm['btnUpdate'] = array("#type" => "submit", "#value" => "Update Kindness Form");
+	
+	return $aForm;
+}
+
+function coordinator_list_details_edit_validate($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$iHour = $aFormVal["iHour"];
+	$iMinute = $aFormVal["iMinute"];
+	
+	if ($iHour == 0 && $iMinute == 0){
+		form_set_error("iHour", "You must specify a valid time for the Duration (hours).");
+		form_set_error("iMinute", "You must specify a valid time for the Duration (minutes).");
+	}
+}
+
+function coordinator_list_details_edit_submit($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$aDate = $aFormVal["kindness_date"];
+	$dDate = $aDate["year"]."-".$aDate["month"]."-".$aDate["day"];
+	$iDurationMins = $aFormVal["iHour"] + $aFormVal["iMinute"];
+	
+	$sqlUpdate = "UPDATE {kindness_submit}
+					SET iDuration = %d,
+						sTitle = '%s',
+						sDesc = '%s',
+						sToWhom = '%s'
+					WHERE id = %d";
+	db_query(
+		$sqlUpdate,
+		array(
+			$iDurationMins, 
+			ucwords($aFormVal["kindness_title"]), 
+			ucfirst($aFormVal["kindness_desc"]), 
+			ucwords($aFormVal["kindness_whom"]), 
+			$aFormVal["iSubmitId"]
+		)
+	);
+	
+	drupal_set_message("Your Kindness Form has been updated.");
+}
+
+function coordinator_list_details_submit(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = trim($sData);
+	}
+	
+	/*$aTrail = array(
+					l("Home", "<front>"),
+					l("Good Deeds", "coordinator"),
+					l("History", "coordinator/list"),
+					l("Details", "coordinator/details/".$iSubmitId)
+				);*/
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("eSupport", "mystudies/getinvolved/esupport-volunteers"),
+					l("Good Deeds", "coordinator"),
+					l("History", "coordinator/list"),
+					l("Details", "coordinator/details/".$iSubmitId)
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	drupal_add_js('setTimeout("location=\''.base_path().'coordinator/details/'.$iSubmitId.'\'", 5000)', "inline");
+	
+	if ($sComment != ""){
+		$sMessage = "The selected good deed has been ".(($bApprove == "1") ? "approved":"denied").".";
+		$sUserType = ($iAdultId == 1) ? "admin":_coordinator_check_user_type();
+		
+		if ($sUserType == "mentor"){
+			$sFieldToUpdate = "bApprovedMentor";
+		}elseif ($sUserType == "mod"){
+			$sFieldToUpdate = "bApprovedMod";
+		}elseif ($sUserType == "admin"){
+			$sFieldToUpdate = "bApprovedAdmin";
+		}
+		
+		$sqlInsert = "INSERT INTO {cybrarian_comment} VALUES(NULL, %d, %d, '%s', '%s', '%s')";
+		$sqlUpdate = "UPDATE {kindness_submit} SET %s = '%s' WHERE id = %d";
+		
+		db_query($sqlInsert, array($iSubmitId, $iAdultId, ucfirst($sComment), $bApprove, date("Y-m-d H:i:s")));
+		db_query($sqlUpdate, array($sFieldToUpdate, $bApprove, $iSubmitId));
+		
+		if ($sFieldToUpdate == "bApprovedAdmin" && $bApprove){
+			$sqlStatement = "INSERT INTO {kindness_statement} VALUES(NULL, %d, %d, %d, '%s')";
+			db_query($sqlStatement, array($iSubmitId, $iChildId, $iDuration, date("Y-m-d H:i:s")));
+		}
+	}else{
+		$sMessage = "No comment was specified. Please try again.";
+	}
+	
+	drupal_set_message($sMessage);
+	
+	return "";
+}
+
+function coordinator_approved(){
+	global $user;
+	
+	//drupal_set_breadcrumb(array(l("Home", "<front>"), l("Good Deeds", "coordinator"), l("Approved", "coordinator/approved")));
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("Good Deeds", "coordinator"),
+					l("Approved", "coordinator/approved")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	_coordinator_hide_tab_from_admin();
+	
+	$sUserType = _coordinator_check_user_type();
+	
+	if (!$sUserType && $user->uid != 1) drupal_access_denied();
+	
+	if ($user->uid == 1){
+		$sOutput = _coordinator_approved_adult($user->uid, "admin");
+	}else{
+		switch ($sUserType){
+			case "child":
+				$sOutput = _coordinator_approved_child($user->uid);
+				
+				break;
+			case "mentor":
+			case "mod":
+			case "admin":
+				$sOutput = _coordinator_approved_adult($user->uid, $sUserType);
+				
+				break;
+		}
+	}
+	
+	return $sOutput;
+}
+
+function coordinator_callback_approved(){
+	global $user;
+	
+	echo json_encode(array("RETURN" => _coordinator_callback_approved_child($user->uid)));
+	
+	exit;
+}
+
+function coordinator_create(){
+	global $user;
+	
+	//drupal_set_breadcrumb(array(l("Home", "<front>"), l("Good Deeds", "coordinator"), l("Coordinators Form", "create")));
+	
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("Good Deeds", "coordinator"),
+					l("Coordinators Form", "create")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	$aForm['kindness_title'] = array(
+		'#type' => 'textfield',
+		'#title' => 'Title',
+		'#required' => true,
+		'#default_value' => '',
+		'#description' => 'Give your Good Deed a title to start with.',
+	);
+	
+	$aForm['kindness_desc'] = array(
+		'#type' => 'textarea',
+		'#title' => 'Description',
+		'#required' => true,
+		'#default_value' => '',
+		'#cols' => 30,
+		'#rows' => 5,
+		'#description' => 'Describe what you did and where it is located.',
+	);
+	
+	$aForm['kindness_duration'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Duration'),
+		'#collapsible' => FALSE,
+		'#collapsed' => TRUE,
+		'#description' => "Specify how long you did your Good Deed."
+	);
+	
+	$aTimeHours = array();
+	$aTimeMins = array();
+	
+	for ($h=0; $h<=480; $h+=60){
+		$sUnit = ($h > 60) ? "hours":"hour";
+		$aTimeHours[$h] = ($h/60)." ".$sUnit;
+	}
+	
+	for ($m=0; $m<=59; $m++){
+		$sUnit = ($m > 0) ? "minutes":"minute";
+		$sMin = str_pad($m, 2, "0", STR_PAD_LEFT);
+		
+		$aTimeMins[$sMin] = $sMin." ".$sUnit;
+	}
+	
+	$aForm['kindness_duration']["iHour"] = array(
+		'#type' => 'select',
+		'#title' => 'Duration (hours)',
+		'#required' => true,
+		'#default_value' => '',
+		'#options' => $aTimeHours,
+		'#description' => 'The Hour part of the duration.'
+	);
+	
+	$aForm['kindness_duration']["iMinute"] = array(
+		'#type' => 'select',
+		'#title' => 'Duration (minutes)',
+		'#required' => true,
+		'#default_value' => '',
+		'#options' => $aTimeMins,
+		'#description' => 'The Minute part of the duration.'
+	);
+	
+	$aForm['kindness_date'] = array(
+		'#type' => 'date',
+		'#title' => 'Date',
+		'#required' => true,
+		'#default_value' => '',
+		'#description' => 'The Date when you did your Dood Deed.'
+	);
+	
+	$aForm['kindness_whom'] = array(
+		'#type' => 'textfield',
+		'#title' => 'The Name of the person you did your Good Deed for',
+		'#required' => true,
+		'#default_value' => ''
+	);
+	
+	$aForm['kindness_location'] = array(
+		'#type' => 'textfield',
+		'#title' => 'Location',
+		'#required' => true,
+		'#default_value' => '',
+		'#description' => 'The location where your did your Good Deed.',
+	);
+	
+	$aForm['kindness_promise'] = array(
+		'#type' => 'checkbox',
+		'#title' => t("I promised that I have permission to do this good deed and I did it as it was described."),
+		'#default_value' => ''
+	);
+	
+	$aForm['kindness_recipient_type'] = array(
+		'#type' => 'select',
+		'#title' => 'Recipient Type',
+		'#required' => true,
+		'#default_value' => '',
+		'#options' => array(
+			"" => "Select your relationship...",
+			"Family/Relative" => "Family/Relative",
+			"Neighbor" => "Neighbor",
+			"Stranger" => "Stranger"
+		),
+		'#description' => 'Select your relationship to whom you did the Good Deed.'
+	);
+	
+	
+	$aForm['btnSubmit'] = array("#type" => "submit", "#value" => "Submit Kindness Form");
+	
+	return $aForm;
+}
+
+function coordinator_create_validate($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$iHour = $aFormVal["iHour"];
+	$iMinute = $aFormVal["iMinute"];
+	
+	if ($iHour == 0 && $iMinute == 0){
+		form_set_error("iHour", "You must specify a valid time for the Duration (hours).");
+		form_set_error("iMinute", "You must specify a valid time for the Duration (minutes).");
+	}
+	
+	if ($aFormVal["kindness_promise"] == 0) form_set_error("kindness_promise", "You must promise that this Good Deed is true.");
+}
+
+function coordinator_create_submit($oForm, &$aFormState){
+	global $user;
+	
+	$aFormVal = $aFormState["values"];
+	$aDate = $aFormVal["kindness_date"];
+	$dDate = $aDate["year"]."-".str_pad($aDate["month"], 2, '0', STR_PAD_LEFT)."-".str_pad($aDate["day"], 2, '0', STR_PAD_LEFT);
+	$iDurationMins = $aFormVal["iHour"] + $aFormVal["iMinute"];
+	
+	$sqlInsert = "INSERT INTO {kindness_submit} VALUES(NULL, %d, '%s', %d, '%s', '%s', '%s', '%s', '%s', '%s', '0', '0', '0')";
+	db_query($sqlInsert, array($user->uid, $dDate, $iDurationMins, ucwords($aFormVal["kindness_title"]), ucfirst($aFormVal["kindness_desc"]), ucwords($aFormVal["kindness_whom"]), ucwords($aFormVal["kindness_location"]), $aFormVal["kindness_promise"], $aFormVal["kindness_recipient_type"]));
+	
+	drupal_set_message("Your Kindness Form has been submitted.");
+}
+
+function coordinator_settings(){
+	_coordinator_hide_tab_from_admin();
+	
+	$aForm['kindness_rate'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Conversion Rate'),
+		'#default_value' => variable_get("kindness_rate", 1),
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t("The Conversion rate for Kindness Hours to Valiants. Formula: Kindness Hours x Conversion Rate = Valiants"),
+		'#required' => true
+	);
+	
+	return system_settings_form($aForm);
+}
+
+function coordinator_convert(){
+	$iKindnessHours = _coordinator_get_hours();
+	$iKindnessHours = ($iKindnessHours > 0) ? number_format($iKindnessHours, 2):0;
+	$iTimeHour = intval($iKindnessHours);
+	$iTimeMin = ($iKindnessHours - floor($iKindnessHours)) * 60;
+	
+	$aForm['kindness_convertions'] = array(
+		'#type' => 'fieldset',
+		'#title' => t('Kindness Hours'),
+		'#collapsible' => false,
+		'#collapsed' => true,
+		'#description' => "You have accumulated a total of <b><u>".$iKindnessHours." Kindness Hours</u></b>. That's <em>".$iTimeHour." hours(s) and ".$iTimeMin." minute(s)</em>."
+	);
+	
+	$aForm['kindness_convertions']['iTimeToConvert'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Kindness Hours'),
+		'#default_value' => '',
+		'#size' => 10,
+		'#maxlength' => 8,
+		'#description' => t("The number of Kindness Hours you want to convert to Valiants. Example correct entries: 1, 1.5, 0.25, etc."),
+		'#attributes' => array("style" => "text-align:right;"),
+		'#required' => true
+	);
+	
+	$aForm['btnConvert'] = array("#type" => "submit", "#value" => "Convert to Valiants");
+	
+	return $aForm;
+}
+
+function coordinator_convert_validate($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$iTime = $aFormVal["iTimeToConvert"];
+		
+	if (is_numeric($iTime) && $iTime <= _coordinator_get_hours()){
+		$aFormState["values"]["iTimeToConvert"] = number_format($iTime, 2);
+	}else{
+		form_set_error("iTimeToConvert", "You have specified an invalid number. Example correct entries: 1, 1.5, 0.25, etc. >>".$iTime);
+	}
+}
+
+function coordinator_convert_submit($oForm, &$aFormState){
+	global $user;
+	
+	$oBankAdmin = _bank_account(1);
+	$oBankChild = _bank_account();
+	$aFormVal = $aFormState["values"];
+	$iTime = $aFormVal["iTimeToConvert"];
+	$iDuration = ($iTime * 60) * -1;
+	$mKindnessRate = variable_get("kindness_rate", 1);
+	$mAmount = number_format($iTime * $mKindnessRate, 2);
+	
+	$aReqParam = array(
+					"key" => $oBankAdmin->account_number, 
+					"pass" => $oBankAdmin->account_pass, 
+					"amount" => $mAmount,
+					"recipient" => $oBankChild->account_number,
+					"description" => "Converted ".$iTime." Kindness Hour(s) to Valiant(s). Conversion Rate: ".$mKindnessRate
+				);
+	
+	$aBankReply = _bank_post("create", $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		$sqlInsert = "INSERT INTO {kindness_statement} VALUES(NULL, 0, %d, %d, '%s')";
+		db_query($sqlInsert, array($user->uid, $iDuration, date("Y-m-d H:i:s")));
+		
+		drupal_set_message("The ".$iTime." Kindness Hour(s) was successfully converted to ".$mAmount." Valiant(s) and was credited to your Bank Account (".$oBankChild->account_number.") with Reference Number ".$aBankReply["RETURN"]["REF"].".");
+	}else{
+		drupal_set_message($aBankReply["ERR_MSG"], "error");
+	}
+	
+	return "";
+}
+
+function _coordinator_hide_tab_from_admin(){
+	global $user;
+	
+	if ($user->uid == 1){
+		$sJavaScript = 'var iTabCount = 0;$("ul.tabs.primary ul li").each(function(){iTabCount++;if (iTabCount == 2 || iTabCount == 6) $(this).hide();});';
+		drupal_add_js($sJavaScript, "inline", "footer");
+	}
+}
+
+function _coordinator_check_user_type($iUserId=null, $verify=false){
+	$sUserType = "";
+	
+	if (is_null($iUserId)){
+		global $user;
+		$iUserId = $user->uid;
+	}else{
+		$user = user_load(array("uid" => $iUserId));
+	}
+	
+	if (in_array("Hopeful", $user->roles)) $sUserType = "child";
+	if (in_array("Volunteer - Mentor", $user->roles)) $sUserType = "mentor";
+	if (in_array("Moderator", $user->roles)) $sUserType = "mod";
+	
+	if (!$verify)
+		return $sUserType; 
+	
+	if ($sUserType == "child"){
+		$sqlChildCheck = "SELECT COUNT(id)
+							FROM {hopefuls_volunteer}
+							WHERE iHopefulId = %d AND iRoleId IN ('6','11')";
+		$iChildCount = db_result(db_query($sqlChildCheck, $iUserId));
+		
+		return ($iChildCount == 1) ? "child":false;
+	}elseif ($sUserType == "mentor"){
+		$sqlMentorCheck = "SELECT COUNT(id)
+							FROM {hopefuls_volunteer}
+							WHERE iVolunteerId = %d AND iRoleId = '6'";
+		$iMentorCount = db_result(db_query($sqlMentorCheck, $iUserId));
+		
+		return ($iMentorCount > 0) ? "mentor":false;
+	}elseif ($sUserType == "mod"){
+		$sqlModCheck = "SELECT COUNT(id)
+						FROM {hopefuls_volunteer}
+						WHERE iVolunteerId = %d AND iRoleId = '11'";
+		$iModCount = db_result(db_query($sqlModCheck, $iUserId));
+		
+		return ($iModCount > 0) ? "mod":false;
+	}else{
+		return false;
+	}
+}
+
+function _coordinator_get_hours($iUserId=null, $bConverted=false){
+	if (is_null($iUserId)){
+		global $user;
+		$iUserId = $user->uid;
+	}
+	
+	$sqlKindness = "SELECT SUM(iDuration)/60 AS iKindnessHours
+					FROM kindness_statement
+					WHERE iUserId = %d";
+	$sqlKindness .= ($bConverted) ? " AND iRefId = 0":"";
+	
+	$iKindnessHours = abs((float)db_result(db_query($sqlKindness, $iUserId)));
+	$iKindnessHours = ($iKindnessHours > 0) ? $iKindnessHours:0;
+	$iKindnessHours = number_format($iKindnessHours, 2);
+	
+	return $iKindnessHours;
+}
+
+function _coordinator_get_status($iSubmitId){
+	$sqlStatus = "SELECT A.iUserId, C.name, A.bApproved
+					FROM {cybrarian_comment} A
+					INNER JOIN {kindness_submit} B ON B.id = A.iSubmitId
+					INNER JOIN {users} C ON C.uid = A.iUserId
+					WHERE A.iSubmitId = %d
+					ORDER BY A.dDatetime DESC
+					LIMIT 1";
+	$oStatus = db_fetch_object(db_query($sqlStatus, $iSubmitId));
+	
+	if (!is_object($oStatus)) return false;
+	
+	return array("bApproved" => (bool)$oStatus->bApproved, "iUserId" => $oStatus->iUserId, "sUserName" => $oStatus->name);
+}
+
+function _coordinator_dashboard_child($iChildId){
+	$sqlDeeds = "SELECT COUNT(id)
+				FROM {kindness_submit}
+				WHERE iUserId = %d
+					AND bApprovedMentor = '1'
+					AND bApprovedMod = '1'
+					AND bApprovedAdmin = '1'";
+	
+	$sqlPending = "SELECT COUNT(id)
+					FROM {kindness_submit}
+					WHERE iUserId = %d
+						AND bApprovedMentor = '%s'
+						AND bApprovedMod = '%s'
+						AND bApprovedAdmin = '%s'";
+	
+	$sqlMentor = "SELECT A.iVolunteerId
+					FROM {hopefuls_volunteer} A
+					INNER JOIN {users} B ON B.uid = A.iVolunteerId
+					WHERE A.iHopefulId = %d AND A.iRoleId = 6";
+	
+	$iKindnessHours = _coordinator_get_hours();
+	$iTimeHour = intval($iKindnessHours);
+	$iTimeMin = ($iKindnessHours - floor($iKindnessHours)) * 60;
+	
+	$iCovertedHours = _coordinator_get_hours(null, true);
+	$iConvertedTimeHour = intval($iCovertedHours);
+	$iConvertedTimeMin = ($iCovertedHours - floor($iCovertedHours)) * 60;
+	
+	$iTotalHours = $iKindnessHours + $iCovertedHours;
+	$iTotalTimeHour = intval($iTotalHours);
+	$iTotalTimeMin = ($iTotalHours - floor($iTotalHours)) * 60;
+	
+	$iDeedCount = db_result(db_query($sqlDeeds, $iChildId));
+	$iPendingMentor = db_result(db_query($sqlPending, array($iChildId, 0, 0, 0)));
+	$iPendingMod = db_result(db_query($sqlPending, array($iChildId, 1, 0, 0)));
+	$iPendingAdmin = db_result(db_query($sqlPending, array($iChildId, 1, 1, 0)));
+	
+	$iMentorId = db_result(db_query($sqlMentor, $iChildId));
+	$sMentorName = _coordinator_get_name($iMentorId);
+	
+	
+	$sOutput = '<table style="margin-top:10px; width:100%;">
+					<tr style="font-weight:bold; font-size:1.3em;">
+						<td style="width:135px;">Kindness Hours:</td>
+						<td><u>'.$iTimeHour.' hour(s) and '.$iTimeMin.' minute(s)</u></td>
+					</tr>
+					<tr>
+						<td style="width:135px; padding-top:5px;">Converted Hours:</td>
+						<td style="padding-top:5px;">'.$iConvertedTimeHour.' hour(s) and '.$iConvertedTimeMin.' minute(s)</td>
+					</tr>
+					<tr>
+						<td style="width:135px;">Total Hours:</td>
+						<td><span style="border-bottom-style:double; border-top-width:thin;">'.$iTotalTimeHour.' hour(s) and '.$iTotalTimeMin.' minute(s)</span></td>
+					</tr>
+					<tr>
+						<td style="padding-top:15px;">Your Mentor:</td>
+						<td style="padding-top:15px;">'.l($sMentorName, 'user/'.$iMentorId, array('attributes' => array("target" => "_blank"))).'</td>
+					</tr>
+					<tr>
+						<td>Approved Good Deeds:</td>
+						<td>'.$iDeedCount.'</td>
+					</tr>
+					<tr>
+						<td colspan="2">
+							<h2>Pending</h2>
+							<table style="width:100%;">
+								<tr>
+									<td style="width:100px;">Mentor:</td>
+									<td><tt style="font-size:1.1em;">'.$iPendingMentor.' deed(s)</tt> waiting to be approved.</td>
+								</tr>
+								<tr>
+									<td style="width:100px;">Moderator:</td>
+									<td><tt style="font-size:1.1em;">'.$iPendingMod.' deed(s)</tt> waiting to be approved.</td>
+								</tr>
+								<tr>
+									<td style="width:100px;">Admin:</td>
+									<td><tt style="font-size:1.1em;">'.$iPendingAdmin.' deed(s)</tt> waiting to be approved.</td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+				</table>';
+	
+	return $sOutput;
+}
+
+function _coordinator_dashboard_adult($iAdultId, $sUserType){
+	$sTableHeader = '<table style="margin-top:10px; width:100%;">';
+	$sTableFooter = '</table>';
+	$sOutput = "";
+	
+	$aList = array();
+	$iCount = 0;
+	
+	switch ($sUserType){
+		case "mentor":
+			$sqlChildren = "SELECT A.iHopefulId, B.name
+							FROM hopefuls_volunteer A
+							INNER JOIN users B ON B.uid = A.iHopefulId
+							WHERE A.iVolunteerId = %d AND A.iRoleId = 6";
+			$oChildrenResult = db_query($sqlChildren, $iAdultId);
+			
+			while ($oChildren = db_fetch_object($oChildrenResult)){
+				$aList[$oChildren->name] = array($oChildren->child_id, _coordinator_get_name($oChildren->child_id));
+			}
+			
+			$sTableHeader .= '<tr>
+									<td colspan="2" style="padding-bottom:10px;">You are mentoring the following children:<td>
+								</tr>
+								<tr>
+									<th style="width:25px; text-align:right; padding-right:10px;">#</th>
+									<th>Child\'s Name</th>
+								</tr>';
+			
+			break;
+		
+		case "mod":
+			$sqlMentor = "SELECT A.iHopefulId, B.name
+							FROM hopefuls_volunteer A
+							INNER JOIN users B ON B.uid = A.iHopefulId
+							WHERE A.iVolunteerId = %d AND A.iRoleId = 11";
+			$oMentorResult = db_query($sqlMentor, $iAdultId);
+			
+			while ($oMentor = db_fetch_object($oMentorResult)){
+				$aList[$oMentor->name] = array($oMentor->mentor_id, _coordinator_get_name($oMentor->mentor_id));
+			}
+			
+			$sTableHeader .= '<tr>
+									<td colspan="2" style="padding-bottom:10px;">You are moderating the following mentors:<td>
+								</tr>
+								<tr>
+									<th style="width:25px; text-align:right; padding-right:10px;">#</th>
+									<th>Mentor\'s Name</th>
+								</tr>';
+			
+			break;
+			
+		case "admin":
+			/* $sqlMod = "SELECT A.uid, B.name
+						FROM user_hierarchy_mod A
+						INNER JOIN users B ON B.uid = A.uid"; */
+			$sqlMod = "SELECT A.uid, B.name
+						FROM volunteer_optin A
+						INNER JOIN users B ON B.uid = A.uid
+						WHERE `type` = 'mentor'";
+			$oModResult = db_query($sqlMod);
+			
+			while ($oMod = db_fetch_object($oModResult)){
+				$aList[$oMod->name] = array($oMod->uid, _coordinator_get_name($oMod->uid));
+			}
+			
+			$sTableHeader .= '<tr>
+									<td colspan="2" style="padding-bottom:10px;">Here are the list of your moderators:<td>
+								</tr>
+								<tr>
+									<th style="width:25px; text-align:right; padding-right:10px;">#</th>
+									<th>Moderator\'s Name</th>
+								</tr>';
+			
+			break;
+	}
+	
+	asort($aList);
+	
+	foreach($aList as $sUserName => $aDetails){
+		$iCount++;
+		$sOutput .= '<tr>
+						<td style="text-align:right; padding-right:10px;">'.$iCount.'.</td>
+						<td>'.$aDetails[1].' <em>('.l($sUserName, 'user/'.$aDetails[0], array("attributes" => array("target" => "_blank"))).')</em></td>
+					</tr>';
+	}
+	
+	if ($iCount > 0){
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No hierarchy to display, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function _coordinator_list_child($iChildId){
+	$iKindnessCount = 0;
+	
+	$sTableHeader = '<table style="margin-top:10px;">
+						<tr>
+							<th style="width:220px;">Title</th>
+							<th style="width:100px; text-align:right;  padding-right:10px;">Duration</th>
+							<th style="width:120px;">Date Submitted</th>
+							<th style="width:160px;">Status</th>
+						</tr>';
+	$sTableFooter = '</table>';
+	
+	$sqlKindness = "SELECT id, iUserId, DATE_FORMAT(dDatetime, '%M %e, %Y') AS sDate, iDuration, sTitle, sDesc, sToWhom,
+						bApprovedMentor, bApprovedMod, bApprovedAdmin
+					FROM kindness_submit
+					WHERE iUserId = ".$iChildId."
+						AND (bApprovedMentor = '0' OR bApprovedMod = '0' OR bApprovedAdmin = '0')
+					ORDER BY dDatetime DESC";
+	
+	$sqlCount = "SELECT COUNT(id)
+				FROM kindness_submit
+				WHERE iUserId = ".$iChildId."
+					AND (bApprovedMentor = '0' OR bApprovedMod = '0' OR bApprovedAdmin = '0')";
+	
+	$oKindnessResult = pager_query($sqlKindness, KINDNESS_REC_PER_PAGE, 0, $sqlCount);
+	
+	while ($oKindness = db_fetch_object($oKindnessResult)){
+		$iKindnessCount++;
+		
+		$iDuration = $oKindness->iDuration/60;
+		$iTimeHour = intval($iDuration);
+		$iTimeMin = str_pad(round(($iDuration - floor($iDuration)) * 60), 2, '0', STR_PAD_LEFT);
+		$sDuration = $iTimeHour.":".$iTimeMin;
+		
+		$bMentor = ($oKindness->bApprovedMentor == 1) ? true:false;
+		$bMod = ($oKindness->bApprovedMod == 1) ? true:false;
+		$bAdmin = ($oKindness->bApprovedAdmin == 1) ? true:false;
+		
+		if (!$bMentor && !$bMod && !$bAdmin){
+			$sStatus = "Pending (Mentor)";
+		}elseif ($bMentor && !$bMod && !$bAdmin){
+			$sStatus = "Pending (Moderator)";
+		}elseif ($bMentor && $bMod && !$bAdmin){
+			$sStatus = "Pending (Admin)";
+		}elseif ($bMentor && $bMod && $bAdmin){
+			$sStatus = "<b>Approved</b>";
+		}
+		
+		$sOutput .= '<tr>
+						<td>'.l(ucwords($oKindness->sTitle), 'coordinator/details/'.$oKindness->id.'/true').'</td>
+						<td style="text-align:right; padding-right:10px;">'.$sDuration.'</td>
+						<td>'.$oKindness->sDate.'</td>
+						<td>'.$sStatus.'</td>
+					</tr>';
+	}
+	
+	if ($iKindnessCount > 0){
+		$sPagerHTML = theme("pager", null, KINDNESS_REC_PER_PAGE);
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter.$sPagerHTML;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No pending deeds to display, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function coordinator_callback_kindness_workz($iChildId=null){
+	global $user;
+	
+	$iChildId = (is_null($iChildId)) ? $user->uid:$iChildId;
+	$iMentorId = _coordinator_hopeful_mentor($iChildId);
+	/*
+	$sqlKindness = "SELECT A.id, A.iUserId, DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDateReported, 
+						A.iDuration, A.sTitle, A.sDesc, A.sToWhom, A.bApprovedMentor, A.bApprovedMod, A.bApprovedAdmin
+					FROM kindness_submit A
+					INNER JOIN kindness_statement B ON B.iRefId = A.id
+					WHERE A.iUserId = %d
+						AND A.bApprovedMentor = '1' 
+						AND A.bApprovedMod = '1' 
+						AND A.bApprovedAdmin = '1'
+					UNION
+					SELECT id, iUserId, DATE_FORMAT(dDatetime, '%M %e, %Y') AS sDateReported, 
+						iDuration, sTitle, sDesc, sToWhom, bApprovedMentor, bApprovedMod, bApprovedAdmin
+					FROM kindness_submit
+					WHERE iUserId = %d
+						AND (bApprovedMentor = '0' OR bApprovedMod = '0' OR bApprovedAdmin = '0')
+					ORDER BY sDateReported DESC";
+	*/
+	
+	/* $sqlKindness = "SELECT A.id, A.iUserId, DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDateReported, 
+						A.iDuration, A.sTitle, A.sDesc, A.sToWhom, A.bApprovedMentor, A.bApprovedMod, A.bApprovedAdmin
+					FROM kindness_submit A
+					INNER JOIN kindness_statement B ON B.iRefId = A.id
+					WHERE A.iUserId = %d
+					UNION
+					SELECT id, iUserId, DATE_FORMAT(dDatetime, '%M %e, %Y') AS sDateReported, 
+						iDuration, sTitle, sDesc, sToWhom, bApprovedMentor, bApprovedMod, bApprovedAdmin
+					FROM kindness_submit
+					WHERE iUserId = %d
+						AND (bApprovedMentor = '0' OR bApprovedMod = '0' OR bApprovedAdmin = '0')
+					ORDER BY sDateReported DESC"; */
+	
+	$sqlKindness = "SELECT id, iUserId, DATE_FORMAT(dDatetime, '%s') AS sDateReported, 
+						iDuration, sTitle, sDesc, sToWhom, bApprovedMentor, bApprovedMod, bApprovedAdmin
+					FROM kindness_submit
+					WHERE iUserId = %d
+					ORDER BY dDatetime DESC";
+	
+	$sqlApproveDenied = "SELECT";
+	
+	$oKindnessResult = db_query($sqlKindness, array("%M %e, %Y", $iChildId));
+	
+	while ($oKindness = db_fetch_object($oKindnessResult)){
+		$iKindnessCount++;
+		
+		$aStatus = _coordinator_get_status($oKindness->id);
+		$iDuration = $oKindness->iDuration/60;
+		$iTimeHour = intval($iDuration);
+		$iTimeMin = str_pad(round(($iDuration - floor($iDuration)) * 60), 2, '0', STR_PAD_LEFT);
+		$sDuration = $iTimeHour.":".$iTimeMin;
+		$sApproveMentor = $oKindness->bApprovedMentor;
+		$sApprovedAdmin = $oKindness->bApprovedAdmin;
+		/*
+		$sqlCheck = "SELECT A.id, A.iSubmitId, B.iUserId AS iHopefulId, A.iUserId AS iVolunteerId, A.bApproved
+					FROM cybrarian_comment A
+					INNER JOIN kindness_submit B ON B.id = A.iSubmitId
+					INNER JOIN volunteer_mentor_hopeful C ON C.iHopefulId = B.iUserId
+					WHERE A.iSubmitId = %d
+						AND B.iUserId = %d
+					ORDER BY A.iUserId DESC";*/
+					
+		$sqlCheck = "SELECT A.id, A.iSubmitId, B.iUserId AS iHopefulId, A.iUserId AS iVolunteerId, A.bApproved
+					FROM cybrarian_comment A
+					INNER JOIN kindness_submit B ON B.id = A.iSubmitId
+					WHERE A.iSubmitId = %d
+					ORDER BY A.iUserId DESC";
+		
+		$oCheckResult1 = db_query($sqlCheck, $oKindness->id, $iMentorId);
+		$sStatus1 = $sApproveMentor == 0 ? "Pending" : "Approved";
+		
+		while ($oCheck1 = db_fetch_object($oCheckResult1)){
+			$sStatus1 = ($oCheck1->bApproved == 1) ? "Approved":"Disapproved";
+		}
+		
+		/* $oCheckResult2 = db_query($sqlCheck, $oKindness->id, 1);
+		$sStatus2 = $sApprovedAdmin == 0 ? "Pending" : "Approved";
+		
+		while ($oCheck2 = db_fetch_object($oCheckResult2)){
+			$sStatus2 = ($oCheck2->bApproved == 1) ? "Approved":"Disapproved";
+		} */
+		
+		$sErrorCSS = ($sStatus1 == "Disapproved") ? "pending_top_1_error":"";
+        $sdateReported = $oKindness->sDateReported == "" ? '&nbsp;&nbsp;&nbsp;': $oKindness->sDateReported;
+		
+		$aOutput[] = '<div class="pending_top_txt">
+						<div class="pending_top_title_1"><a href="javascript:void(0);" onclick="Kindness_ApproveTitle('."'".$oKindness->id."'".');" class="'.$sErrorCSS.'">'.ucwords($oKindness->sTitle).'</a></div>
+						<div class="pending_top_duration_1 '.$sErrorCSS.'">'.$sDuration.'</div>
+						<div class="pending_top_date_1 '.$sErrorCSS.'" style="display:table-cell;width:100px;">'.$sdateReported.'</div>
+						<div class="pending_top_monitor_1 '.$sErrorCSS.'">'.$sStatus1.'</div>
+					</div>';
+					
+		//<div class="pending_top_admin_1 '.$sErrorCSS.'">'.$sStatus2.'</div>
+	}
+	
+	if ($iKindnessCount == 0) $aOutput[] = '<div style="margin-top:10px;">No pending deeds to display, yet.</div>';
+	
+	exit(json_encode(array("RETURN" => $aOutput)));
+}
+
+function _coordinator_callback_list_child($iChildId){
+	$iKindnessCount = 0;
+	$sTableHeader = '';
+	$sTableFooter = '';
+	$sqlKindness = "SELECT id, iUserId, DATE_FORMAT(dDatetime, '%M %e, %Y') AS sDate, iDuration, sTitle, sDesc, 
+						sToWhom, bApprovedMentor, bApprovedMod, bApprovedAdmin
+					FROM kindness_submit
+					WHERE iUserId = ".$iChildId."
+						AND (bApprovedMentor = '0' OR bApprovedMod = '0' OR bApprovedAdmin = '0')
+					ORDER BY dDatetime DESC";
+	
+	$sqlCount = "SELECT COUNT(id)
+				FROM kindness_submit
+				WHERE iUserId = ".$iChildId."
+					AND (bApprovedMentor = '0' OR bApprovedMod = '0' OR bApprovedAdmin = '0')";
+	
+	$oKindnessResult = db_query($sqlKindness);
+	
+	while ($oKindness = db_fetch_object($oKindnessResult)){
+		$iKindnessCount++;
+		
+		$iDuration = $oKindness->iDuration/60;
+		$iTimeHour = intval($iDuration);
+		$iTimeMin = str_pad(round(($iDuration - floor($iDuration)) * 60), 2, '0', STR_PAD_LEFT);
+		$sDuration = $iTimeHour.":".$iTimeMin;
+		
+		$bMentor = ($oKindness->bApprovedMentor == 1) ? true:false;
+		$bMod = ($oKindness->bApprovedMod == 1) ? true:false;
+		$bAdmin = ($oKindness->bApprovedAdmin == 1) ? true:false;
+		
+		if (!$bMentor && !$bMod && !$bAdmin){
+			$sStatus = "Pending (Mentor)";
+		}elseif ($bMentor && !$bMod && !$bAdmin){
+			$sStatus = "Pending (Moderator)";
+		}elseif ($bMentor && $bMod && !$bAdmin){
+			$sStatus = "Pending (Admin)";
+		}elseif ($bMentor && $bMod && $bAdmin){
+			$sStatus = "<b>Approved</b>";
+		}
+		
+		$sOutput[]= '<div class="pending_top_txt">
+						<div class="pending_top_title_1">'.l(ucwords($oKindness->sTitle), 'coordinator/details/'.$oKindness->id.'/true', array('attributes' => array('target' => '_blank'))).'</div>
+						<div class="pending_top_duration_1">'.$sDuration.'</div>
+						<div class="pending_top_date_1">'.$oKindness->sDate.'</div>
+					</div>';
+	}
+	
+	if ($iKindnessCount == 0){
+		$sOutput[] = '<div style="margin-top:10px;">No pending deeds to display, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function _coordinator_callback_approved_child($iChildId){
+	$iKindnessCount = 0;
+	$sTableHeader = '';
+	$sTableFooter = '';
+	$sqlKindness = "SELECT A.id, A.iUserId, DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate, 
+						A.iDuration, A.sTitle, A.sDesc, A.sToWhom, DATE_FORMAT(B.dDatetime, '%M %e, %Y') AS sDateApproved
+					FROM kindness_submit A
+					INNER JOIN kindness_statement B ON B.iRefId = A.id
+					WHERE A.iUserId = ".$iChildId."
+						AND A.bApprovedMentor = '1' 
+						AND A.bApprovedMod = '1' 
+						AND A.bApprovedAdmin = '1'
+					ORDER BY A.dDatetime DESC";
+	
+	$sqlCount = "SELECT COUNT(id)
+				FROM kindness_submit
+				WHERE iUserId = ".$iChildId."
+					AND bApprovedMentor = '1' 
+					AND bApprovedMod = '1' 
+					AND bApprovedAdmin = '1'";
+	
+	$oKindnessResult = pager_query($sqlKindness, KINDNESS_REC_PER_PAGE, 0, $sqlCount);
+	
+	while ($oKindness = db_fetch_object($oKindnessResult)){
+		$iKindnessCount++;
+		
+		$iDuration = $oKindness->iDuration/60;
+		$iTimeHour = intval($iDuration);
+		$iTimeMin = round(($iDuration - floor($iDuration)) * 60);
+		$sDuration = $iTimeHour.":".$iTimeMin;
+		
+		$sOutput[]= '<div class="pending_top_txt">
+						<div class="pending_top_title_1">'.l(ucwords($oKindness->sTitle), 'coordinator/details/'.$oKindness->id.'/true', array('attributes' => array('target' => '_blank'))).'</div>
+						<div class="pending_top_duration_1">'.$sDuration.'</div>
+						<div class="pending_top_date_1">'.$oKindness->sDate.'</div>
+						<div class="pending_top_date_approvd_1">'.$oKindness->sDateApproved.'</div>
+					</div>';
+	}
+	
+	if ($iKindnessCount == 0){
+		$sOutput[] = '<div style="margin-top:10px;">No approved deeds to display, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function _coordinator_list_adult($iAdultId, $sUserType){
+	$iKindnessCount = 0;
+	$sOutput = "";
+	
+	$sTableHeader = '<table style="margin-top:10px; width:100%;">
+						<tr>
+							<th style="width:130px;">Username</th>
+							<th style="width:130px;">Title</th>
+							<th style="width:100px; text-align:right;  padding-right:10px;">Duration</th>
+							<th style="width:110px;">Date Submitted</th>
+							<th>Status</th>
+						</tr>';
+	$sTableFooter = '</table><br/><br/>';
+	
+	$sqlKindness = "SELECT A.id, A.iUserId, B.name, REPLACE_THIS, 
+						A.iDuration, A.sTitle, A.sDesc, A.sToWhom,
+						A.bApprovedMentor, A.bApprovedMod, A.bApprovedAdmin
+					FROM kindness_submit A
+					INNER JOIN users B ON B.uid = A.iUserId
+					WHERE A.bApprovedMentor = '%s'
+						AND A.bApprovedMod = '%s'
+						AND A.bApprovedAdmin = '%s'";
+	
+	$sqlCount = "SELECT COUNT(A.id)
+					FROM kindness_submit A
+					INNER JOIN users B ON B.uid = A.iUserId
+					WHERE A.bApprovedMentor = '%s'
+						AND A.bApprovedMod = '%s'
+						AND A.bApprovedAdmin = '%s'";
+	
+	switch ($sUserType){
+		case "mentor":
+			$sqlKindness = sprintf($sqlKindness, 0, 0, 0);
+			$sqlCount = sprintf($sqlCount, 0, 0, 0);
+			
+			break;
+		
+		/* case "mod":
+			$sqlKindness = sprintf($sqlKindness, 1, 0, 0);
+			$sqlCount = sprintf($sqlCount, 1, 0, 0);
+			
+			break; */
+			
+		case "admin":
+			$sqlKindness = sprintf($sqlKindness, 1, 0, 0);
+			$sqlCount = sprintf($sqlCount, 1, 0, 0);
+			
+			break;
+	}
+	
+	$sqlKindness = str_replace("REPLACE_THIS", "DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate", $sqlKindness);
+	$oKindnessResult = pager_query($sqlKindness." ORDER BY B.name", KINDNESS_REC_PER_PAGE, 0, $sqlCount);
+	
+	while ($oKindness = db_fetch_object($oKindnessResult)){
+		$iKindnessCount++;
+		
+		$iDuration = $oKindness->iDuration/60;
+		$iTimeHour = intval($iDuration);
+		$iTimeMin = str_pad(round(($iDuration - floor($iDuration)) * 60), 2, '0', STR_PAD_LEFT);
+		$sDuration = $iTimeHour.":".$iTimeMin;
+		
+		$bMentor = ($oKindness->bApprovedMentor == 1) ? true:false;
+		$bMod = ($oKindness->bApprovedMod == 1) ? true:false;
+		$bAdmin = ($oKindness->bApprovedAdmin == 1) ? true:false;
+		
+		if (!$bMentor && !$bAdmin){
+			$sStatus = "Pending (Mentor)";
+		}/* elseif ($bMentor && !$bMod && !$bAdmin){
+			$sStatus = "Pending (Moderator)";
+		} */elseif ($bMentor && !$bAdmin){
+			$sStatus = "Pending (Admin)";
+		}elseif ($bMentor && $bAdmin){
+			$sStatus = "<b>Approved</b>";
+		}
+		
+		$sOutput .= '<tr>
+						<td>'.l($oKindness->name/* _kindness_get_name($oKindness->iUserId) */, 'user/'.$oKindness->iUserId, array("attributes" => array("target" => "_blank"))).'</td>
+						<td>'.l(ucwords($oKindness->sTitle), 'coordinator/details/'.$oKindness->id.'/true').'</td>
+						<td style="text-align:right; padding-right:10px;">'.$sDuration.'</td>
+						<td>'.$oKindness->sDate.'</td>
+						<td>'.$sStatus.'</td>
+					</tr>';
+	}
+	
+	if ($iKindnessCount > 0){
+		$sPagerHTML = theme("pager", null, KINDNESS_REC_PER_PAGE);
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter.$sPagerHTML;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No pending deeds to approve, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function _coordinator_approved_child($iChildId){
+	$iKindnessCount = 0;
+	
+	$sTableHeader = '<table style="margin-top:10px;">
+						<tr>
+							<th style="width:260px;">Title</th>
+							<th style="width:100px; text-align:right;  padding-right:10px;">Duration</th>
+							<th style="width:120px;">Date Submitted</th>
+							<th style="width:120px;">Date Approved</th>
+						</tr>';
+	
+	$sTableFooter = '</table>';
+	
+	$sqlKindness = "SELECT A.id, A.iUserId, DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate, 
+						A.iDuration, A.sTitle, A.sDesc, A.sToWhom, DATE_FORMAT(B.dDatetime, '%M %e, %Y') AS sDateApproved
+					FROM kindness_submit A
+					INNER JOIN kindness_statement B ON B.iRefId = A.id
+					WHERE A.iUserId = ".$iChildId."
+						AND A.bApprovedMentor = '1' 
+						AND A.bApprovedMod = '1' 
+						AND A.bApprovedAdmin = '1'
+					ORDER BY A.dDatetime DESC";
+	
+	$sqlCount = "SELECT COUNT(id)
+				FROM kindness_submit
+				WHERE iUserId = ".$iChildId."
+					AND bApprovedMentor = '1' 
+					AND bApprovedMod = '1' 
+					AND bApprovedAdmin = '1'";
+	
+	$oKindnessResult = pager_query($sqlKindness, KINDNESS_REC_PER_PAGE, 0, $sqlCount);
+	
+	while ($oKindness = db_fetch_object($oKindnessResult)){
+		$iKindnessCount++;
+		
+		$iDuration = $oKindness->iDuration/60;
+		$iTimeHour = intval($iDuration);
+		$iTimeMin = round(($iDuration - floor($iDuration)) * 60);
+		$sDuration = $iTimeHour.":".$iTimeMin;
+		
+		$sOutput .= '<tr>
+						<td>'.l(ucwords($oKindness->sTitle), 'coordinator/details/'.$oKindness->id.'/false').'</td>
+						<td style="text-align:right; padding-right:10px;">'.$sDuration.'</td>
+						<td>'.$oKindness->sDate.'</td>
+						<td>'.$oKindness->sDateApproved.'</td>
+					</tr>';
+	}
+	
+	if ($iKindnessCount > 0){
+		$sPagerHTML = theme("pager", null, KINDNESS_REC_PER_PAGE);
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter.$sPagerHTML;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No approved deeds to display, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function _coordinator_approved_adult($iAdultId, $sUserType){
+	$iKindnessCount = 0;
+	$sOutput = "";
+	
+	$sTableHeader = '<table style="margin-top:10px; width:100%;">
+						<tr>
+							<th style="width:170px;">Username</th>
+							<th>Title</th>
+							<th style="width:100px; text-align:right;  padding-right:10px;">Duration</th>
+							<th style="width:110px;">Date Submitted</th>
+						</tr>';
+	$sTableFooter = '</table><br/><br/>';
+	
+	$sqlKindness = "SELECT A.id, A.iUserId, B.name, REPLACE_THIS, 
+						A.iDuration, A.sTitle, A.sDesc, A.sToWhom
+					FROM kindness_submit A
+					INNER JOIN users B ON B.uid = A.iUserId
+					WHERE A.bApprovedMentor = '%s'
+						AND A.bApprovedMod = '%s'
+						AND A.bApprovedAdmin = '%s'";
+	
+	$sqlCount = "SELECT COUNT(A.id)
+					FROM kindness_submit A
+					INNER JOIN users B ON B.uid = A.iUserId
+					WHERE A.bApprovedMentor = '%s'
+						AND A.bApprovedMod = '%s'
+						AND A.bApprovedAdmin = '%s'";
+	
+	switch ($sUserType){
+		case "mentor":
+			$sqlKindness = sprintf($sqlKindness, 1, 0, 0);
+			$sqlCount = sprintf($sqlCount, 1, 0, 0);
+			
+			break;
+		
+		/* case "mod":
+			$sqlKindness = sprintf($sqlKindness, 1, 1, 0);
+			$sqlCount = sprintf($sqlCount, 1, 1, 0);
+			
+			break; */
+			
+		case "admin":
+			$sqlKindness = sprintf($sqlKindness, 1, 0, 1);
+			$sqlCount = sprintf($sqlCount, 1, 0, 1);
+			
+			break;
+	}
+	
+	$sqlKindness = str_replace("REPLACE_THIS", "DATE_FORMAT(A.dDatetime, '%M %e, %Y') AS sDate", $sqlKindness);
+	$oKindnessResult = pager_query($sqlKindness." ORDER BY B.name", KINDNESS_REC_PER_PAGE, 0, $sqlCount);
+	
+	while ($oKindness = db_fetch_object($oKindnessResult)){
+		$iKindnessCount++;
+		
+		$iDuration = $oKindness->iDuration/60;
+		$iTimeHour = intval($iDuration);
+		$iTimeMin = round(($iDuration - floor($iDuration)) * 60);
+		$sDuration = $iTimeHour.":".$iTimeMin;
+		
+		$sOutput .= '<tr>
+						<td>'.l($oKindness->name/* _kindness_get_name($oKindness->iUserId) */, 'user/'.$oKindness->iUserId, array("attributes" => array("target" => "_blank"))).'</td>
+						<td>'.l(ucwords($oKindness->sTitle), 'coordinator/details/'.$oKindness->id.'/false').'</td>
+						<td style="text-align:right; padding-right:10px;">'.$sDuration.'</td>
+						<td>'.$oKindness->sDate.'</td>
+					</tr>';
+	}
+	
+	if ($iKindnessCount > 0){
+		$sPagerHTML = theme("pager", null, KINDNESS_REC_PER_PAGE);
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter.$sPagerHTML;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No pending deeds to approve, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function _coordinator_get_name($iUserId){
+	$sqlName = "SELECT fid, `value`
+				FROM profile_values
+				WHERE fid IN (1, 2)
+					AND uid = %d
+				ORDER BY fid ASC";
+	$oNameResult = db_query($sqlName, $iUserId);
+	$sName = "";
+	
+	while ($oName = db_fetch_object($oNameResult)){
+		$sName .= ($sName != "") ? ", ":"";
+		$sName .= ucwords($oName->value);
+	}
+	
+	return $sName;
+}

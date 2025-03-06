@@ -1,0 +1,6 @@
+; $Id$
+name = My Studies Module
+description = Module that will help the Tutor and Child to learn more using External Learning URLs, Articles, Pictures, and Videos.
+version = 6.x-2.1
+package = HopeNet
+core = 6.x

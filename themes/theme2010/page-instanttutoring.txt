@@ -1,0 +1,80 @@
+﻿				<div id="cbrect">
+					<div class="cb">
+						<div class="bt">
+							<div></div>
+						</div>
+						<div class="i1">
+							<div class="i2">
+								<div class="i3">
+									<div class="left-border">
+										<div class="right-border">
+											<table width="980" border="0" cellspacing="0" cellpadding="2">
+											  <tr>
+												<td width="310" align="center" valign="top">
+													<img class="border_img" src="<?php echo $theme_imgpath; ?>gi_portal.jpg" border="0" />
+												</td>
+												<td valign="top">
+													<h4>eTutoring Volunteers</h4><br />
+													HopeNet has two types of remote eTutoring volunteer progams which provide online tutoring assistance to the 
+													Hopefuls, including the Instant eTutoring and Private eTutoring. The eTutoring service is designed to provide
+													supplemental assistance to those Hopefuls who are unable to find the answers to their questions within the Knowledge
+													Portal.
+												</td>
+											  </tr>
+											</table>
+										</div>
+									</div>	
+								</div>	
+							</div>
+						</div>
+						<div class="bb">
+							<div></div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="divider"></div>
+				<div id="cbtop">
+					<div class="cb">
+						<div class="bt">
+							<div></div>
+						</div>
+						<div class="i1">
+							<div class="i2">
+								<div class="i3">
+									<div class="left-border">
+										<div class="right-border">
+											<table width="980" border="0" cellpadding="0" cellspacing="0" id="gi_nav">
+												<tr>
+													<td width="310" valign="top">
+														<h2><span style="text-transform: lowercase;">e</span>Tutoring Instant Tutor</h2>
+														Guides help us search the Internet and recommend contents for our Knowledge and Entertainment Portals such as websites, photos, online books/reports, and videos. Volunteer – Guides are the backbone of the 
+														<img align="right" src="<?php echo $theme_imgpath; ?>gi_portal_guide.jpg" border="0" />
+														HopeNet - Knowledge Portal program. Almost anyone can volunteer to become a Guide, including students, adults even Hopefuls.
+														<br /><br /><a href="/mystudies/getinvolved/instanttutor">Learn More</a>
+													</td>
+													<td width="11" class="dividerv"></td>
+													<td valign="top">
+														<h2><span style="text-transform: lowercase;">e</span>Tutoring Private Tutor <span class="notice_small">Coming Soon...</span></h2>
+														The goal of the HopeNet - Knowledge and Entertainment Portals is to become the world's best library of online content. The role of an Editor is to help us ensure the quality control of our portals. Editors help filter and verify the 
+														<img align="right" src="<?php echo $theme_imgpath; ?>gi_portal_editor.jpg" border="0" />
+														quality of the content that is being recommended by our Guides. The content that Editors validate includes websites, photos, videos, and online books/reports.
+														
+													</td>
+													<td width="11" class="dividerv"></td>
+													<td width="310" valign="top">
+														&nbsp;
+													</td>
+												</tr>
+											</table>
+										</div>
+									</div>	
+								</div>	
+							</div>
+						</div>
+						<div class="bb">
+							<div></div>
+						</div>
+					</div>
+				</div>
+-

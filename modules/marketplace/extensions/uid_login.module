@@ -1,0 +1,42 @@
+<?php
+
+/*This section modifies the user login process so that
+ * the login name expects the unique ID of each user
+ * Users cannot change their names (because I can't get around the Drupal duplicate name check)
+ * Usernames are not unique in the Database
+This means the names don't have to be unique, but only the admin can change them
+
+Step 1: Uncomment cc_custom_login_validate and ensure function cc_custom_form_alter refers to that function
+Step 2: Go to the database and remove the unique key from the users.name table
+Step 3 (optional): Ensure in admin/user/permissions that users cannot change their own names.
+If you don't do step 2 users can change their names but will get an error if they put in a duplicate. 
+*/
+
+//alternative login function to check against uid instead of username
+function uid_login_validate($form, $form_state) {
+  global $user;
+  $form_values=$form_state['values'];
+  if (!empty($form_values['name']) && !empty($form_values['pass']) && $account = user_load(array('uid' => $form_values['name'], 'pass' => trim($form_values['pass']), 'status' => 1))) {
+    $user = $account;
+    user_authenticate_finalize($form_values);
+    return $user;
+  } else {
+    user_login_final_validate($form, $form_state);
+  }
+}
+
+function uid_login_form_alter(&$form, $form_state, $form_id){ 
+  switch ($form_id) {
+    case 'user_login':
+    case 'user_login_block':
+      $form['#validate'][1] = 'uid_login_validate';
+      array_shift($form['#validate']);
+      $form['name']['#title'] = 'Acc No';
+      $form['name']['#size']=10;
+      $form['pass']['#size']=10;
+      unset ($form['links']);
+      $form['#redirect']='infos';
+      break;
+
+  }
+}

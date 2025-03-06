@@ -1,0 +1,38 @@
+<items>
+	<item>
+		<uid>1</uid>
+		<name><![CDATA[Knowledge Portal]]></name>
+		<thumb><![CDATA[home_files/images/slider_knowledge.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>2</uid>
+		<name><![CDATA[Peace Building]]></name>
+		<thumb><![CDATA[home_files/images/slider_peace.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>3</uid>
+		<name><![CDATA[eTutoring]]></name>
+		<thumb><![CDATA[home_files/images/slider_tutoring.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>4</uid>
+		<name><![CDATA[Livelihood]]></name>
+		<thumb><![CDATA[home_files/images/slider_livelihood.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>5</uid>
+		<name><![CDATA[eMentoring]]></name>
+		<thumb><![CDATA[home_files/images/slider_mentoring.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+	<item>
+		<uid>6</uid>
+		<name><![CDATA[Entertainment Portal]]></name>
+		<thumb><![CDATA[home_files/images/slider_entertainment_portal.jpg]]></thumb>
+		<description><![CDATA[]]></description>
+	</item>
+</items>

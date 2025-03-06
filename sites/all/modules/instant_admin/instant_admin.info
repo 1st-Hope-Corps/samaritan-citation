@@ -1,0 +1,6 @@
+; $Id$
+name = Instant eMentor Master Admin Module
+description = A module that tracks the activity of eMentors.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

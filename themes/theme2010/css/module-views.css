@@ -1,0 +1,25 @@
+/* Table used for grid layouts */
+.views-view-grid {
+	border-collapse: separate;
+	border-spacing: 25px 10px;
+	margin: 40px auto;
+	text-align: center;
+}
+
+
+/* Specific to the members list view */
+.view-members-list {
+	text-align: center;
+}
+
+.view-members-list .view-filters {
+	display: inline-block;
+	margin: 0 auto;
+	text-align: left;
+}
+.view-members-list .field-content {
+	margin: 0 auto;
+	width: 85px;
+	height: 85px;
+}
+

@@ -1,0 +1,8 @@
+; $Id$
+name = Kindness Module
+description = A module that tracks a child's good deeds or community service.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x
+;dependencies[] = user_hierarchy
+;dependencies[] = bank

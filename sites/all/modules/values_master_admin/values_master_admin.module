@@ -1,0 +1,1147 @@
+<?php
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function values_master_admin_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#values_master_admin":
+			$sOutput = '<p>'. t("Values Portal Master Admin.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function values_master_admin_menu(){
+	$aMenus = array();
+	
+	$aMenus['admin/user/values_master'] = array(
+		'title' => 'Values Portal Master Admin',
+		'description' => 'Tracks the activities in the Values Portal and its volunteers.',
+		'page callback' => 'values_master_admin_list',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aMenus['admin/user/values_master/list'] = array(
+		'title' => 'List',
+		'description' => 'The list of Values Portal volunteers.',
+		'page callback' => 'values_master_admin_list',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 1
+	);
+	
+	$aMenus['admin/user/values_master/list/process'] = array(
+		'title' => 'Values Portal Master Admin',
+		'page callback' => 'values_master_admin_list_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/values_master/list/assign/%/%'] = array(
+		'title' => 'Assign Volunteers',
+		'page callback' => 'values_master_admin_list_assign',
+		'page arguments' => array(5, 6),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/values_master/list/assign/process'] = array(
+		'title' => 'Assign Volunteers',
+		'page callback' => 'values_master_admin_list_assign_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/values_master/adduser'] = array(
+		'title' => 'Add User',
+		'description' => 'Add a Values Portal volunteer.',
+		'page callback' => 'values_master_admin_add_user',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 3
+	);
+	
+	$aMenus['admin/user/values_master/stats'] = array(
+		'title' => 'General',
+		'description' => 'General status and statistics of the Values Portal and its volunteers.',
+		'page callback' => 'values_master_admin_stats',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 3
+	);
+	
+	return $aMenus;
+}
+
+function values_master_admin_list(){
+	if (count($_REQUEST) > 0){
+		foreach ($_REQUEST as $sKey => $sData) {
+			${$sKey} = $sData;
+		}
+	}
+	
+	$sqlIni = "SELECT A.uid, B.name, A.type
+				FROM mystudies_volunteer A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.sWhichModule = 'values'";
+	$oIniResult = db_query($sqlIni);
+	
+	$sqlCheck = "SELECT COUNT(uid) AS iCount
+				FROM users_roles
+				WHERE uid = %d
+					AND rid = %d";
+	
+	while ($oIni = db_fetch_object($oIniResult)){
+		$aParam = array($oIni->uid);
+		
+		switch ($oIni->type){
+			case "guide": $aParam[] = 13; break;
+			case "editor": $aParam[] = 14; break;
+			case "admin": $aParam[] = 15; break;
+		}
+		
+		$iCount = db_result(db_query($sqlCheck, $aParam));
+		
+		if ($iCount == 0){
+			$sqlInsert = "INSERT INTO users_roles VALUES(%d, %d)";
+			db_query($sqlInsert, $aParam);
+		}
+	}
+	
+	drupal_add_js(drupal_get_path("module", "values_master_admin")."/values_master_admin.js");
+	
+	$sOutput = '';
+	$sTableContent = '';
+	$sTableHeader = '<form method="post" action="'.base_path().str_replace("q=", "", $_SERVER["QUERY_STRING"]).'">
+						<fieldset style="margin-top:10px;">
+							<legend>Show only users where</legend>
+							
+							<table>
+								<tr>
+									<td style="width:85px; text-align:right; padding-right:10px;">Role is</td>
+									<td>
+										<select name="values_master_admin_aFilter1" style="margin-bottom:10px;">
+											<option value="">All Roles</option>
+											<option value="guide" '.((@$values_master_admin_aFilter1 == "guide") ? 'selected="selected"':'').'>Guide</option>
+											<option value="editor" '.((@$values_master_admin_aFilter1 == "editor") ? 'selected="selected"':'').'>Editor</option>
+											<option value="admin" '.((@$values_master_admin_aFilter1 == "admin") ? 'selected="selected"':'').'>Admin</option>
+										</select>
+									</td>
+									<td rowspan="2" style="text-align:right; padding-left:10px;"><input type="submit" name="values_master_admin_sOp" class="form-submit" value="Filter" /></td>
+								</tr>
+								<tr>
+									<td style="text-align:right; padding-right:10px;">Status is</td>
+									<td>
+										<select name="values_master_admin_aFilter2">
+											<option value="">All Status</option>
+											<option value="active" '.((@$values_master_admin_aFilter2 == "active") ? 'selected="selected"':'').'>Active</option>
+											<option value="enrolled" '.((@$values_master_admin_aFilter2 == "enrolled") ? 'selected="selected"':'').'>Enrolled</option>
+											<option value="unassigned" '.((@$values_master_admin_aFilter2 == "unassigned") ? 'selected="selected"':'').'>Unassigned</option>
+										</select>
+									</td>
+								</tr>
+							</table>
+						</fieldset>
+					</form>
+					
+					<form method="post" action="'.base_path().'admin/user/values_master/list/process">
+						<input type="hidden" id="values_master_admin_sPrevURL" name="values_master_admin_sPrevURL" value="'.str_replace("q=", "", $_SERVER["QUERY_STRING"]).'" />
+						
+						<fieldset>
+							<legend>Update Options</legend>
+							
+							<select id="values_master_admin_sOption" name="values_master_admin_sOption">
+								<option value="1">Unblock the selected users</option>
+								<option value="0">Block the selected users</option>
+								<option value="2">Delete the selected users</option>
+								<!--<optgroup label="Add a role to the selected users">
+								<option value="add-guide">Guide</option>
+								<option value="add-editor">Editor</option>
+								<option value="add-admin">Admin</option>-->
+								<optgroup label="Remove a role from the selected users">
+								<option value="remove-guide">Guide</option>
+								<option value="remove-editor">Editor</option>
+								<option value="remove-admin">Admin</option>
+							</select>
+							
+							<input type="submit" name="values_master_admin_bOp" id="values_master_admin_bOp" class="form-submit" value="Update" />
+						</fieldset>
+						
+						<table>
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="values_master_admin_bCheckAll" name="values_master_admin_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:120px;">Username</th>
+								<th style="width:72px;">Status</th>
+								<th>Roles</th>
+								<th style="text-align:center;">Total Items Processed</th>
+								<th style="text-align:center;">Items Waiting</th>
+								<th style="text-align:center;">Volunteer Items Waiting for User</th>
+								<th style="text-align:center;">Volunteers waiting for User</th>
+								<th style="text-align:center;">Volunteers Assigned</th>
+								<th style="text-align:center;">Additional Volunteers Requested</th>
+							</tr>';
+	$sTableFooter = '</table></form><div id="values_master_admin_Container"></div>';
+	
+	$sqlPre1 = "SELECT A.uid, B.name, A.type AS sRole, A.bStatus, A.iRequest,
+					IF(A.type = 'guide', 'N/A', IF (A.iGuidesCount IS NULL OR A.iGuidesCount = '', 0, A.iGuidesCount)) AS iVolunteerCount";
+	$sqlPre2 = "SELECT COUNT(A.uid)";
+	$sqlPost = " FROM mystudies_volunteer A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.sWhichModule = 'values'";
+				
+	if (isset($values_master_admin_aFilter1) && $values_master_admin_aFilter1 != ""){
+		$sqlPost .= " A.type = '".$values_master_admin_aFilter1."'";
+	}
+	
+	$oBasicResult = pager_query($sqlPre1.$sqlPost." ORDER BY B.name", 25, 0, $sqlPre2.$sqlPost);
+	
+	if ((isset($values_master_admin_aFilter1) && $values_master_admin_aFilter1 != "") || 
+		(isset($values_master_admin_aFilter2) && $values_master_admin_aFilter2 != "")){
+		
+		$oBasicResult = db_query($sqlPre1.$sqlPost." ORDER BY B.name");
+	}else{
+		$oBasicResult = pager_query($sqlPre1.$sqlPost." ORDER BY B.name", 25, 0, $sqlPre2.$sqlPost);
+	}
+	
+	$iCount = 0;
+	
+	while ($oBasic = db_fetch_object($oBasicResult)){
+		$sRole = $oBasic->sRole;
+		$iUserId = $oBasic->uid;
+		$sStatus = "active";
+		
+		$sqlStat1 = "SELECT COUNT(id) FROM mystudyrecord_site WHERE id >= 1260 AND ";
+		$sqlStat2 = "SELECT COUNT(id) FROM mystudyrecord_file WHERE id >= 2844 AND ";
+		$sqlStat3 = "SELECT COUNT(id) FROM mystudyrecord_suggested_site WHERE id >= 1999 AND ";
+		$sqlStat4 = "SELECT COUNT(id) FROM mystudyrecord_suggested_file WHERE id >= 2390 AND ";
+		
+		$sqlIsAssigned = "SELECT COUNT(B.%s)
+							FROM mystudies_volunteer A
+							INNER JOIN %s B ON B.%s = A.uid
+							INNER JOIN users C ON C.uid = B.%s
+							WHERE A.type = '%s' 
+								AND A.uid = %d
+								AND A.sWhichModule = 'values'";
+		
+		switch ($sRole){
+			case "guide":
+				$sqlStat1 .= "iGuideId = %d";
+				$sqlStat2 .= "iGuideId = %d";
+				$sqlStat3 .= "iUserId = %d";
+				$sqlStat4 .= "iUserId = %d";
+				
+				$sEditorNull = " AND iEditorId IS NULL";
+				$sqlStat11 = $sqlStat1.$sEditorNull;
+				$sqlStat21 = $sqlStat2.$sEditorNull;
+				$sqlStat31 = $sqlStat3.$sEditorNull;
+				$sqlStat41 = $sqlStat4.$sEditorNull;
+				
+				$aStatusParam = array("iEditorId", "mystudies_volunteer_editor_guides", "iGuideId", "iEditorId", "guide", $iUserId);
+				//$sqlIsAssigned = sprintf($sqlIsAssigned, "iEditorId", "mystudies_volunteer_editor_guides", "iGuideId", "guide", $iUserId);
+				
+				/* $sqlCheck = "SELECT B.iEditorId
+							FROM mystudies_volunteer A
+							INNER JOIN mystudies_volunteer_editor_guides B ON B.iGuideId = A.uid
+							WHERE A.type = 'guide' 
+								AND A.uid = %d"; */
+				
+				break;
+				
+			case "editor":
+				$sFieldParam = "iEditorId = %d";
+				$sqlStat1 .= $sFieldParam;
+				$sqlStat2 .= $sFieldParam;
+				$sqlStat3 .= $sFieldParam;
+				$sqlStat4 .= $sFieldParam;
+				
+				$sEditorNull = " AND iAdminId IS NULL";
+				$sqlStat11 = $sqlStat1.$sEditorNull;
+				$sqlStat21 = $sqlStat2.$sEditorNull;
+				$sqlStat31 = $sqlStat3.$sEditorNull;
+				$sqlStat41 = $sqlStat4.$sEditorNull;
+				
+				$aStatusParam = array("iAdminId", "mystudies_volunteer_admin_editors", "iEditorId", "iAdminId", "editor", $iUserId);
+				
+				/* $sqlCheck = "SELECT B.iAdminId
+							FROM mystudies_volunteer A
+							INNER JOIN mystudies_volunteer_admin_editors B ON B.iEditorId = A.uid
+							WHERE A.type = 'editor' 
+								AND A.uid = 139"; */
+				
+				break;
+			
+			case "admin":
+				$sFieldParam = "iAdminId = %d";
+				$sqlStat1 .= $sFieldParam;
+				$sqlStat2 .= $sFieldParam;
+				$sqlStat3 .= $sFieldParam;
+				$sqlStat4 .= $sFieldParam;
+				break;
+		}
+		
+		if ($oBasic->bStatus == 0){
+			$sStatus = "enrolled";
+		}else{
+			if ($sRole == "guide" || $sRole == "editor"){
+				$bIsAssigned = (db_result(db_query($sqlIsAssigned, $aStatusParam)) > 0) ? true:false;
+				if (!$bIsAssigned) $sStatus .= ", unassigned";
+			}
+		}
+		
+		if (isset($values_master_admin_aFilter2) && $values_master_admin_aFilter2 != ""){
+			if (strpos($sStatus, $values_master_admin_aFilter2) === false) continue;
+		}
+		
+		$iStat1 = db_result(db_query($sqlStat1, $iUserId));
+		$iStat2 = db_result(db_query($sqlStat2, $iUserId));
+		$iStat3 = db_result(db_query($sqlStat3, $iUserId));
+		$iStat4 = db_result(db_query($sqlStat4, $iUserId));
+		$iTotalItemsProcessed = $iStat1+$iStat2+$iStat3+$iStat4;
+		
+		if ($sRole != "admin"){
+			$iStat11 = db_result(db_query($sqlStat11, $iUserId));
+			$iStat21 = db_result(db_query($sqlStat21, $iUserId));
+			$iStat31 = db_result(db_query($sqlStat31, $iUserId));
+			$iStat41 = db_result(db_query($sqlStat41, $iUserId));
+			$iTotalItemsWaiting = $iStat11+$iStat21+$iStat31+$iStat41;
+		}
+		
+		$iTotalItemsWaitingforUser = ($sRole == 'guide') ? 'N/A':_values_master_admin_editors_pending_count($iUserId, $sRole);
+		
+		if ($sRole == 'guide'){
+			$iTotalItemsWaitingforUser = 'N/A';
+			$iTotalVolunteersForUser = 'N/A';
+		}elseif ($sRole == 'editor'){
+			$iTotalItemsWaitingForUser = _values_master_admin_editors_pending_count($iUserId);
+			$iTotalVolunteersForUser = _values_master_admin_editors_pending_count($iUserId, 'editor');
+		}else{
+			$iTotalItemsWaitingforUser = _values_master_admin_admin_pending_count($iUserId);
+			$iTotalVolunteersForUser = _values_master_admin_admin_pending_count($iUserId, 'admin');
+		}
+		
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+		$bInString = (strpos($sStatus, "enrolled") !== false) ? true:false;
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="values_master_admin_bCheckThis" name="values_master_admin_bCheckThis[]" value="'.$iUserId.'-'.$sRole.'" /></td>
+								<td style="vertical-align:top;">
+									<span id="values_master_admin_GetAssignedVol_'.$iUserId.'_'.$sRole.'" style="cursor:pointer;">'.$oBasic->name.'</span> '.(($sRole != 'guide' && !$bInString) ? ' <sup id="values_master_admin_iUserId" value="'.$iUserId.'_'.$sRole.'" style="cursor:pointer;">assign</sup>':'').'
+									'._values_master_admin_get_assigned_volunteers($iUserId, $sRole).'
+								<td>'.$sStatus.'</td>
+								<td style="vertical-align:top;">'.$sRole.'</td>
+								<td style="text-align:center; vertical-align:top;">'.$iTotalItemsProcessed.'</td>
+								<td style="text-align:center; vertical-align:top;">'.(($sRole == 'admin') ? 'N/A':$iTotalItemsWaiting).'</td>
+								<td style="text-align:center; vertical-align:top;">'.$iTotalItemsWaitingforUser.'</td>
+								<td style="text-align:center; vertical-align:top;">'.$iTotalVolunteersForUser.'</td>
+								<td style="text-align:center; vertical-align:top;">'.(($sRole == 'guide') ? 'N/A':_mystudies_volunteer_assigned_count($sRole, $iUserId)).'</td>
+								<td style="text-align:center; vertical-align:top;">'.(($sRole == 'guide') ? 'N/A':$oBasic->iRequest).'</td>
+							</tr>';
+		$iCount++;
+	}
+	
+	if ((isset($values_master_admin_aFilter1) && $values_master_admin_aFilter1 != "") || 
+		(isset($values_master_admin_aFilter2) && $values_master_admin_aFilter2 != "")){
+		
+		$sPagerHTML = "";
+	}else{
+		$sPagerHTML = theme("pager", null, 25);
+	}
+	
+	$sOutput = $sTableHeader.$sTableContent.$sTableFooter.(($sPagerHTML != "") ? '<br/><br/>'.$sPagerHTML:'');
+	
+	return $sOutput;
+}
+
+function _values_master_admin_get_assigned_volunteers($iUserId, $sRole){
+	if ($sRole == "guide"){
+		$aEditor = _mystudies_volunteer_assignments($iUserId, "guide");
+		$sEditor = (count($aEditor) == 1) ? $aEditor[0]["name"]:'None';
+		
+		$sOutput .= '<div id="values_assigned_vol_block_'.$iUserId.'_'.$sRole.'" style="display:none; width:240px; padding:5px; position:absolute; left:120px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+						<h3>The assigned Editor is:</h3>
+						'.$sEditor.'
+					</div>';
+	}elseif ($sRole == "editor"){
+		$sGuides = "";
+		$aGuides = _mystudies_volunteer_assignments($iUserId, "editor");
+		
+		if (count($aGuides) > 0){
+			for ($x=0; $x<count($aGuides); $x++){
+				$aGuide = $aGuides[$x];
+				$sGuides .= '<div style="color:black;">'.$aGuide["name"].'</div>';
+			}
+		}else{
+			$sGuides .= '<div style="color:black;">No Guides have been assigned, yet.</div>';
+		}
+		
+		$aAssignedAdmin = _mystudies_editors_admin($iUserId);
+		$sAssignedAdmin = (count($aAssignedAdmin) == 2) ? $aAssignedAdmin[1]:"None";
+		
+		$sOutput .= '<div id="values_assigned_vol_block_'.$iUserId.'_'.$sRole.'" style="display:none; width:240px; padding:5px; position:absolute; left:120px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+						<h3>The assigned Guides are:</h3>
+						'.$sGuides.'
+						<br/>
+						The assigned Administrator is: '.$sAssignedAdmin.'
+					</div>';
+	}else{
+		$sEditors = "";
+		$aEditors = _mystudies_volunteer_assignments($iUserId, "admin");
+		
+		if (count($aEditors) > 0){
+			for ($x=0; $x<count($aEditors); $x++){
+				$aEditor = $aEditors[$x];
+				$sEditors .= '<div style="color:black;">'.$aEditor["name"].'</div>';
+			}
+		}else{
+			$sEditors .= '<div style="color:black;">No Editors have been assigned, yet.</div>';
+		}
+		
+		$sOutput .= '<div id="values_assigned_vol_block_'.$iUserId.'_'.$sRole.'" style="display:none; width:240px; padding:5px; position:absolute; left:120px; background-color:#FFFFFF; border:2px solid #acacac;">
+						<h3>The assigned Editors are:</h3>
+						'.$sEditors.'
+					</div>';
+	}
+	
+	//exit(json_encode($sOutput));
+	return $sOutput;
+}
+
+function values_master_admin_list_process(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	drupal_add_js('setTimeout("location=\''.base_path().$values_master_admin_sPrevURL.'\'", 5000)', "inline");
+	$sMessage = '';
+	
+	for ($x=0; $x<count($values_master_admin_bCheckThis); $x++){
+		$aUser = explode("-", $values_master_admin_bCheckThis[$x]);
+		$iUserId = $aUser[0];
+		$sUserRole = $aUser[1];
+		
+		$aOption = explode("-", $values_master_admin_sOption);
+		
+		if (count($aOption) == 2){
+			$sOptionOp = $aOption[0];
+			$sOptionRole = $aOption[1];
+		}
+		
+		if ($values_master_admin_bOp == "Update"){
+			if ($values_master_admin_sOption == "0" || $values_master_admin_sOption == "1"){
+				$sqlUpdate = "UPDATE mystudies_volunteer
+								SET bStatus = '%s'
+								WHERE uid = %d
+									AND type = '%s'";
+				$bSuccess = db_query($sqlUpdate, array($values_master_admin_sOption, $iUserId, $sUserRole));
+				
+				if ($bSuccess) $sMessage = 'User(s) successfully updated.';
+			}elseif ($values_master_admin_sOption == "2"){
+				$sqlDelete = "DELETE FROM mystudies_volunteer WHERE uid = %d AND `type` = '%s'";
+				$bSuccess = db_query($sqlDelete, array($iUserId, $sUserRole));
+				
+				if ($bSuccess) $sMessage = 'User(s) successfully deleted.';
+			}else{
+				if (count($aOption) == 2){
+					if ($sOptionOp == "add"){
+						if ($sOptionRole == $sUserRole){
+							$sMessage = 'One or more of the user(s) already has the selected role. Please try again.';
+							break;
+						}else{
+							$sqlInsert = "INSERT INTO mystudies_volunteer VALUES(NULL, %d, '%s', 0, 0, 0, '0', 0, 0)";
+							$bSuccess = db_query($sqlInsert, array($iUserId, $sOptionRole));
+							
+							if ($bSuccess){
+								$sMessage = 'Role "'.$sOptionRole.'" was successfully added to user(s).';
+								
+								switch ($sOptionRole){
+									case "guide": $iRoleId = 13; break;
+									case "editor": $iRoleId = 14; break;
+									case "admin": $iRoleId = 15; break;
+								}
+								
+								$sqlInsert = "INSERT INTO users_roles VALUES(%d, %d)";
+								db_query($sqlInsert, array($iUserId, $iRoleId));
+							}
+						}
+					}else{
+						/* $sqlCheck = "SELECT COUNT(id) FROM mystudies_volunteer WHERE uid = %d";
+						$iCount = db_result(db_query($sqlCheck, $iUserId));
+						
+						if ($iCount == 1){
+							$sMessage = 'One or more of the users only has one role. You cannot remove this user\'s only role.';
+							break;
+						}else{ */
+							$sqlDelete = "DELETE FROM mystudies_volunteer WHERE uid = %d AND `type` = '%s'";
+							$bSuccess = db_query($sqlDelete, array($iUserId, $sOptionRole));
+							
+							if ($bSuccess){
+								$sMessage = 'User(s) role successfully removed.';
+								
+								switch ($sOptionRole){
+									case "guide": $iRoleId = 13; break;
+									case "editor": $iRoleId = 14; break;
+									case "admin": $iRoleId = 15; break;
+								}
+								
+								$sqlDelete = "DELETE FROM users_roles WHERE uid = %d AND rid = %d";
+								db_query($sqlDelete, array($iUserId, $iRoleId));
+							}
+							
+							// Point System for Volunteer Opt-out
+							userpoints_userpointsapi(array("uid" => $iUserId, "tid" => 199, "description" => "Admin removed your ".ucfirst($sOptionRole)." role."));
+						/* } */
+					}
+				}
+			}
+		}
+	}
+	
+	drupal_set_message($sMessage);
+	
+	return "";
+}
+
+function values_master_admin_list_assign($iUserId, $sRole){
+	$sVolunteer = ($sRole == "editor") ? "guide":"editor";
+	$sqlUser = "SELECT A.name, B.bStatus, B.iRequest
+				FROM users A
+				INNER JOIN mystudies_volunteer B ON B.uid = A.uid
+				WHERE A.uid = %d
+					AND B.type = '%s'
+					AND B.sWhichModule = 'values'";
+	$oUserResult = db_query($sqlUser, array($iUserId, $sRole));
+	$oUser = db_fetch_object($oUserResult);
+	
+	$aHiddenAssigned = array();
+	$aHiddenUnassigned = array();
+	$sTableHeader = '<h2>'.$sRole.' '.$oUser->name.'</h2>
+					<form method="post" action="'.base_path().'admin/user/values_master/list/assign/process">
+						<input type="hidden" name="values_master_admin_iUserId" value="'.$iUserId.'" />
+						<input type="hidden" name="values_master_admin_sRole" value="'.$sRole.'" />
+						<input type="hidden" name="values_master_admin_sPrevURL" value="'.str_replace("q=", "", $_SERVER["QUERY_STRING"]).'" />
+						
+						<table>
+							<tr>
+								<td colspan="3" style="padding-bottom:10px">
+									You can add or remove multiple volunteers at the same time (Ctrl + click, Apple Key + click).<br/>
+									This '.$sRole.' requested '.$oUser->iRequest.' '.$sVolunteer.'.
+								</td>
+							</tr>
+							<tr>
+								<th style="width:275px;">Assigned '.ucwords($sVolunteer).'(s)</th>
+								<th style="width:50px;"></th>
+								<th style="width:275px;">Available '.ucwords($sVolunteer).'(s)</th>
+							</tr>
+							<tr>
+								<td>';
+						
+	
+	$sAssigned = '';
+	$aAssignedVolunteer = _mystudies_volunteer_assignments($iUserId, $sRole);
+	
+	if (count($aAssignedVolunteer) > 0){
+		for ($x=0; $x<count($aAssignedVolunteer); $x++){
+			$aVolunteer = $aAssignedVolunteer[$x];
+			//$sOutput .= '<li>'.l($aVolunteer["name"], "user/".$aVolunteer["uid"], array('attributes' => array("target" => "_blank"))).'</li>';
+			$sAssigned .= '<option value="'.$aVolunteer["uid"].'">'.$aVolunteer["name"].'</option>';
+			$aHiddenAssigned[] = $aVolunteer["uid"];
+		}
+	}else{
+		$sAssigned .= '<option value="">No '.ucwords($sVolunteer).'s have been assigned, yet.</option>';
+	}
+	
+	$sAssignedVolunteer = '<select name="values_master_admin_aAssignedVolunteer[]" size="10" style="width:275px; margin-top:5px;" multiple="multiple">'.$sAssigned.'</select>';
+	
+	$sTable = ($sRole == "editor") ? "mystudies_volunteer_editor_guides":"mystudies_volunteer_admin_editors";
+	$sField1 = ($sRole == "editor") ? "iGuideId":"iEditorId";
+	$sField2 = ($sRole == "editor") ? "iEditorId":"iAdminId";
+	
+	$sqlAvailableVolunteer = "SELECT A.uid, C.name, B.%s AS iAssignedId, D.name AS sAssignedName
+							FROM mystudies_volunteer A
+							LEFT JOIN %s B ON B.%s = A.uid
+							LEFT JOIN users C ON C.uid = A.uid
+							LEFT JOIN users D ON D.uid = B.%s
+							WHERE A.type = '%s'
+								AND A.uid != %d
+								AND C.uid IS NOT NULL
+								AND A.sWhichModule = 'values'
+							ORDER BY C.name";
+	
+	$oAvailableVolunteerResult = db_query($sqlAvailableVolunteer, array($sField2, $sTable, $sField1, $sField2, $sVolunteer, $iUserId));
+	$sUnassigned = '';
+	
+	while ($oAvailableVolunteer = db_fetch_object($oAvailableVolunteerResult)){
+		if ($oAvailableVolunteer->iAssignedId != "" && $oAvailableVolunteer->sAssignedName == "") continue;
+		
+		$sAssignedTo = ($oAvailableVolunteer->iAssignedId == "") ? 'unassigned':$oAvailableVolunteer->sAssignedName;
+		$sUnassigned .= '<option value="'.$oAvailableVolunteer->uid.'"'.(($oAvailableVolunteer->iAssignedId == "") ? ' style="font-weight:bold;':'').'">'.$oAvailableVolunteer->name.' ('.$sAssignedTo.')</option>';
+		$aHiddenUnassigned[] = $oAvailableVolunteer->uid;
+	}
+	
+	if ($sUnassigned == ''){
+		$sUnassigned = '<option value="">There are no available '.$sVolunteer.'s.</option>';
+	}
+	
+	$sUnassignedVolunteer = '<select name="values_master_admin_aAvailableVolunteer[]" size="10" style="width:275px; margin-top:5px;" multiple="multiple">'.$sUnassigned.'</select>';
+	
+	$sHiddenItems = '<input type="hidden" id="values_master_admin_iAssignedUserId" name="values_master_admin_iAssignedUserId" value="'.implode(",", $aHiddenAssigned).'" />
+					<input type="hidden" id="values_master_admin_iUnassignedUserId" name="values_master_admin_iUnassignedUserId" value="'.implode(",", $aHiddenUnassigned).'" />';
+	
+	$sTableFooter = $sAssignedVolunteer.'
+						</td>
+						<td style="text-align:center; vertical-align:middle;">
+							<input type="submit" id="values_master_admin_bRemoveVolunteer" name="values_master_admin_bRemoveVolunteer" class="form-submit" value=">>" title="Remove Volunteer" />
+							'.(($oUser->iRequest == 0) ? '':'<br/><br/><input type="submit" id="values_master_admin_bAddVolunteer" name="values_master_admin_bAddVolunteer" class="form-submit" value="<<" title="Add Volunteer" />').'
+						</td>
+						<td>'.$sUnassignedVolunteer.'</td></tr></table>
+					</form>';
+	
+	return $sTableHeader.$sHiddenItems.$sTableFooter;
+}
+
+function values_master_admin_list_assign_process(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	drupal_add_js('setTimeout("location=\''.base_path().$values_master_admin_sPrevURL.'\'", 5000)', "inline");
+	
+	$sRealRole = ($values_master_admin_sRole == "editor") ? "guide":"editor";
+	$aAssignedUserId = explode(",", $values_master_admin_iAssignedUserId);
+	$aUnassignedUserId = explode(",", $values_master_admin_iUnassignedUserId);
+	$sTable = ($values_master_admin_sRole == "editor") ? "mystudies_volunteer_editor_guides":"mystudies_volunteer_admin_editors";
+	$sField1 = ($sTable == "mystudies_volunteer_editor_guides") ? "iEditorId":"iAdminId";
+	$sField2 = ($sTable == "mystudies_volunteer_editor_guides") ? "iGuideId":"iEditorId";
+	
+	$bReassign = false;
+	$iReassignCount = 0;
+	
+	if (isset($values_master_admin_bAddVolunteer)){
+		if (count($values_master_admin_aAvailableVolunteer) > 0){
+			foreach ($values_master_admin_aAvailableVolunteer as $iUserId){
+				$biAssignedVolunteer = _values_master_admin_volunteer_check($iUserId, $sRealRole);
+				
+				if ($biAssignedVolunteer){
+					$bReassign = true;
+					$iReassignCount++;
+					
+					$sqlDelete = "DELETE FROM %s WHERE %s = %d AND %s = %d";
+					db_query($sqlDelete, array($sTable, $sField1, $biAssignedVolunteer, $sField2, $iUserId));
+				}
+				
+				$sqlInsert = "INSERT INTO %s VALUES(NULL, %d, %d)";
+				db_query($sqlInsert, array($sTable, $values_master_admin_iUserId, $iUserId));
+				
+				$sqlUpdate = "UPDATE mystudies_volunteer SET iRequest = iRequest - %d WHERE type = '%s' AND uid = %d";
+				db_query($sqlUpdate, array(count($values_master_admin_aAvailableVolunteer), $values_master_admin_sRole, $values_master_admin_iUserId));
+			}
+		}		
+	}else{
+		if (count($values_master_admin_aAssignedVolunteer) > 0){
+			foreach ($values_master_admin_aAssignedVolunteer as $iUserId){
+				$sqlDelete = "DELETE FROM %s WHERE %s = %d AND %s = %d";
+				db_query($sqlDelete, array($sTable, $sField1, $values_master_admin_iUserId, $sField2, $iUserId));
+			}
+		}		
+	}
+	
+	$sWhatProc = (isset($values_master_admin_bAddVolunteer)) ? "added":"removed";
+	$iCount = (isset($values_master_admin_bAddVolunteer)) ? count($values_master_admin_aAvailableVolunteer):count($values_master_admin_aAssignedVolunteer);
+	$sAddedWhat = ($values_master_admin_sRole == "editor") ? "guide(s)":"editor(s)";
+	
+	$sqlUpdate = "UPDATE mystudies_volunteer SET iGuidesCount = iGuidesCount ".((isset($values_master_admin_bAddVolunteer)) ? "+":"-")." %d WHERE uid = %d AND type = '%s'";
+	db_query($sqlUpdate, array($iCount, $values_master_admin_iUserId, $values_master_admin_sRole));
+	
+	if ($bReassign){
+		$AppendMsg = ' and reassigned '.$iReassignCount;
+		$iCount -= $iReassignCount;
+	}
+	
+	drupal_set_message('You have '.$sWhatProc.' '.$iCount.' '.$sAddedWhat.$AppendMsg.'.');
+	
+	return "";
+}
+
+function _values_master_admin_volunteer_check($iUserId, $sRole){
+	$sTable = ($sRole == "guide") ? "mystudies_volunteer_editor_guides":"mystudies_volunteer_admin_editors";
+	$sField1 = ($sRole == "guide") ? "iEditorId":"iAdminId";
+	$sField2 = ($sRole == "guide") ? "iGuideId":"iEditorId";
+	
+	$sqlVolunteer = "SELECT C.%s
+					FROM mystudies_volunteer A
+					INNER JOIN users B ON B.uid = A.uid
+					LEFT JOIN %s C ON C.%s = A.uid
+					WHERE A.uid = %d
+						AND A.type = '%s'
+						AND A.sWhichModule = 'values'";
+	
+	$iVolunteerId = db_result(db_query($sqlVolunteer, array($sField1, $sTable, $sField2, $iUserId, $sRole)));
+	
+	return ($iVolunteerId != "") ? $iVolunteerId:false;
+}
+
+function _values_master_admin_editors_pending_count($iUserId, $sType="items"){
+	$aGuides = _values_master_admin_volunteer_dependents($iUserId, $sType);
+	$iPendingCount = 0;
+	
+	if (count($aGuides) > 0){
+		$sGuidesId = implode(",", $aGuides);
+		$sField = ($sType == "items") ? "COUNT(A.id)":"DISTINCT A.iUserId";
+		$aResult = array();
+		
+		$sqlCount = "SELECT %s
+					FROM mystudyrecord_suggested_site A
+					WHERE A.iUserId IN (%s)
+						AND A.promoted = 0
+						AND (A.iEditorId IS NULL OR A.iEditorId = '')
+						AND id >= 1999";
+		
+		if ($sType == "items"){
+			$iPendingCount = db_result(db_query($sqlCount, array($sField, $sGuidesId)));
+		}else{
+			$oGuidesResult = db_query($sqlCount, array($sField, $sGuidesId));
+			
+			while ($oGuides = db_fetch_object($oGuidesResult)){
+				$aResult[] = $oGuides->iUserId;
+			}
+		}
+		
+		$sqlCount = "SELECT %s
+					FROM mystudyrecord_suggested_file A
+					WHERE A.iUserId IN (%s)
+						AND (A.iEditorId IS NULL OR A.iEditorId = '')
+						AND id >= 2390";
+				
+		if ($sType == "items"){
+			$iPendingCount += db_result(db_query($sqlCount, array($sField, $sGuidesId)));
+		}else{
+			$oGuidesResult = db_query($sqlCount, array($sField, $sGuidesId));
+			
+			while ($oGuides = db_fetch_object($oGuidesResult)){
+				$aResult[] = $oGuides->iUserId;
+			}
+			
+			return count(array_unique($aResult));
+		}
+	}
+	
+	return $iPendingCount;
+}
+
+function _values_master_admin_volunteer_dependents($iUserId, $sType){
+	$aDependents = array();
+	
+	if ($sType == "editor"){
+		$sqlSelect = "SELECT iGuideId AS iVolunteerId
+						FROM mystudies_volunteer_editor_guides
+						WHERE iEditorId = %d";
+	}else{
+		$sqlSelect = "SELECT iEditorId AS iVolunteerId
+						FROM mystudies_volunteer_admin_editors
+						WHERE iAdminId = %d";
+	}
+	
+	$oSelectResult = db_query($sqlSelect, $iUserId);
+	
+	while ($oDependents = db_fetch_object($oSelectResult)){
+		$aDependents[] = $oDependents->iVolunteerId;
+	}
+	
+	return $aDependents;
+}
+
+function _values_master_admin_admin_pending_count($iUserId, $sType="items"){
+	$iItemsCount = 0;
+	$aItemsCount = array();
+	$aDependentsId = _values_master_admin_volunteer_dependents($iUserId, $sType);
+	$sField = ($sType == "items") ? "COUNT(A.id)":"DISTINCT A.iEditorId";
+	
+	if (count($aDependentsId) > 0){
+		$sDependentsId = implode(", ", $aDependentsId);
+		
+		// Pending site/animation
+		$sqlQuery = "SELECT ".$sField."
+						FROM mystudyrecord_suggested_site A
+						LEFT JOIN mystudyrecord_site C ON C.id = A.fid
+						INNER JOIN users B ON B.uid = A.iUserId
+						WHERE A.iEditorId IN (".$sDependentsId.")
+							AND A.promoted IN (0, 2, 3)
+							AND (A.iEditorId IS NOT NULL OR A.iEditorId != '')
+							AND (A.iAdminId IS NULL OR A.iAdminId = '')
+							AND (A.id >= 1999 OR C.id >= 1260)";
+		
+		if ($sType == "items"){
+			$iItemsCount += db_result(db_query($sqlQuery));
+		}else{
+			$oQueryResult = db_query($sqlQuery);
+			
+			while ($oQuery = db_fetch_object($oQueryResult)){
+				$aItemsCount[] = $oQuery->iEditorId;
+			}
+		}
+		
+		// Pending image,doc,video
+		$sqlQuery = "SELECT ".$sField."
+					FROM mystudyrecord_suggested_file A
+					INNER JOIN users B ON B.uid = A.iUserId
+					WHERE A.iEditorId IN (".$sDependentsId.")
+						AND (A.iEditorId IS NOT NULL OR A.iEditorId != '')
+						AND (A.iAdminId IS NULL OR A.iAdminId = '')
+						AND A.id >= 2390";
+		
+		if ($sType == "items"){
+			$iItemsCount += db_result(db_query($sqlQuery));
+		}else{
+			$oQueryResult = db_query($sqlQuery);
+			
+			while ($oQuery = db_fetch_object($oQueryResult)){
+				$aItemsCount[] = $oQuery->iEditorId;
+			}
+		}
+		
+		// Pending for deletion
+		$sField = ($sType == "items") ? "COUNT(A.id)":"DISTINCT A.iUserId";
+		$aSiteTables = array('mystudyrecord_site', 'mystudyrecord_suggested_site');
+		$sqlItemDelete = "SELECT ".$sField."
+							FROM mystudyrecord_suggested_delete A
+							INNER JOIN %s B ON B.id = A.iRefId
+							WHERE A.iUserId IN (%s)
+								AND A.id >= 58";
+		
+		for ($i=0; $i<count($aSiteTypes); $i++){
+			if ($sType == "items"){
+				$iItemsCount += db_result(db_query($sqlItemDelete, array($aSiteTables[$i], $sDependentsId)));
+			}else{
+				$oItemDeleteResult = db_query($sqlItemDelete, array($aSiteTables[$i], $sDependentsId));
+				
+				while ($ItemDelete = db_fetch_object($ItemDeleteResult)){
+					$aItemsCount[] = $ItemDelete->iEditorId;
+				}
+			}
+		}
+		
+		return ($sType == "items") ? $iItemsCount:count(array_unique($aItemsCount));
+	}else{
+		return 0;
+	}
+}
+
+function values_master_admin_add_user(){
+	ob_end_clean();
+	header("location: " . base_path() . "admin/user/user/create");
+}
+
+function values_master_admin_stats(){
+	$aCtr["total_guide"] = 0;
+	$aCtr["total_editor"] = 0;
+	$aCtr["total_admin"] = 0;
+	$aCtr["total_volunteer"] = 0;
+	$aCtr["inactive_guide"] = 0;
+	$aCtr["inactive_editor"] = 0;
+	$aCtr["inactive_admin"] = 0;
+	$aCtr["inactive_volunteer"] = 0;
+	
+	$rs = db_query("SELECT mv.type, u.status
+					FROM mystudies_volunteer mv
+					INNER JOIN users u ON mv.uid = u.uid
+					WHERE mv.sWhichModule = 'values'");
+	while ($rw = db_fetch_object($rs)){
+		$aCtr["total_" . $rw->type] ++;
+		$aCtr["total_volunteer"] ++;
+		
+		if ($rw->status == 0) {
+			$aCtr["inactive_" . $rw->type] ++;
+			$aCtr["inactive_volunteer"] ++;
+		}
+	}
+	
+	$rs = db_query("SELECT COUNT(mv.id) AS cnt
+					FROM mystudies_volunteer mv
+					INNER JOIN users u ON mv.uid = u.uid
+					LEFT JOIN mystudies_volunteer_admin_editors mvae ON mvae.iEditorId = mv.uid
+					WHERE mv.type = 'editor'
+						AND IFNULL(mvae.id,'') = ''
+						AND mv.sWhichModule = 'values'");
+	$aCtr["unassigned_editor"] = db_result($rs);
+	
+	$rs = db_query("SELECT COUNT(mv.id) AS cnt
+					FROM mystudies_volunteer mv
+					INNER JOIN users u ON mv.uid = u.uid
+					LEFT JOIN mystudies_volunteer_editor_guides mveg ON mveg.iGuideId = mv.uid
+					WHERE mv.type = 'guide'
+						AND IFNULL(mveg.id,'') = ''
+						AND mv.sWhichModule = 'values'");
+	$aCtr["unassigned_guide"] = db_result($rs);
+	$aCtr["unassigned_volunteer"] = $aCtr["unassigned_guide"] + $aCtr["unassigned_editor"];
+	
+	
+	$rs = db_query("SELECT COUNT(mv.id) AS cnt
+					FROM mystudies_volunteer mv
+					INNER JOIN users u ON mv.uid = u.uid
+					LEFT JOIN mystudies_volunteer_editor_guides mveg ON mveg.iEditorId = mv.uid
+					WHERE mv.type = 'editor'
+						AND IFNULL(mveg.id,'') = ''
+						AND mv.sWhichModule = 'values'");
+	$aCtr["none_assigned_editor"] = db_result($rs);
+	
+	$rs = db_query("SELECT COUNT(mv.id) AS cnt
+					FROM mystudies_volunteer mv
+					INNER JOIN users u ON mv.uid = u.uid
+					LEFT JOIN mystudies_volunteer_admin_editors mvae ON mvae.iAdminId = mv.uid
+					WHERE mv.type = 'admin'
+						AND IFNULL(mvae.id,'') = ''
+						AND mv.sWhichModule = 'values'");
+	$aCtr["none_assigned_admin"] = db_result($rs);
+	$aCtr["none_assigned_volunteer"] = $aCtr["none_assigned_admin"] + $aCtr["none_assigned_editor"];
+	
+	$rs = db_query("SELECT SUM(cnt) AS cnt FROM (
+						(SELECT COUNT(mss.id) AS cnt 
+						FROM mystudyrecord_suggested_site mss
+						INNER JOIN mystudies_volunteer mv ON mv.uid = mss.iUserId
+						WHERE IFNULL(mss.iEditorId,0) = 0
+							AND mv.type = 'guide'
+							AND mss.id >= 1999
+							AND mv.sWhichModule = 'values')
+					UNION ALL
+						(SELECT COUNT(msf.id) AS cnt 
+						FROM mystudyrecord_suggested_file msf
+						INNER JOIN mystudies_volunteer mv ON mv.uid = msf.iUserId
+						WHERE IFNULL(msf.iEditorId,0) = 0
+							AND mv.type = 'guide'
+							AND msf.id >= 2390
+							AND mv.sWhichModule = 'values') 
+					) f2");
+	$aCtr["items_waiting_guide"] = db_result($rs);
+		
+	$rs = db_query("SELECT SUM(cnt) AS cnt FROM (
+						(SELECT COUNT(mss.id) AS cnt 
+						FROM mystudyrecord_suggested_site mss
+						INNER JOIN mystudies_volunteer mv ON mv.uid = mss.iUserId
+						WHERE IFNULL(mss.iAdminId,0) = 0
+							AND IFNULL(mss.iEditorId,0) <> 0
+							AND mv.type = 'guide'
+							AND mss.id >= 1999
+							AND mv.sWhichModule = 'values') 
+					UNION ALL
+						(SELECT COUNT(msf.id) AS cnt 
+						FROM mystudyrecord_suggested_file msf
+						INNER JOIN mystudies_volunteer mv ON mv.uid = msf.iUserId
+						WHERE IFNULL(msf.iAdminId,0) = 0
+							AND IFNULL(msf.iEditorId,0) <> 0
+							AND mv.type = 'guide'
+							AND msf.id >= 2390
+							AND mv.sWhichModule = 'values') 
+					) f2");
+	$aCtr["items_waiting_editor"] = db_result($rs);
+	$aCtr["items_waiting_volunteer"] = $aCtr["items_waiting_guide"] + $aCtr["items_waiting_editor"];
+	
+	$rs = db_query("SELECT COUNT(iEditorId) FROM (
+						(SELECT iEditorId 
+						FROM mystudyrecord_suggested_site mss
+						INNER JOIN mystudies_volunteer mv ON mv.uid = mss.iUserId
+						WHERE IFNULL(mss.iAdminId,0) = 0
+							AND IFNULL(mss.iEditorId,0) <> 0
+							AND mv.type = 'guide'
+							AND mss.id >= 1999
+							AND mv.sWhichModule = 'values') 
+					UNION ALL
+						(SELECT iEditorId 
+						FROM mystudyrecord_suggested_file msf
+						INNER JOIN mystudies_volunteer mv ON mv.uid = msf.iUserId
+						WHERE IFNULL(msf.iAdminId,0) = 0
+							AND IFNULL(msf.iEditorId,0) <> 0
+							AND mv.type = 'guide'
+							AND msf.id >= 2390
+							AND mv.sWhichModule = 'values') 
+					) f2 
+					GROUP BY iEditorId");
+	$aCtr["waiting_editor"] = db_affected_rows($rs);
+	
+	$rs = db_query("SELECT COUNT(iUserId) FROM (
+						(SELECT iUserId 
+						FROM mystudyrecord_suggested_site mss
+						INNER JOIN mystudies_volunteer mv ON mv.uid = mss.iUserId
+						WHERE IFNULL(mss.iEditorId,0) = 0
+							AND mv.type = 'guide'
+							AND mss.id >= 1999
+							AND mv.sWhichModule = 'values') 
+					UNION ALL
+						(SELECT iUserId 
+						FROM mystudyrecord_suggested_file msf
+						INNER JOIN mystudies_volunteer mv ON mv.uid = msf.iUserId
+						WHERE IFNULL(msf.iEditorId,0) = 0
+							AND mv.type = 'guide'
+							AND msf.id >= 2390
+							AND mv.sWhichModule = 'values') 
+						) f2 
+					GROUP BY iUserId");
+	$aCtr["waiting_guide"] = db_affected_rows($rs);
+	$aCtr["waiting_volunteer"] = $aCtr["waiting_guide"] + $aCtr["waiting_editor"];
+	
+	
+	$rs = db_query("SELECT SUM(IFNULL(iApprovedCount,0)) 
+					FROM mystudies_volunteer
+					WHERE type = 'admin'
+						AND sWhichModule = 'values'");
+	$aCtr["approved_admin"] = db_result($rs);
+	
+	$rs = db_query("SELECT SUM(IFNULL(iDisapprovedCount,0)) 
+					FROM mystudies_volunteer
+					WHERE type = 'admin'
+						AND sWhichModule = 'values'");
+	$aCtr["disapproved_admin"] = db_result($rs);
+	$aCtr["processed_admin"] = $aCtr["approved_admin"] + $aCtr["disapproved_admin"];
+	
+	$rs = db_query("SELECT SUM(IFNULL(iApprovedCount,0)) 
+					FROM mystudies_volunteer
+					WHERE type = 'editor'
+						AND sWhichModule = 'values'");
+	$aCtr["approved_editor"] = db_result($rs);
+	
+	$rs = db_query("SELECT SUM(IFNULL(iDisapprovedCount,0)) 
+					FROM mystudies_volunteer
+					WHERE type = 'editor'
+						AND sWhichModule = 'values'");
+	$aCtr["disapproved_editor"] = db_result($rs);
+	$aCtr["processed_editor"] = $aCtr["approved_editor"] + $aCtr["disapproved_editor"];
+	
+	$rs = db_query("SELECT SUM(IFNULL(iApprovedCount,0)) 
+					FROM mystudies_volunteer
+					WHERE type = 'guide'
+						AND sWhichModule = 'values'");
+	$aCtr["processed_guide"] = db_result($rs);
+	$aCtr["processed_volunteer"] = $aCtr["processed_guide"] + $aCtr["processed_admin"] + $aCtr["processed_editor"];
+	
+	$sOutput = '<style>table.stats td {padding:4px 2px; background:#e1e1e1; font-size:11px; color:#333; border-bottom: 1px dotted #999};</style>
+				<h2>Knowledge Portal Volunteers - General Status</h2><br />
+				<table cellpadding="2" cellspacing="1" border="0" class="stats">
+					<tr>
+						<td width="4%" valign="top" align="right"><b>' . $aCtr["total_guide"] . '</b></td>
+						<td width="12%" valign="top">Total Guides</td>
+						
+						<td width="4%" valign="top" align="right"><b>' . $aCtr["items_waiting_guide"] . '</b></td>
+						<td width="13%" valign="top">Guide Items Waiting</td>
+						
+						<td width="4%" valign="top" align="right"><b>' . $aCtr["waiting_guide"] . '</b></td>
+						<td width="13%" valign="top">Guides Waiting for Editors</td>
+						
+						<td width="4%" valign="top" align="right"><b>' . $aCtr["none_assigned_editor"] . '</b></td>
+						<td width="13%" valign="top">Guides Not Assigned to Editors</td>
+						
+						<td width="4%" valign="top" align="right"><b>' . $aCtr["inactive_guide"] . '</b></td>
+						<td width="12%" valign="top">Guides Inactive</td>
+						
+						<td width="4%" valign="top">&nbsp;</td>
+						<td width="13%" valign="top">&nbsp;</td>
+					</tr>
+					<tr>
+						<td valign="top" align="right"><b>' . $aCtr["total_editor"] . '</b></td>
+						<td valign="top">Total Editors</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["items_waiting_editor"] . '</b></td>
+						<td valign="top">Editor Items Waiting</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["waiting_editor"] . '</b></td>
+						<td valign="top">Editors Waiting for Admins</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["unassigned_editor"] . '</b></td>
+						<td valign="top">Editors Not Assigned to Admins</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["inactive_editor"] . '</b></td>
+						<td valign="top">Editors Inactive</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["none_assigned_editor"] . '</b></td>
+						<td valign="top">Editors With No Guides Assigned</td>
+					</tr>
+					<tr>
+						<td valign="top" align="right"><b>' . $aCtr["total_admin"] . '</b></td>
+						<td valign="top">Total Administrators</td>
+						
+						<td valign="top">&nbsp;</td>
+						<td valign="top">&nbsp;</td>
+						
+						<td valign="top">&nbsp;</td>
+						<td valign="top">&nbsp;</td>
+						
+						<td valign="top">&nbsp;</td>
+						<td valign="top">&nbsp;</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["inactive_admin"] . '</b></td>
+						<td valign="top">Admins Inactive</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["none_assigned_admin"] . '</b></td>
+						<td valign="top">Admins With No Editors Assigned</td>
+					</tr>
+					<tr>
+						<td valign="top" align="right"><b>' . $aCtr["total_volunteer"] . '</b></td>
+						<td valign="top">Total Volunteers</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["items_waiting_volunteer"] . '</b></td>
+						<td valign="top">Total Volunteer Items Waiting</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["waiting_volunteer"] . '</b></td>
+						<td valign="top">Total Volunteers Waiting</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["unassigned_volunteer"] . '</b></td>
+						<td valign="top">Guides & Editors Not Assigned to Volunteers</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["inactive_volunteer"] . '</b></td>
+						<td valign="top">Total Volunteers Inactive</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["none_assigned_volunteer"] . '</b></td>
+						<td valign="top">Editor & Admins With No Volunteers Assigned</td>
+					</tr>
+				</table>
+				<br />
+				<table width="100%" cellpadding="2" cellspacing="1" border="0" class="stats">
+					<tr>
+						<td width="8%" valign="top" align="right"><b>' . $aCtr["processed_guide"] . '</b></td>
+						<td width="25%" valign="top">Total Guide Items Processed</td>
+						
+						<td width="9%" valign="top" align="right">&nbsp;</td>
+						<td width="25%" valign="top">&nbsp;</td>
+						
+						<td width="8%" valign="top" align="right">&nbsp;</td>
+						<td width="25%" valign="top">&nbsp;</td>
+					</tr>
+					<tr>
+						<td valign="top" align="right"><b>' . $aCtr["processed_editor"] . '</b></td>
+						<td valign="top">Total Editor Items Processed</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["approved_editor"] . '</b></td>
+						<td valign="top">Total Editor Items Approved</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["disapproved_editor"] . '</b></td>
+						<td valign="top">Total Editor Items Disapproved</td>
+					</tr>
+					<tr>
+						<td valign="top" align="right"><b>' . $aCtr["processed_admin"] . '</b></td>
+						<td valign="top">Total Admin Items Processed</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["approved_admin"] . '</b></td>
+						<td valign="top">Total Admin Items Approved</td>
+						
+						<td valign="top" align="right"><b>' . $aCtr["disapproved_admin"] . '</b></td>
+						<td valign="top">Total Admin Items Disapproved</td>
+					</tr>
+					<tr>
+						<td valign="top" align="right"><b>' . $aCtr["processed_volunteer"] . '</b></td>
+						<td>Total Items Processed</td>
+						
+						<td>&nbsp;</td>
+						<td>&nbsp;</td>
+						
+						<td>&nbsp;</td>
+						<td>&nbsp;</td>
+					</tr>
+				</table>';
+	
+	return $sOutput;
+}

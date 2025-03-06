@@ -1,0 +1,6 @@
+; $Id$
+name = PQP INDEX Module
+description = A module that manage the pqp testing.
+version = 6.x-1.0
+package = Development Testing - Core
+core = 6.x

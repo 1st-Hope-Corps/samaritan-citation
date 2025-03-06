@@ -1,0 +1,8 @@
+deploy-config.php
+/nbproject/private/
+bank/settings.php
+/hud_files/uploads
+/bank/logs.txt
+sites/default/mail_config.php
+/vendor
+composer.lock

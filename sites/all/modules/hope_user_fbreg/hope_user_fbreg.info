@@ -1,0 +1,10 @@
+name = FB First Login Redirect
+description = Redirects FB registrants to get Personal info upon first time login 
+package = HopeNet
+version = 1.0
+core = 6.x
+
+; Information added by drupal.org packaging script on 2010-12-15
+version = "6.20"
+project = "drupal"
+;datestamp = "1292447788"

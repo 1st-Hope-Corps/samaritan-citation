@@ -1,0 +1,1331 @@
+<?php
+// $Id$
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function incybrary_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#incybrary":
+			$sOutput = '<p>'. t("InCybrary module.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+ * Generate HTML for InCybrary Block
+ * @param $sOperation		- the operation from the URL
+ * @param $iDelta			- offset
+ * @return $aBlock array	- HTML
+ **/
+function incybrary_block($sOperation='list', $iDelta=0, $aEdit = array()){
+	global $user;
+	
+	ksort($user->roles);
+	
+	foreach ($user->roles as $iRoleId => $sRoleName){
+		$iThisRoleId = $iRoleId;
+	}
+	
+	if ($sOperation == "list") {
+		$aBlock[0]["info"] = t('In the Cybrary Now');
+		return $aBlock;
+		
+	}elseif ($sOperation == "view"){
+		$iNow = time();
+		$aChildren = array();
+		$aOnlineChildren = array();
+		$iOnlineChildren = 0;
+		$iInterval = $iNow - variable_get('user_block_seconds_online', 900);
+		
+		$oUsers = db_query("SELECT A.uid, B.value FROM {users} A INNER JOIN {profile_values} B ON B.uid = A.uid WHERE A.uid > 1 AND A.status = 1 AND A.inactive = 3 AND B.fid = 5");
+		$oOnlineUsers = db_query('SELECT DISTINCT u.uid, u.name, u.mail, u.picture, s.timestamp FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.timestamp >= %d AND s.uid > 0 ORDER BY s.timestamp DESC', $iInterval);
+		
+		while ($oUser = db_fetch_object($oUsers)){
+			$aDOB = unserialize($oUser->value);
+			$iDOB = mktime(0, 0, 0, $aDOB["month"], $aDOB["day"], $aDOB["year"]);
+			$iYear = floor(($iNow  - $iDOB) / (60*60*24*365));
+			
+			if ($iYear <= 12) $aChildren[] = $oUser->uid;
+		}
+		mysqli_free_result($oUsers);
+		
+		while ($oOnlineUser = db_fetch_object($oOnlineUsers)){
+			if (in_array($oOnlineUser->uid, $aChildren)){
+				$aOnlineChildren[] = $oOnlineUser;
+				$iOnlineChildren++;
+			}
+		}
+		mysqli_free_result($oOnlineUsers);
+		
+		if ($iOnlineChildren == 0) return;
+		
+		$sScript = "var aChildren = new Array();\n";
+		for ($i=0; $i<count($aOnlineChildren); $i++){
+			//$oSocialGO = _socialgo_post("user/get", "id=".urlencode($aOnlineChildren[$i]->mail)."&fields=All");
+			
+			$sScript .= "aChildren[".$i."] = Array(".$aOnlineChildren[$i]->uid.", '".$aOnlineChildren[$i]->name."', '".$aOnlineChildren[$i]->picture."');\n";
+		}
+		
+		$sOutput = '<script type="text/javascript">
+					'.$sScript.'
+					var iCurrIndex = 0;
+					var iOnlineChildren = '.$iOnlineChildren.';
+					
+					function incybrary_ListChildren(){
+						var oDivList = document.getElementById("incybrary_children");
+						var sChildren = "";
+						var iCurrLoop = 1;
+						
+						for (i=iCurrIndex; i<aChildren.length && iCurrLoop <=4; i++){
+							sChildren += "<div style=\"margin-bottom:5px; font-size:0.8em;\" onmouseover=\"this.style.cursor=\'pointer\'; this.style.textDecoration=\'underline\';\" onmouseout=\"this.style.textDecoration=\'none\';\" onclick=\"incybrary_ShowPhoto(\'"+aChildren[i][2]+"\');\">"+aChildren[i][1]+"</div>";
+							iCurrLoop++;
+						}
+						
+						oDivList.innerHTML = sChildren;
+					}
+					
+					function incybrary_ShowPhoto(sInputURL){
+						if (sInputURL != ""){
+							var oPhoto = document.getElementById("incybrary_photo");
+							//oPhoto.src = "http://www.hopecybary.org/"+sInputURL;
+							oPhoto.src = "'.base_path().'"+sInputURL;
+							
+							var oLink = document.getElementById("incybrary_link");
+							//oLink.href = "http://mygizmoz.socialgo.com/members/profile/"+sInputId;
+						}
+					}
+					
+					function incybrary_NavNext(){
+						iCurrIndex += 4;
+						
+						incybrary_ListChildren();
+						incybrary_ShowPhoto(aChildren[iCurrIndex][2], aChildren[iCurrIndex][3]);
+						incybrary_ShowNav();
+					}
+					
+					function incybrary_NavPrev(){
+						iCurrIndex -= 4;
+						
+						incybrary_ListChildren();
+						incybrary_ShowPhoto(aChildren[iCurrIndex][2], aChildren[iCurrIndex][3]);
+						incybrary_ShowNav();
+					}
+					
+					function incybrary_ShowNav(){
+						if ((iOnlineChildren/4) > 1){
+							var sNext = ((iCurrIndex+4) < iOnlineChildren) ? " <a href=\"javascript:incybrary_NavNext();\">Next</a>":"";
+							var sPrev = ((iCurrIndex-4) > 0) ? "<a href=\"javascript:incybrary_NavPrev();\">Prev</a> ":"";
+							
+							var iStartRec = iCurrIndex + 1;
+							var iEndRec = ((iStartRec + 3) > iOnlineChildren) ? iOnlineChildren:iStartRec + 3;
+							
+							var oNav = document.getElementById("incybrary_nav");
+							oNav.innerHTML = sPrev+iStartRec+" - "+iEndRec+" of "+iOnlineChildren+sNext;
+						}else{
+							Toggle("incybrary_nav", false);
+						}
+					}
+					
+					function Toggle(sDivID, bBool){
+						var oDiv = document.getElementById(sDivID);
+						oDiv.style.display = (bBool) ? "block":"none";
+					}
+					
+					window.onload = function (){
+						incybrary_ListChildren();
+						incybrary_ShowPhoto(aChildren[iCurrIndex][2], aChildren[iCurrIndex][3]);
+						incybrary_ShowNav();
+					}
+					</script>
+					
+					<table celpadding="0" cellspacing="0" style="width:100%; border:0; background-color:transparent;">
+						<tr>
+							<td id="incybrary_children" style="border:0; vertical-align:top;"></td>
+							<td style="border:0;"><a id="incybrary_link" href=""><img id="incybrary_photo" src="" target="_new" align="right" style="width:75px; border:0;" /></a></td>
+						</tr>
+						<tr>
+							<td id="incybrary_nav" colspan="2" style="border:0; text-align:center; font-size:0.8em;"></td>
+						</tr>
+					</table>';
+		
+		$aBlock["subject"] = t("In the Cybrary Now");
+		$aBlock["content"] = $sOutput;
+		
+		return $aBlock;
+		
+	}/* elseif ($sOperation == "configure"){
+		
+	}elseif ($sOperation == "save"){
+		
+	} */
+}
+
+function incybrary_menu(){
+	$aItems = array();
+	
+	$aItems['children/%'] = array(
+		'title' => 'Meet our HopeNET Children',
+		'page callback' => 'incybrary_children',
+		'page arguments' => array(1),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['teamchildren/%'] = array(
+		'title' => 'Meet our HopeNET Children',
+		'page callback' => 'incybrary_team_children',
+		'page arguments' => array(1,2),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['teamvolunteers/%'] = array(
+		'title' => 'Meet our HopeNET Volunteers',
+		'page callback' => 'incybrary_team_volunteers',
+		'page arguments' => array(1,2),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aItems['teaminvestors/%'] = array(
+		'title' => 'Meet our HopeNET Volunteers',
+		'page callback' => 'incybrary_team_investors',
+		'page arguments' => array(1,2),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aItems['incybrary/%'] = array(
+		'title' => 'Meet our HopeNET Volunteers',
+		'page callback' => 'incybrary_cybrarynow',
+		'page arguments' => array(1),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['teamroles/getroles'] = array(
+		'title' => 'Meet our HopeNET Volunteers',
+		'page callback' => 'incybrary_getroles',
+		'page arguments' => array(2),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+function incybrary_getroles(){
+
+	$useruid = $_POST['uid'];
+	
+	$arr_roles = array();
+	$result = db_query('SELECT r.rid, r.name FROM {role} r INNER JOIN {users_roles} ur ON ur.rid = r.rid WHERE ur.uid = %d', $useruid);
+	while ($role = db_fetch_object($result)) {
+	 $arr_roles[$role->rid] = $role->name;
+	}
+	
+	echo json_encode(array("STATUS" => 1, "volunteerroles" => implode(', ',$arr_roles), 'uid' => $useruid));
+	
+	exit;
+}
+
+function incybrary_children($sRequestChildren, $globalSchool = ""){
+	global $user;
+	
+	$globalSchool = ($globalSchool == 'undefined') ? '':trim($globalSchool);
+	
+	if ($sRequestChildren != "profile"){
+		ksort($user->roles);
+		
+		foreach ($user->roles as $iRoleId => $sRoleName){
+			$iRoleId = $iRoleId;
+		}
+		
+		$iInterval = time() - variable_get('user_block_seconds_online', 900);
+		$iNow = mktime(0, 0, 0, date("m"), date("d"), date("Y"));
+		$aChildren = array();
+		$aChildren2 = array();
+		$aChildrenFilter = array();
+		$aChildrenOnline = array();
+		$aChildren24 = array();
+		$aChildrenDetails = array();
+		$aPathpluspicture = 'sites/default/files/pictures/none.png'; 
+		
+		$oAuthUsers = db_query("SELECT DISTINCT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture, s.timestamp FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.timestamp >= %d AND s.uid > 0 ORDER BY s.timestamp DESC", $iInterval);
+		//$oChildren = db_query("SELECT A.uid, A.mail, B.value FROM {users} A INNER JOIN {profile_values} B ON B.uid = A.uid WHERE A.uid > 1 AND A.status = 1 AND A.inactive = 3 AND B.fid = 5"); previous query for add student url -instant/mentor/browse
+                $oChildren = db_query("SELECT A.uid, A.mail, B.value FROM {users} A INNER JOIN {profile_values} B ON B.uid = A.uid  INNER JOIN {users_roles} ur ON A.uid = ur.uid WHERE A.uid > 1 AND A.status = 1 AND A.inactive = 3 AND B.fid = 5 AND ur.rid = 9");
+           
+		$age = $_POST['ageselect'] == "No Preference" || $_POST['ageselect'] == NULL ? "empty" : $_POST['ageselect'];
+		$gender = $_POST['gender'] == "No Preference" || $_POST['ageselect'] == NULL ? "empty" : $_POST['gender'];
+		while ($oTotalChildren = db_fetch_object($oChildren)){
+			$aDOB = unserialize($oTotalChildren->value);
+			$iDOB = mktime(0, 0, 0, $aDOB["month"], $aDOB["day"], $aDOB["year"]);
+			$iYear = floor(($iNow  - $iDOB) / (60*60*24*365));
+
+			if (1){ // put code $iYear <= 12 (previous condition) by samriddh bhatt on 12/9/2014 url -  instant/mentor/browse
+				$iChildId = $oTotalChildren->uid;
+				$aChildrenFilter[] = $iChildId;
+				
+				$sqlChild = "SELECT uid, name, mail, IF(picture = '','{$aPathpluspicture}',picture) as picture FROM {users} WHERE uid = %d ORDER BY uid";
+				$oChild = db_query($sqlChild, $iChildId);
+
+				if($globalSchool !== ""){
+					$resVolSchool = db_result(db_query("SELECT value FROM {profile_values} WHERE fid = 7 AND uid = '{$iChildId}' ORDER BY value"));
+					if($resVolSchool == $globalSchool){
+						if($age == "empty" && $gender == "empty"){
+								$aChildren[] = db_fetch_object($oChild);
+						} else{
+							if($gender !== "empty"){
+								$resVolGender = db_result(db_query("SELECT value FROM {profile_values} WHERE fid = 4 AND uid = '{$iChildId}' ORDER BY value"));
+								if($resVolGender == $gender){
+									if($age !== "empty"){
+										if($age == $iYear){
+											$aChildren[] = db_fetch_object($oChild);
+										}
+									} else{
+									$aChildren[] = db_fetch_object($oChild);
+									}
+								}
+							} else{
+								if($age !== "empty"){
+									if($age == $iYear){
+									$aChildren[] = db_fetch_object($oChild);
+									}
+								}
+							}
+						}
+					}
+				} else{
+					$aChildren[] = db_fetch_object($oChild);
+				}
+				
+				$sqlDetails = "SELECT fid, TRIM(value) AS value
+								FROM profile_values
+								WHERE fid IN (15, 45, 46, 47, 48)
+									AND uid = %d";
+				
+				$oDetails = db_query($sqlDetails, $iChildId);
+				
+				$aTemp = array();
+				$aTemp["uid"] = $iChildId;
+				
+				while ($oDetail = db_fetch_object($oDetails)){
+					if ($oDetail->fid == 15) $aTemp["income"] = ($oDetail->value == '' || !is_int($oDetail->value) || $oDetail->value == 0) ? '0.00':number_format($oDetail->value, 2);
+					if ($oDetail->fid == 45) $aTemp["language"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+					if ($oDetail->fid == 46) $aTemp["talent"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+					if ($oDetail->fid == 47) $aTemp["favorite"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+					if ($oDetail->fid == 48) $aTemp["lives_with"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+				}
+				mysqli_free_result($oChild);
+				mysqli_free_result($oDetails);
+				
+				$aChildrenDetails[] = $aTemp;
+			}
+		}
+		mysqli_free_result($oChildren);
+	}
+	
+	switch ($sRequestChildren){
+		case "online":
+			if($globalSchool !== ""){
+				while ($oAccount = db_fetch_object($oAuthUsers)){
+					if (in_array($oAccount->uid, $aChildrenFilter)){
+						$resVolSchool = db_result(db_query("SELECT value FROM {profile_values} WHERE fid = 7 AND uid = '{$oAccount->uid}' ORDER BY value"));
+						if($globalSchool == $resVolSchool){
+							$aChildrenOnline[] = $oAccount;
+						}
+					}
+				}
+			} else{
+				while ($oAccount = db_fetch_object($oAuthUsers)){
+					if (in_array($oAccount->uid, $aChildrenFilter)){
+					$aChildrenOnline[] = $oAccount;
+					}
+				}
+			}
+			mysqli_free_result($oAuthUsers);
+			
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildrenOnline, "DETAILS" => $aChildrenDetails));
+			
+			break;
+		
+		case "24":
+			$sql24 = "SELECT uid, name, mail, IF(picture = '','{$aPathpluspicture}',picture) as picture 
+						FROM {users} 
+						WHERE uid IN (".implode(", ", $aChildrenFilter).") 
+							AND login >= (UNIX_TIMESTAMP() - (60*60*24)) 
+							AND login <= UNIX_TIMESTAMP()";
+			$oChildren24 = db_query($sql24);
+			
+			if($globalSchool !== ""){
+				while ($oChild24 = db_fetch_object($oChildren24)){
+					$resVolSchool = db_result(db_query("SELECT value FROM {profile_values} WHERE fid = 7 AND uid = '{$oChild24->uid}' ORDER BY value"));
+					if($globalSchool == $resVolSchool){
+					$aChildren24[] = $oChild24;
+					}
+				}
+			} else{
+				while ($oChild24 = db_fetch_object($oChildren24)){
+					$aChildren24[] = $oChild24;
+				}
+			}
+			mysqli_free_result($resVolSchool);
+			mysqli_free_result($oChild24);
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildren24, "DETAILS" => $aChildrenDetails));
+			
+			break;
+			
+		case "profile":
+			/*$affiliateUserName = variable_get('kickapps_username', '');
+			$affiliateEmail = variable_get('kickapps_email', '');
+			$affiliateSiteName = variable_get('kickapps_sitename', '');
+			$requestType = "signInRegisterUser";
+			
+			# --BEGIN Get User Details
+			$aProfile = _kickapps_get_profile($_POST["uid"]);
+			
+			$sFirstName = ucwords($aProfile["profile_first_name"]);
+			$sLastName = ucwords($aProfile["profile_last_name"]);
+			$sGender = substr($aProfile["profile_gender"], 0, 1);
+			
+			$aDOB = unserialize($aProfile["profile_dob"]);
+			$dDOB = $aDOB["year"]."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			$iAge = floor((time() - strtotime($dDOB)) / (60*60*24*365.2425));
+			
+			// Workaround so those who are younger than 13 years can be registered
+			if ($iAge < 13) $dDOB = ($aDOB["year"] - 100)."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			# --END Get User Details
+			
+			$kickapps_client = new SOAPClient("http://affiliate.kickapps.com/kickapps/soap/KaSoapSvc?WSDL");
+			
+			$kickapps_client->trace = 4;
+			$auth->AffiliateUserName = $affiliateUserName;
+			$auth->AffiliateEmail = $affiliateEmail;
+			$doc = new DomDocument('1.0', 'UTF-8');
+			$header_input = array('ns2:AffiliateUserName' => $affiliateUserName, 'ns2:AffiliateUserEmail' =>$affiliateEmail);
+			$headerVar = new SoapVar($header_input, SOAP_ENC_OBJECT);
+			$headert = new SoapHeader('http://schemas.kickapps.com/services/soap',	'AffiliateAuthenticationToken', $headerVar);
+			$kickapps_client->__setSoapHeaders(array($headert));
+			$nodeKassoRequest = $doc->createElementNS("http://schemas.kickapps.com/services/soap","KassoRequest");
+			$nodeKassoRequest = $doc->appendChild($nodeKassoRequest);
+			$requestName = $nodeKassoRequest->setAttribute("requestName", $requestType);
+			
+			$userName = $_POST["user"];
+			//$email = $_POST["email"];
+			
+			$sqlUser = "SELECT mail FROM users WHERE uid = %d";
+			$email = db_result(db_query($sqlUser, $_POST["uid"]));
+			
+			$firstName = $sFirstName;
+			$lastName = $sLastName;
+			
+			// build the request XML document
+			$nodeaffiliateUserName = $doc->createElement("Param");
+			$newnodeaffiliateUserName = $nodeKassoRequest->appendChild($nodeaffiliateUserName);
+			$paraNameAttr = $nodeaffiliateUserName->setAttribute("paramName", "affiliateUserName");
+			$paramValue = $nodeaffiliateUserName->setAttribute("paramValue", $affiliateUserName);
+			
+			$nodeaffiliateEmail = $doc->createElement("Param");
+			$newnodeaffiliateEmail = $nodeKassoRequest->appendChild($nodeaffiliateEmail);
+			$paraNameAttr = $nodeaffiliateEmail->setAttribute("paramName", "affiliateEmail");
+			$paramValue = $nodeaffiliateEmail->setAttribute("paramValue", $affiliateEmail);
+			
+			$nodeaffiliateSiteName = $doc->createElement("Param");
+			$newnodeaffiliateSiteName = $nodeKassoRequest->appendChild($nodeaffiliateSiteName);
+			$paraNameAttr = $nodeaffiliateSiteName->setAttribute("paramName", "affiliateSiteName");
+			$paramValue = $nodeaffiliateSiteName->setAttribute("paramValue", $affiliateSiteName);
+			
+			$nodeuserName = $doc->createElement("Param");
+			$newnodeuserName = $nodeKassoRequest->appendChild($nodeuserName);
+			$paraNameAttr = $nodeuserName->setAttribute("paramName", "userName");
+			$paramValue = $nodeuserName->setAttribute("paramValue", $userName);
+			
+			$nodeemail = $doc->createElement("Param");
+			$newnodeemail = $nodeKassoRequest->appendChild($nodeemail);
+			$paraNameAttr = $nodeemail->setAttribute("paramName", "email");
+			$paramValue = $nodeemail->setAttribute("paramValue", $email);
+			
+			$nodeforce = $doc->createElement("Param");
+			$newnodeemail = $nodeKassoRequest->appendChild($nodeforce);
+			$paraNameAttr = $nodeforce->setAttribute("paramName", "forceEmailUpdate");
+			$paramValue = $nodeforce->setAttribute("paramValue", "true");
+
+			$nodebirthday = $doc->createElement("Param");
+			$newnodebirthday = $nodeKassoRequest->appendChild($nodebirthday);
+			$paraNameAttr = $nodebirthday->setAttribute("paramName", "birthday");
+			$paramValue = $nodebirthday->setAttribute("paramValue", $dDOB);
+
+			$nodefirstName = $doc->createElement("Param");
+			$newnodefirstName = $nodeKassoRequest->appendChild($nodefirstName);
+			$paraNameAttr = $nodefirstName->setAttribute("paramName", "firstName");
+			$paramValue = $nodefirstName->setAttribute("paramValue", $firstName);
+			
+			$nodelastName = $doc->createElement("Param");
+			$newnodelastName = $nodeKassoRequest->appendChild($nodelastName);
+			$paraNameAttr = $newnodelastName->setAttribute("paramName", "lastName");
+			$paramValue = $newnodelastName->setAttribute("paramValue", $lastName);
+			
+			$nodegender = $doc->createElement("Param");
+			$newnodegender = $nodeKassoRequest->appendChild($nodegender);
+			$paraNameAttr = $newnodegender->setAttribute("paramName", "gender");
+			$paramValue = $newnodegender->setAttribute("paramValue", $sGender);
+			
+			$doc->appendChild($nodeKassoRequest);
+			
+			try {
+				$result = $kickapps_client->processRequest($doc->saveXML());
+				
+				$dom_doc = new DOMDocument();
+				$dom_doc->loadXML($result);
+				$params = $dom_doc->getElementsByTagName("Param");
+				
+				$uidParam = $params->item(4);
+				$uid = $uidParam->getAttribute('paramValue');
+				
+				echo json_encode(array("STATUS" => 1, "RETURN" => $uid));
+			} catch (SOAPFault $soapex) {
+				watchdog("KickApps Error", $soapex->getMessage());
+				echo json_encode(array("STATUS" => 0));
+			}*/
+			
+			echo json_encode(array("STATUS" => 0));
+			
+			break;
+		
+		default:
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildren, "DETAILS" => $aChildrenDetails));
+	}
+	
+	exit;
+}
+
+function incybrary_team_children($sRequestChildren = "", $teamid = ""){
+	global $user;
+	
+	if ($sRequestChildren != "profile"){
+		ksort($user->roles);
+		
+		foreach ($user->roles as $iRoleId => $sRoleName){
+			$iRoleId = $iRoleId;
+		}
+		
+		$iInterval = time() - variable_get('user_block_seconds_online', 900);
+		$iNow = mktime(0, 0, 0, date("m"), date("d"), date("Y"));
+		$aChildren = array();
+		$aChildrenFilter = array();
+		$aChildrenOnline = array();
+		$aChildren24 = array();
+		$aChildrenDetails = array();
+		$aPathpluspicture = 'sites/default/files/pictures/none.png'; 
+		
+		$oAuthUsers = db_query("SELECT DISTINCT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture, s.timestamp FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.timestamp >= %d AND s.uid > 0 ORDER BY s.timestamp DESC", $iInterval);
+		$oChildren = db_query("SELECT A.uid, A.mail, B.value 
+								FROM {users} A 
+								INNER JOIN {profile_values} B ON B.uid = A.uid 
+								INNER JOIN {hope_teamusers} C ON C.uid = A.uid 
+								WHERE 
+								A.uid > 1 
+								AND A.status = 1 
+								AND A.inactive = 3
+								AND B.fid = 5
+								AND C.team_id = '{$teamid}'
+							  ");
+		$aTotalTemp = array();	
+		while ($oTotalChildren = db_fetch_object($oChildren)){
+			$aDOB = unserialize($oTotalChildren->value);
+			$iDOB = mktime(0, 0, 0, $aDOB["month"], $aDOB["day"], $aDOB["year"]);
+			$iYear = floor(($iNow  - $iDOB) / (60*60*24*365));
+			
+			if ($iYear <= 12){
+				$iChildId = $oTotalChildren->uid;
+				$aChildrenFilter[] = $iChildId;
+				
+				$sqlChild = "SELECT uid, name, mail, IF(picture = '','{$aPathpluspicture}',picture) as picture FROM {users} WHERE uid = %d ORDER BY uid";
+				$oChild = db_query($sqlChild, $iChildId);
+				$aChildren[] = db_fetch_object($oChild);
+				
+				mysqli_free_result($oChild);
+				
+				/*
+				$sqlDetails = "SELECT fid, value
+								FROM profile_values
+								WHERE fid IN (15, 45, 46, 47, 48)
+									AND uid = %d";
+				
+				$oDetails = db_query($sqlDetails, $iChildId);
+				
+				$aTemp = array();
+				$aTemp["uid"] = $iChildId;
+				
+				while ($oDetail = db_fetch_object($oDetails)){
+					if ($oDetail->fid == 15) $aTemp["income"] = number_format($oDetail->value, 2);
+					if ($oDetail->fid == 45) $aTemp["language"] = $oDetail->value;
+					if ($oDetail->fid == 46) $aTemp["talent"] = $oDetail->value;
+					if ($oDetail->fid == 47) $aTemp["favorite"] = $oDetail->value;
+					if ($oDetail->fid == 48) $aTemp["lives_with"] = $oDetail->value;
+				} */
+				
+				mysqli_free_result($oDetails);
+				
+				$aTemp = array();
+				$aTemp["uid"] = $iChildId;
+				
+				$iKindnessHours = _kindness_get_hours($iChildId);
+				$iTimeHour = intval($iKindnessHours);
+				$iTimeMin = ($iKindnessHours - floor($iKindnessHours)) * 60;
+				$iCovertedHours = _kindness_get_hours($iChildId, true);
+				$iTotalHours = $iKindnessHours + $iCovertedHours;
+				
+				$iKnowledgePortal =  _time_tracker_get_time_spent($iChildId) / 3600;
+				
+				$aTemp["doingnow"] = 'Under Construction';
+				$aTemp["knowledgeportalhours"] = number_format($iKnowledgePortal, 2);
+				$aTemp["kindnesshours"] = $iTotalHours;
+
+				$aChildrenDetails[] = $aTemp;
+				
+				$aTotalTemp["totalknowledge"] = number_format($iKnowledgePortal, 2) + $aTotalTemp["totalknowledge"];
+				$aTotalTemp["totalkindness"] = $iTotalHours + $aTotalTemp["totalkindness"];
+			}
+		}
+		mysqli_free_result($oChildren);
+		$aChildrenTotalDetails[] = $aTotalTemp; 
+	}
+	
+	switch ($sRequestChildren){
+		case "online":
+			while ($oAccount = db_fetch_object($oAuthUsers)){
+				if (in_array($oAccount->uid, $aChildrenFilter)) $aChildrenOnline[] = $oAccount;
+			}
+			mysqli_free_result($oAuthUsers);
+			
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildrenOnline, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+			
+			break;
+		
+		case "24":
+			$sql24 = "SELECT uid, name, mail, IF(picture = '','{$aPathpluspicture}',picture) as picture 
+						FROM {users} 
+						WHERE uid IN (".implode(", ", $aChildrenFilter).") 
+							AND login >= (UNIX_TIMESTAMP() - (60*60*24)) 
+							AND login <= UNIX_TIMESTAMP()";
+			$oChildren24 = db_query($sql24);
+			
+			while ($oChild24 = db_fetch_object($oChildren24)){
+				$aChildren24[] = $oChild24;
+			}
+			mysqli_free_result($oChildren24);
+			
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildren24, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+			
+			break;
+			
+		case "profile":
+			$affiliateUserName = variable_get('kickapps_username', '');
+			$affiliateEmail = variable_get('kickapps_email', '');
+			$affiliateSiteName = variable_get('kickapps_sitename', '');
+			$requestType = "signInRegisterUser";
+			
+			# --BEGIN Get User Details
+			// $aProfile = _kickapps_get_profile($_POST["uid"]);
+			
+			$sFirstName = ucwords($aProfile["profile_first_name"]);
+			$sLastName = ucwords($aProfile["profile_last_name"]);
+			$sGender = substr($aProfile["profile_gender"], 0, 1);
+			
+			$aDOB = unserialize($aProfile["profile_dob"]);
+			$dDOB = $aDOB["year"]."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			$iAge = floor((time() - strtotime($dDOB)) / (60*60*24*365.2425));
+			
+			// Workaround so those who are younger than 13 years can be registered
+			if ($iAge < 13) $dDOB = ($aDOB["year"] - 100)."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			# --END Get User Details
+			
+			$kickapps_client = new SOAPClient("http://affiliate.kickapps.com/kickapps/soap/KaSoapSvc?WSDL");
+			
+			$kickapps_client->trace = 4;
+			$auth->AffiliateUserName = $affiliateUserName;
+			$auth->AffiliateEmail = $affiliateEmail;
+			$doc = new DomDocument('1.0', 'UTF-8');
+			$header_input = array('ns2:AffiliateUserName' => $affiliateUserName, 'ns2:AffiliateUserEmail' =>$affiliateEmail);
+			$headerVar = new SoapVar($header_input, SOAP_ENC_OBJECT);
+			$headert = new SoapHeader('http://schemas.kickapps.com/services/soap',	'AffiliateAuthenticationToken', $headerVar);
+			$kickapps_client->__setSoapHeaders(array($headert));
+			$nodeKassoRequest = $doc->createElementNS("http://schemas.kickapps.com/services/soap","KassoRequest");
+			$nodeKassoRequest = $doc->appendChild($nodeKassoRequest);
+			$requestName = $nodeKassoRequest->setAttribute("requestName", $requestType);
+			
+			$userName = $_POST["user"];
+			//$email = $_POST["email"];
+			
+			$sqlUser = "SELECT mail FROM users WHERE uid = %d";
+			$email = db_result(db_query($sqlUser, $_POST["uid"]));
+			
+			$firstName = $sFirstName;
+			$lastName = $sLastName;
+			
+			/* build the request XML document */
+			$nodeaffiliateUserName = $doc->createElement("Param");
+			$newnodeaffiliateUserName = $nodeKassoRequest->appendChild($nodeaffiliateUserName);
+			$paraNameAttr = $nodeaffiliateUserName->setAttribute("paramName", "affiliateUserName");
+			$paramValue = $nodeaffiliateUserName->setAttribute("paramValue", $affiliateUserName);
+			
+			$nodeaffiliateEmail = $doc->createElement("Param");
+			$newnodeaffiliateEmail = $nodeKassoRequest->appendChild($nodeaffiliateEmail);
+			$paraNameAttr = $nodeaffiliateEmail->setAttribute("paramName", "affiliateEmail");
+			$paramValue = $nodeaffiliateEmail->setAttribute("paramValue", $affiliateEmail);
+			
+			$nodeaffiliateSiteName = $doc->createElement("Param");
+			$newnodeaffiliateSiteName = $nodeKassoRequest->appendChild($nodeaffiliateSiteName);
+			$paraNameAttr = $nodeaffiliateSiteName->setAttribute("paramName", "affiliateSiteName");
+			$paramValue = $nodeaffiliateSiteName->setAttribute("paramValue", $affiliateSiteName);
+			
+			$nodeuserName = $doc->createElement("Param");
+			$newnodeuserName = $nodeKassoRequest->appendChild($nodeuserName);
+			$paraNameAttr = $nodeuserName->setAttribute("paramName", "userName");
+			$paramValue = $nodeuserName->setAttribute("paramValue", $userName);
+			
+			$nodeemail = $doc->createElement("Param");
+			$newnodeemail = $nodeKassoRequest->appendChild($nodeemail);
+			$paraNameAttr = $nodeemail->setAttribute("paramName", "email");
+			$paramValue = $nodeemail->setAttribute("paramValue", $email);
+			
+			$nodeforce = $doc->createElement("Param");
+			$newnodeemail = $nodeKassoRequest->appendChild($nodeforce);
+			$paraNameAttr = $nodeforce->setAttribute("paramName", "forceEmailUpdate");
+			$paramValue = $nodeforce->setAttribute("paramValue", "true");
+
+			$nodebirthday = $doc->createElement("Param");
+			$newnodebirthday = $nodeKassoRequest->appendChild($nodebirthday);
+			$paraNameAttr = $nodebirthday->setAttribute("paramName", "birthday");
+			$paramValue = $nodebirthday->setAttribute("paramValue", $dDOB);
+
+			$nodefirstName = $doc->createElement("Param");
+			$newnodefirstName = $nodeKassoRequest->appendChild($nodefirstName);
+			$paraNameAttr = $nodefirstName->setAttribute("paramName", "firstName");
+			$paramValue = $nodefirstName->setAttribute("paramValue", $firstName);
+			
+			$nodelastName = $doc->createElement("Param");
+			$newnodelastName = $nodeKassoRequest->appendChild($nodelastName);
+			$paraNameAttr = $newnodelastName->setAttribute("paramName", "lastName");
+			$paramValue = $newnodelastName->setAttribute("paramValue", $lastName);
+			
+			$nodegender = $doc->createElement("Param");
+			$newnodegender = $nodeKassoRequest->appendChild($nodegender);
+			$paraNameAttr = $newnodegender->setAttribute("paramName", "gender");
+			$paramValue = $newnodegender->setAttribute("paramValue", $sGender);
+			
+			$doc->appendChild($nodeKassoRequest);
+			
+			try {
+				$result = $kickapps_client->processRequest($doc->saveXML());
+				
+				$dom_doc = new DOMDocument();
+				$dom_doc->loadXML($result);
+				$params = $dom_doc->getElementsByTagName("Param");
+				
+				$uidParam = $params->item(4);
+				$uid = $uidParam->getAttribute('paramValue');
+				
+				echo json_encode(array("STATUS" => 1, "RETURN" => $uid));
+			} catch (SOAPFault $soapex) {
+				watchdog("KickApps Error", $soapex->getMessage());
+				echo json_encode(array("STATUS" => 0));
+			}
+			
+			break;
+		
+		default:
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildren, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+	}
+	
+	exit;
+	
+	/* echo "<pre>All Children ";
+	print_r($aChildren);
+	print_r(json_encode($aChildren));
+	echo "</pre>";
+	
+	echo "<pre>Online Children ";
+	print_r($aChildrenOnline);
+	print_r(json_encode($aChildrenOnline));
+	echo "</pre>";
+	
+	echo "<pre>Children in the Last 24 Hours ";
+	print_r($aChildren24);
+	print_r(json_encode($aChildren24));
+	echo "</pre>"; */
+}
+
+function incybrary_team_volunteers($sRequestChildren, $teamid){
+global $user;
+	
+	if ($sRequestChildren != "profile"){
+		ksort($user->roles);
+		
+		foreach ($user->roles as $iRoleId => $sRoleName){
+			$iRoleId = $iRoleId;
+		}
+		
+		$iInterval = time() - variable_get('user_block_seconds_online', 900);
+		$iNow = mktime(0, 0, 0, date("m"), date("d"), date("Y"));
+		$aChildren = array();
+		$aChildrenFilter = array();
+		$aChildrenOnline = array();
+		$aChildren24 = array();
+		$aChildrenDetails = array();
+		$aPathpluspicture = 'sites/default/files/pictures/none.png'; 
+		
+		$oAuthUsers = db_query("SELECT DISTINCT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture, s.timestamp FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.timestamp >= %d AND s.uid > 0 ORDER BY s.timestamp DESC", $iInterval);
+		$oChildren = db_query("SELECT A.uid, A.mail, B.value 
+								FROM {users} A 
+								INNER JOIN {profile_values} B ON B.uid = A.uid 
+								INNER JOIN {hope_teamusers} C ON C.uid = A.uid 
+								WHERE 
+								A.uid > 1 
+								AND A. status = 1 
+								AND B.fid = 5
+								AND C.team_id = '{$teamid}'
+							  ");
+							  
+		$aTotalTemp = array();	
+		while ($oTotalChildren = db_fetch_object($oChildren)){
+			$aDOB = unserialize($oTotalChildren->value);
+			$iDOB = mktime(0, 0, 0, $aDOB["month"], $aDOB["day"], $aDOB["year"]);
+			$iYear = floor(($iNow  - $iDOB) / (60*60*24*365));
+			
+			//if ($iYear <= 12){
+				$iChildId = $oTotalChildren->uid;
+				$aChildrenFilter[] = $iChildId;
+				
+				$sqlChild = "SELECT uid, name, mail, IF(picture = '','{$aPathpluspicture}',picture) as picture FROM {users} WHERE uid = %d ORDER BY uid";
+				$oChild = db_query($sqlChild, $iChildId);
+				$aChildren[] = db_fetch_object($oChild);
+				mysqli_free_result($oChild);
+				$aTemp = array();
+				$aTemp["uid"] = $iChildId;
+				
+				$iKindnessHours = _kindness_get_hours($iChildId);
+				$iTimeHour = intval($iKindnessHours);
+				$iTimeMin = ($iKindnessHours - floor($iKindnessHours)) * 60;
+				$iCovertedHours = _kindness_get_hours($iChildId, true);
+				$iTotalHours = $iKindnessHours + $iCovertedHours;
+				
+				$arr_roles = array();
+				$result = db_query('SELECT r.rid, r.name FROM {role} r INNER JOIN {users_roles} ur ON ur.rid = r.rid WHERE ur.uid = %d', $useruid);
+				while ($role = db_fetch_object($result)) {
+				  $arr_roles[$role->rid] = $role->name;
+				}
+				mysqli_free_result($result);	
+				
+				$aTemp["doingnow"] = 'Under Construction';
+				$aTemp["volunteerroles"] = implode(", ", $arr_roles);
+				$aTemp["kindnesshours"] = $iTotalHours;
+
+				$aChildrenDetails[] = $aTemp;
+				
+				$resultmembercount = db_result(db_query('SELECT count(team_userid) FROM {hope_teamusers} WHERE team_id = %d', $teamid));
+				$aTotalTemp["totalteamcount"] = $resultmembercount;
+				$aTotalTemp["totalkindness"] = $iTotalHours + $aTotalTemp["totalkindness"];
+			//}
+		}
+		mysqli_free_result($oChildren);	
+		$aChildrenTotalDetails[] = $aTotalTemp; 
+	}
+	
+	switch ($sRequestChildren){
+		case "online":
+			while ($oAccount = db_fetch_object($oAuthUsers)){
+				if (in_array($oAccount->uid, $aChildrenFilter)) $aChildrenOnline[] = $oAccount;
+			}
+			mysqli_free_result($oAuthUsers);
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildrenOnline, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+			
+			break;
+		
+		case "24":
+			$sql24 = "SELECT uid, name, mail, IF(picture = '','{$aPathpluspicture}',picture) as picture 
+						FROM {users} 
+						WHERE uid IN (".implode(", ", $aChildrenFilter).") 
+							AND login >= (UNIX_TIMESTAMP() - (60*60*24)) 
+							AND login <= UNIX_TIMESTAMP()";
+			$oChildren24 = db_query($sql24);
+			
+			while ($oChild24 = db_fetch_object($oChildren24)){
+				$aChildren24[] = $oChild24;
+			}
+			mysqli_free_result($oChildren24);
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildren24, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+			
+			break;
+			
+		case "profile":
+			$affiliateUserName = variable_get('kickapps_username', '');
+			$affiliateEmail = variable_get('kickapps_email', '');
+			$affiliateSiteName = variable_get('kickapps_sitename', '');
+			$requestType = "signInRegisterUser";
+			
+			# --BEGIN Get User Details
+			$aProfile = _kickapps_get_profile($_POST["uid"]);
+			
+			$sFirstName = ucwords($aProfile["profile_first_name"]);
+			$sLastName = ucwords($aProfile["profile_last_name"]);
+			$sGender = substr($aProfile["profile_gender"], 0, 1);
+			
+			$aDOB = unserialize($aProfile["profile_dob"]);
+			$dDOB = $aDOB["year"]."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			$iAge = floor((time() - strtotime($dDOB)) / (60*60*24*365.2425));
+			
+			// Workaround so those who are younger than 13 years can be registered
+			if ($iAge < 13) $dDOB = ($aDOB["year"] - 100)."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			# --END Get User Details
+			
+			$kickapps_client = new SOAPClient("http://affiliate.kickapps.com/kickapps/soap/KaSoapSvc?WSDL");
+			
+			$kickapps_client->trace = 4;
+			$auth->AffiliateUserName = $affiliateUserName;
+			$auth->AffiliateEmail = $affiliateEmail;
+			$doc = new DomDocument('1.0', 'UTF-8');
+			$header_input = array('ns2:AffiliateUserName' => $affiliateUserName, 'ns2:AffiliateUserEmail' =>$affiliateEmail);
+			$headerVar = new SoapVar($header_input, SOAP_ENC_OBJECT);
+			$headert = new SoapHeader('http://schemas.kickapps.com/services/soap',	'AffiliateAuthenticationToken', $headerVar);
+			$kickapps_client->__setSoapHeaders(array($headert));
+			$nodeKassoRequest = $doc->createElementNS("http://schemas.kickapps.com/services/soap","KassoRequest");
+			$nodeKassoRequest = $doc->appendChild($nodeKassoRequest);
+			$requestName = $nodeKassoRequest->setAttribute("requestName", $requestType);
+			
+			$userName = $_POST["user"];
+			//$email = $_POST["email"];
+			
+			$sqlUser = "SELECT mail FROM users WHERE uid = %d";
+			$email = db_result(db_query($sqlUser, $_POST["uid"]));
+			
+			$firstName = $sFirstName;
+			$lastName = $sLastName;
+			
+			/* build the request XML document */
+			$nodeaffiliateUserName = $doc->createElement("Param");
+			$newnodeaffiliateUserName = $nodeKassoRequest->appendChild($nodeaffiliateUserName);
+			$paraNameAttr = $nodeaffiliateUserName->setAttribute("paramName", "affiliateUserName");
+			$paramValue = $nodeaffiliateUserName->setAttribute("paramValue", $affiliateUserName);
+			
+			$nodeaffiliateEmail = $doc->createElement("Param");
+			$newnodeaffiliateEmail = $nodeKassoRequest->appendChild($nodeaffiliateEmail);
+			$paraNameAttr = $nodeaffiliateEmail->setAttribute("paramName", "affiliateEmail");
+			$paramValue = $nodeaffiliateEmail->setAttribute("paramValue", $affiliateEmail);
+			
+			$nodeaffiliateSiteName = $doc->createElement("Param");
+			$newnodeaffiliateSiteName = $nodeKassoRequest->appendChild($nodeaffiliateSiteName);
+			$paraNameAttr = $nodeaffiliateSiteName->setAttribute("paramName", "affiliateSiteName");
+			$paramValue = $nodeaffiliateSiteName->setAttribute("paramValue", $affiliateSiteName);
+			
+			$nodeuserName = $doc->createElement("Param");
+			$newnodeuserName = $nodeKassoRequest->appendChild($nodeuserName);
+			$paraNameAttr = $nodeuserName->setAttribute("paramName", "userName");
+			$paramValue = $nodeuserName->setAttribute("paramValue", $userName);
+			
+			$nodeemail = $doc->createElement("Param");
+			$newnodeemail = $nodeKassoRequest->appendChild($nodeemail);
+			$paraNameAttr = $nodeemail->setAttribute("paramName", "email");
+			$paramValue = $nodeemail->setAttribute("paramValue", $email);
+			
+			$nodeforce = $doc->createElement("Param");
+			$newnodeemail = $nodeKassoRequest->appendChild($nodeforce);
+			$paraNameAttr = $nodeforce->setAttribute("paramName", "forceEmailUpdate");
+			$paramValue = $nodeforce->setAttribute("paramValue", "true");
+
+			$nodebirthday = $doc->createElement("Param");
+			$newnodebirthday = $nodeKassoRequest->appendChild($nodebirthday);
+			$paraNameAttr = $nodebirthday->setAttribute("paramName", "birthday");
+			$paramValue = $nodebirthday->setAttribute("paramValue", $dDOB);
+
+			$nodefirstName = $doc->createElement("Param");
+			$newnodefirstName = $nodeKassoRequest->appendChild($nodefirstName);
+			$paraNameAttr = $nodefirstName->setAttribute("paramName", "firstName");
+			$paramValue = $nodefirstName->setAttribute("paramValue", $firstName);
+			
+			$nodelastName = $doc->createElement("Param");
+			$newnodelastName = $nodeKassoRequest->appendChild($nodelastName);
+			$paraNameAttr = $newnodelastName->setAttribute("paramName", "lastName");
+			$paramValue = $newnodelastName->setAttribute("paramValue", $lastName);
+			
+			$nodegender = $doc->createElement("Param");
+			$newnodegender = $nodeKassoRequest->appendChild($nodegender);
+			$paraNameAttr = $newnodegender->setAttribute("paramName", "gender");
+			$paramValue = $newnodegender->setAttribute("paramValue", $sGender);
+			
+			$doc->appendChild($nodeKassoRequest);
+			
+			try {
+				$result = $kickapps_client->processRequest($doc->saveXML());
+				
+				$dom_doc = new DOMDocument();
+				$dom_doc->loadXML($result);
+				$params = $dom_doc->getElementsByTagName("Param");
+				
+				$uidParam = $params->item(4);
+				$uid = $uidParam->getAttribute('paramValue');
+				
+				echo json_encode(array("STATUS" => 1, "RETURN" => $uid));
+			} catch (SOAPFault $soapex) {
+				watchdog("KickApps Error", $soapex->getMessage());
+				echo json_encode(array("STATUS" => 0));
+			}
+			
+			break;
+		
+		default:
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildren, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+	}
+	
+	exit;
+}
+
+function incybrary_team_investors($sRequestChildren, $teamid){
+global $user;
+	
+	if ($sRequestChildren != "profile"){
+		ksort($user->roles);
+		
+		foreach ($user->roles as $iRoleId => $sRoleName){
+			$iRoleId = $iRoleId;
+		}
+		
+		$iInterval = time() - variable_get('user_block_seconds_online', 900);
+		$iNow = mktime(0, 0, 0, date("m"), date("d"), date("Y"));
+		$aChildren = array();
+		$aChildrenFilter = array();
+		$aChildrenOnline = array();
+		$aChildren24 = array();
+		$aChildrenDetails = array();
+		$aPathpluspicture = 'sites/default/files/pictures/none.png'; 
+		
+		$oAuthUsers = db_query("SELECT DISTINCT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture, s.timestamp FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.timestamp >= %d AND s.uid > 0 ORDER BY s.timestamp DESC", $iInterval);
+		$oChildren = db_query("SELECT A.uid, A.mail, B.value 
+								FROM {users} A 
+								INNER JOIN {profile_values} B ON B.uid = A.uid 
+								INNER JOIN {hope_teamusers} C ON C.uid = A.uid 
+								WHERE 
+								A.uid > 1 
+								AND A. status = 1 
+								AND B.fid = 5
+								AND C.team_id = '{$teamid}'
+							  ");
+							  
+		$aTotalTemp = array();	
+		while ($oTotalChildren = db_fetch_object($oChildren)){
+			$aDOB = unserialize($oTotalChildren->value);
+			$iDOB = mktime(0, 0, 0, $aDOB["month"], $aDOB["day"], $aDOB["year"]);
+			$iYear = floor(($iNow  - $iDOB) / (60*60*24*365));
+			
+			//if ($iYear <= 12){
+				$iChildId = $oTotalChildren->uid;
+				$aChildrenFilter[] = $iChildId;
+				
+				$sqlChild = "SELECT uid, name, mail, IF(picture = '','{$aPathpluspicture}',picture) as picture FROM {users} WHERE uid = %d ORDER BY uid";
+				$oChild = db_query($sqlChild, $iChildId);
+				$aChildren[] = db_fetch_object($oChild);
+				mysqli_free_result($oChild);
+				$aTemp = array();
+				$aTemp["uid"] = $iChildId;
+				
+				$iKindnessHours = _kindness_get_hours($iChildId);
+				$iTimeHour = intval($iKindnessHours);
+				$iTimeMin = ($iKindnessHours - floor($iKindnessHours)) * 60;
+				$iCovertedHours = _kindness_get_hours($iChildId, true);
+				$iTotalHours = $iKindnessHours + $iCovertedHours;
+				
+				$arr_roles = array();
+				$result = db_query('SELECT r.rid, r.name FROM {role} r INNER JOIN {users_roles} ur ON ur.rid = r.rid WHERE ur.uid = %d', $useruid);
+				while ($role = db_fetch_object($result)) {
+				  $arr_roles[$role->rid] = $role->name;
+				}
+				mysqli_free_result($result);	
+				
+				$aTemp["doingnow"] = 'Under Construction';
+				$aTemp["volunteerroles"] = implode(", ", $arr_roles);
+				$aTemp["kindnesshours"] = $iTotalHours;
+
+				$aChildrenDetails[] = $aTemp;
+				
+				$resultmembercount = db_result(db_query('SELECT count(team_userid) FROM {hope_teamusers} WHERE team_id = %d', $teamid));
+				$aTotalTemp["totalteamcount"] = $resultmembercount;
+				$aTotalTemp["totalkindness"] = $iTotalHours + $aTotalTemp["totalkindness"];
+				
+				$db_getteaminfo = db_query('SELECT * FROM {invest_team} WHERE kickappsteam_id = %d', $teamid);
+				$teamfetch = db_fetch_object($db_getteaminfo);
+				
+				$aTotalTemp["locationbase"] = $teamfetch->location;
+				$aTotalTemp["formedyear"] = '2011';
+				$aTotalTemp["totalinvested"] = '$5000';
+			//}
+		}
+		mysqli_free_result($oChildren);	
+		$aChildrenTotalDetails[] = $aTotalTemp; 
+	}
+	
+	switch ($sRequestChildren){
+		case "online":
+			while ($oAccount = db_fetch_object($oAuthUsers)){
+				if (in_array($oAccount->uid, $aChildrenFilter)) $aChildrenOnline[] = $oAccount;
+			}
+			mysqli_free_result($oAuthUsers);
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildrenOnline, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+			
+			break;
+		
+		case "24":
+			$sql24 = "SELECT uid, name, mail, IF(picture = '','{$aPathpluspicture}',picture) as picture 
+						FROM {users} 
+						WHERE uid IN (".implode(", ", $aChildrenFilter).") 
+							AND login >= (UNIX_TIMESTAMP() - (60*60*24)) 
+							AND login <= UNIX_TIMESTAMP()";
+			$oChildren24 = db_query($sql24);
+			
+			while ($oChild24 = db_fetch_object($oChildren24)){
+				$aChildren24[] = $oChild24;
+			}
+			mysqli_free_result($oChildren24);
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildren24, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+			
+			break;
+			
+		case "profile":
+			$affiliateUserName = variable_get('kickapps_username', '');
+			$affiliateEmail = variable_get('kickapps_email', '');
+			$affiliateSiteName = variable_get('kickapps_sitename', '');
+			$requestType = "signInRegisterUser";
+			
+			# --BEGIN Get User Details
+			$aProfile = _kickapps_get_profile($_POST["uid"]);
+			
+			$sFirstName = ucwords($aProfile["profile_first_name"]);
+			$sLastName = ucwords($aProfile["profile_last_name"]);
+			$sGender = substr($aProfile["profile_gender"], 0, 1);
+			
+			$aDOB = unserialize($aProfile["profile_dob"]);
+			$dDOB = $aDOB["year"]."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			$iAge = floor((time() - strtotime($dDOB)) / (60*60*24*365.2425));
+			
+			// Workaround so those who are younger than 13 years can be registered
+			if ($iAge < 13) $dDOB = ($aDOB["year"] - 100)."-".str_pad($aDOB["month"], 2, "0", STR_PAD_LEFT)."-".str_pad($aDOB["day"], 2, "0", STR_PAD_LEFT);
+			# --END Get User Details
+			
+			$kickapps_client = new SOAPClient("http://affiliate.kickapps.com/kickapps/soap/KaSoapSvc?WSDL");
+			
+			$kickapps_client->trace = 4;
+			$auth->AffiliateUserName = $affiliateUserName;
+			$auth->AffiliateEmail = $affiliateEmail;
+			$doc = new DomDocument('1.0', 'UTF-8');
+			$header_input = array('ns2:AffiliateUserName' => $affiliateUserName, 'ns2:AffiliateUserEmail' =>$affiliateEmail);
+			$headerVar = new SoapVar($header_input, SOAP_ENC_OBJECT);
+			$headert = new SoapHeader('http://schemas.kickapps.com/services/soap',	'AffiliateAuthenticationToken', $headerVar);
+			$kickapps_client->__setSoapHeaders(array($headert));
+			$nodeKassoRequest = $doc->createElementNS("http://schemas.kickapps.com/services/soap","KassoRequest");
+			$nodeKassoRequest = $doc->appendChild($nodeKassoRequest);
+			$requestName = $nodeKassoRequest->setAttribute("requestName", $requestType);
+			
+			$userName = $_POST["user"];
+			//$email = $_POST["email"];
+			
+			$sqlUser = "SELECT mail FROM users WHERE uid = %d";
+			$email = db_result(db_query($sqlUser, $_POST["uid"]));
+			
+			$firstName = $sFirstName;
+			$lastName = $sLastName;
+			
+			/* build the request XML document */
+			$nodeaffiliateUserName = $doc->createElement("Param");
+			$newnodeaffiliateUserName = $nodeKassoRequest->appendChild($nodeaffiliateUserName);
+			$paraNameAttr = $nodeaffiliateUserName->setAttribute("paramName", "affiliateUserName");
+			$paramValue = $nodeaffiliateUserName->setAttribute("paramValue", $affiliateUserName);
+			
+			$nodeaffiliateEmail = $doc->createElement("Param");
+			$newnodeaffiliateEmail = $nodeKassoRequest->appendChild($nodeaffiliateEmail);
+			$paraNameAttr = $nodeaffiliateEmail->setAttribute("paramName", "affiliateEmail");
+			$paramValue = $nodeaffiliateEmail->setAttribute("paramValue", $affiliateEmail);
+			
+			$nodeaffiliateSiteName = $doc->createElement("Param");
+			$newnodeaffiliateSiteName = $nodeKassoRequest->appendChild($nodeaffiliateSiteName);
+			$paraNameAttr = $nodeaffiliateSiteName->setAttribute("paramName", "affiliateSiteName");
+			$paramValue = $nodeaffiliateSiteName->setAttribute("paramValue", $affiliateSiteName);
+			
+			$nodeuserName = $doc->createElement("Param");
+			$newnodeuserName = $nodeKassoRequest->appendChild($nodeuserName);
+			$paraNameAttr = $nodeuserName->setAttribute("paramName", "userName");
+			$paramValue = $nodeuserName->setAttribute("paramValue", $userName);
+			
+			$nodeemail = $doc->createElement("Param");
+			$newnodeemail = $nodeKassoRequest->appendChild($nodeemail);
+			$paraNameAttr = $nodeemail->setAttribute("paramName", "email");
+			$paramValue = $nodeemail->setAttribute("paramValue", $email);
+			
+			$nodeforce = $doc->createElement("Param");
+			$newnodeemail = $nodeKassoRequest->appendChild($nodeforce);
+			$paraNameAttr = $nodeforce->setAttribute("paramName", "forceEmailUpdate");
+			$paramValue = $nodeforce->setAttribute("paramValue", "true");
+
+			$nodebirthday = $doc->createElement("Param");
+			$newnodebirthday = $nodeKassoRequest->appendChild($nodebirthday);
+			$paraNameAttr = $nodebirthday->setAttribute("paramName", "birthday");
+			$paramValue = $nodebirthday->setAttribute("paramValue", $dDOB);
+
+			$nodefirstName = $doc->createElement("Param");
+			$newnodefirstName = $nodeKassoRequest->appendChild($nodefirstName);
+			$paraNameAttr = $nodefirstName->setAttribute("paramName", "firstName");
+			$paramValue = $nodefirstName->setAttribute("paramValue", $firstName);
+			
+			$nodelastName = $doc->createElement("Param");
+			$newnodelastName = $nodeKassoRequest->appendChild($nodelastName);
+			$paraNameAttr = $newnodelastName->setAttribute("paramName", "lastName");
+			$paramValue = $newnodelastName->setAttribute("paramValue", $lastName);
+			
+			$nodegender = $doc->createElement("Param");
+			$newnodegender = $nodeKassoRequest->appendChild($nodegender);
+			$paraNameAttr = $newnodegender->setAttribute("paramName", "gender");
+			$paramValue = $newnodegender->setAttribute("paramValue", $sGender);
+			
+			$doc->appendChild($nodeKassoRequest);
+			
+			try {
+				$result = $kickapps_client->processRequest($doc->saveXML());
+				
+				$dom_doc = new DOMDocument();
+				$dom_doc->loadXML($result);
+				$params = $dom_doc->getElementsByTagName("Param");
+				
+				$uidParam = $params->item(4);
+				$uid = $uidParam->getAttribute('paramValue');
+				
+				echo json_encode(array("STATUS" => 1, "RETURN" => $uid));
+			} catch (SOAPFault $soapex) {
+				watchdog("KickApps Error", $soapex->getMessage());
+				echo json_encode(array("STATUS" => 0));
+			}
+			
+			break;
+		
+		default:
+			echo json_encode(array("STATUS" => 1, "RETURN" => $aChildren, "DETAILS" => $aChildrenDetails, "TOTAL" => $aChildrenTotalDetails));
+	}
+	
+	exit;
+}
+
+function incybrary_cybrarynow($request, $sEntshool = ""){
+global $user;	
+		$iInterval = time() - variable_get('user_block_seconds_online', 900);
+		$iNow = mktime(0, 0, 0, date("m"), date("d"), date("Y"));
+		$aChildren = array();
+		$aChildrenFilter = array();
+		$aVolunteerFilter = array();
+		$aChildrenOnline = array();
+		$aVolunteersOnline = array();
+		$aChildrenDetails = array();
+		$aChildrenSchool = array();
+		$aVolunteerSchool = array();
+		$allSchool = array();
+		
+		$aPathpluspicture = 'sites/default/files/pictures/none.png';
+		
+		$oChildren = db_query("SELECT A.uid, A.mail, B.value 
+								FROM {users} A 
+								INNER JOIN {profile_values} B ON B.uid = A.uid 
+								WHERE 
+								A.uid > 1 
+								AND A. status = 1 
+								AND B.fid = 5
+							  ");
+							  
+		$aTotalTemp = array();	
+		while ($oTotalChildren = db_fetch_object($oChildren)){
+			$aDOB = unserialize($oTotalChildren->value);
+			$iDOB = mktime(0, 0, 0, $aDOB["month"], $aDOB["day"], $aDOB["year"]);
+			$iYear = floor(($iNow  - $iDOB) / (60*60*24*365));
+			
+			if ($iYear <= 12){
+				$iChildId = $oTotalChildren->uid;
+				$aChildrenFilter[] = $iChildId;
+			}
+			
+			if ($iYear > 12){
+				$iVolunteerId = $oTotalChildren->uid;
+				$aVolunteerFilter[] = $iVolunteerId;
+			}
+		}
+		mysqli_free_result($oChildren);	
+		
+		$oAuthUsers = "SELECT DISTINCT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture, s.timestamp FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.timestamp >= '{$iInterval}' AND s.uid > 0 GROUP BY u.uid ORDER BY s.timestamp DESC";
+		$oAuthUsers2 = "SELECT DISTINCT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture, s.timestamp FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.timestamp >= '{$iInterval}' AND s.uid > 0 GROUP BY u.uid ORDER BY s.timestamp DESC";
+		
+		switch($request){
+		case 'total':
+		$oAuthUsersSQL = db_query($oAuthUsers);
+		while ($oAccount = db_fetch_object($oAuthUsersSQL)){
+			if (in_array($oAccount->uid, $aChildrenFilter)){
+				$aChildrenOnline[] = $oAccount;
+				$resChildSchool = db_result(db_query("SELECT value FROM {profile_values} WHERE fid = 7 AND uid = '{$oAccount->uid}' ORDER BY value"));
+				$aSchool[] = $resChildSchool;	
+			}
+		}
+		mysqli_free_result($oAuthUsersSQL);	
+		
+		$oAuthUsersSQL2 = db_query($oAuthUsers2);
+		while ($oAccount2 = db_fetch_object($oAuthUsersSQL2)){
+			if (in_array($oAccount2->uid, $aVolunteerFilter)){
+				$aVolunteersOnline[] = $oAccount2;
+				
+				$resVolSchool = db_result(db_query("SELECT value FROM {profile_values} WHERE fid = 162 AND uid = '{$oAccount2->uid}' ORDER BY value"));
+				//$sOutput .= 'Volunteer: '.$oAccount2->uid.' School'.;
+				$aSchool[] = $resVolSchool;
+			}
+		}
+		mysqli_free_result($oAuthUsersSQL2);	
+		
+		$allSchool = array_unique($aSchool);
+		if (in_array("None", $allSchool)){
+			foreach($allSchool as $key => $value) {
+				if ($value == "None") unset($allSchool[$key]);
+		   }
+		}
+		
+		echo json_encode(array("STATUS" => 1, "CHILDREN" => $aChildrenOnline, "VOLUNTEER" => $aVolunteersOnline, "TOTALCHILDREN" => count($aChildrenOnline), "TOTALVOLUNTEER" => count($aVolunteersOnline), "ALLSchools" => $allSchool, "TOTALSCHOOLS" => count($allSchool), "SQL" => $sqlTest));
+		break;
+		case 'individualschool':
+		$oAuthUsersSQL = db_query($oAuthUsers);
+		while ($oAccount = db_fetch_object($oAuthUsersSQL)){
+			if (in_array($oAccount->uid, $aChildrenFilter)){
+				$resChildSchool = db_result(db_query("SELECT value FROM {profile_values} WHERE fid = 7 AND uid = '{$oAccount->uid}' ORDER BY value"));
+				if($sEntshool == $resChildSchool){
+				$aChildrenOnline[] = $oAccount;
+				}
+				mysqli_free_result($resChildSchool);	
+			}
+		}
+		
+		$oAuthUsersSQL2 = db_query($oAuthUsers2);
+		while ($oAccount2 = db_fetch_object($oAuthUsersSQL2)){
+			if (in_array($oAccount2->uid, $aVolunteerFilter)){
+				$resVolSchool = db_result(db_query("SELECT value FROM {profile_values} WHERE fid = 162 AND uid = '{$oAccount2->uid}' ORDER BY value"));
+				if($sEntshool == $resVolSchool){
+				$aVolunteersOnline[] = $oAccount2;
+				}
+				mysqli_free_result($resVolSchool);	
+			}
+		}
+		
+		mysqli_free_result($oAuthUsersSQL);	
+		mysqli_free_result($oAuthUsersSQL2);	
+		
+		echo json_encode(array("STATUS" => 1, "CHILDREN" => $aChildrenOnline, "VOLUNTEER" => $aVolunteersOnline));
+		break;
+		}
+}

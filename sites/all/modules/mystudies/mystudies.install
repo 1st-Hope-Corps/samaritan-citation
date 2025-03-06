@@ -1,0 +1,190 @@
+<?php
+function mystudies_schema() {
+  $schema['mystudyrecord'] = array(
+    'description' => 'The record to hold the image and title',
+    'fields' => array(
+      'id' => array(
+        'description' => 'PK',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'group_level' => array(
+        'description' => 'Level',
+        'type' => 'int',
+        'size' => 'normal',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'title' => array(
+        'description' => 'Title',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'leaf' => array(
+        'description' => 'Is leaf node',
+        'type' => 'int',
+        'size' => 'normal',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0),
+      'icon' => array(
+        'description' => 'Icon bytes',
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => FALSE),        
+    ),
+    'primary key' => array('id'),
+  );
+  $schema['mystudyrecord_suggested_title'] = array(
+    'description' => 'The record to hold the suggested title',
+    'fields' => array(
+      'id' => array(
+        'description' => 'PK',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'fid' => array(
+        'description' => 'Level',
+        'type' => 'int',
+        'size' => 'normal',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'title' => array(
+        'description' => 'Title',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'submit_date' => array(
+        'description' => 'Submit Date',
+        'type' => 'datetime',
+        'size' => 'normal',
+        'not null' => TRUE),
+    ),
+    'primary key' => array('id'),
+  );
+  $schema['mystudyrecord_suggested_icon'] = array(
+    'description' => 'The record to hold the suggested icon',
+    'fields' => array(
+      'id' => array(
+        'description' => 'PK',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'fid' => array(
+        'description' => 'Level',
+        'type' => 'int',
+        'size' => 'normal',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'icon' => array(
+        'description' => 'Icon bytes',
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => FALSE),        
+      'submit_date' => array(
+        'description' => 'Submit Date',
+        'type' => 'datetime',
+        'size' => 'normal',
+        'not null' => TRUE),
+    ),
+    'primary key' => array('id'),
+  );
+
+  $schema['mystudyrecord_site'] = array(
+    'description' => 'The record to hold the image and title',
+    'fields' => array(
+      'id' => array(
+        'description' => 'PK',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'group_level' => array(
+        'description' => 'Level',
+        'type' => 'int',
+        'size' => 'normal',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'title' => array(
+        'description' => 'Title',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'url' => array(
+        'description' => 'Title',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'description' => array(
+        'description' => 'Title',
+        'type' => 'text',
+        'size' => 'medium',
+        'not null' => TRUE),
+    ),
+    'primary key' => array('id'),
+  );
+
+  $schema['mystudyrecord_suggested_site'] = array(
+    'description' => 'The record to hold the image and title',
+    'fields' => array(
+      'id' => array(
+        'description' => 'PK',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'group_level' => array(
+        'description' => 'Level',
+        'type' => 'int',
+        'size' => 'normal',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'title' => array(
+        'description' => 'Title',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'url' => array(
+        'description' => 'Title',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'description' => array(
+        'description' => 'Title',
+        'type' => 'text',
+        'size' => 'medium',
+        'not null' => TRUE),
+      'promoted' => array(
+        'description' => 'Is suggestion promoted',
+        'type' => 'int',
+        'size' => 'normal',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0),
+      'submit_date' => array(
+        'description' => 'Submit Date',
+        'type' => 'datetime',
+        'size' => 'normal',
+        'not null' => TRUE),
+    ),
+    'primary key' => array('id'),
+  );
+
+  return $schema;
+}
+
+function mystudies_install() {
+  drupal_install_schema('mystudies');
+}
+
+function mystudies_uninstall() {
+  drupal_uninstall_schema('mystudies');
+}
+
+function mystudies_update_1() {
+  $ret[] = update_sql("UPDATE {system} SET weight = 10 WHERE name = 'mystudies'");
+  return $ret;
+}

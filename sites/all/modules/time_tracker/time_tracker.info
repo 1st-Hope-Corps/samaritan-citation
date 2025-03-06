@@ -1,0 +1,8 @@
+; $Id$
+name = Time Tracking Module
+description = Tracks how much time a user spends in HopeNet.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x
+dependencies[] = profile
+;dependencies[] = bank

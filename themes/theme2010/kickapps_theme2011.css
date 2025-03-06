@@ -1,0 +1,49 @@
+body {
+	background:#ffffff url(images/box_rect_c.png) repeat-x 0 100% !important;
+}
+
+body#ka_profilePage .ka_contentTitle {
+	background: url(images/box_head_lb.png) no-repeat 0 0 !important; 
+	padding-left:7px !important; 
+	margin:0 !important; 
+	height:30px !important;
+	border: none !important;
+	position: static !important;
+}
+
+body#ka_profilePage .ka_contentTitle h5 {
+	font-size:14px !important; 
+	padding-top:7px !important; 
+	background: url(images/box_head.png) no-repeat top right !important; 
+	margin: 0 !important; 
+	height:30px !important;
+}
+
+body#ka_profilePage .ka_contentBody {
+    background: #fafbfb url(images/box_head_l.png) repeat-y 0 0 !important; 
+	padding: 0 0 0 5px !important; 
+	margin: 0 !important;
+    border: none !important;
+}
+
+body#ka_profilePage .ka_profileSegFooter {
+	background: url(images/box_head_lb.png) no-repeat 0 100% !important; 
+	padding-left:20px !important; 
+	margin: 0 !important; 
+	height:15px !important;
+	display:block !important;
+}
+body#ka_profilePage .ka_profileSegFooter p {
+	background: url(images/box_head.png) no-repeat 100% 100% !important; 
+	margin: 0 !important; 
+	height:15px !important;
+}
+body#ka_profilePage .jboxcontent {
+	background: #fafbfb url(images/box_head_r.png) repeat-y 100% 100%; 
+	padding: 10px 5px 10px 5px; 
+	margin: 0;
+}
+
+#ka_profileImg {
+	background-color: transparent !important;
+}

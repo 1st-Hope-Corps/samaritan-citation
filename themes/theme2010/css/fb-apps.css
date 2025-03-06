@@ -1,0 +1,51 @@
+#body.iframe.not-logged-in #breadcrumb {
+  display: none;
+}
+
+#body.iframe #top-selection,
+#body.iframe #main_nav,
+#body.iframe #top_nav,
+#body.iframe #arrow_nav,
+#body.iframe #banner,
+#body.iframe #login-select,
+#body.iframe #header_image,
+#body.iframe .nav_divider,
+#body.iframe #main .divider,
+#body.iframe #footer {
+  display: none;
+}
+
+#body.iframe #welcome {
+  text-align: center;
+}
+
+#body.iframe #welcome h1 {
+  font-size: 2em;
+}
+
+#body.iframe #welcome h2 {
+
+}
+
+#body.iframe .button {
+  border: 1px solid;
+  border-radius: 2px;
+  font-weight: bold;
+  padding: 3px 8px;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  vertical-align: middle;
+}
+
+#body.iframe .fb-login {
+  margin-top: 20px;
+}
+
+#body.iframe .fb-login .button {
+  background: #4e69a2;
+  border-color: #435a8b #3c5488 #334c83;
+  color: #fff;
+  line-height: 22px;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, .2);
+}

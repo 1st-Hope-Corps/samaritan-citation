@@ -1,0 +1,7 @@
+; $Id$
+name = OsCommerce Module
+description = A module that lets Drupal synchronize/log its users and lists/uploads products to and from an instance of OsCommerce.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x
+dependencies[] = profile

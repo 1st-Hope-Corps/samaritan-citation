@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<datas>
+  <kickapps>
+    <get>
+      <id>0</id>
+      <kmaintain_title>Activate Kickapps</kmaintain_title>
+      <kmaintain_value>1</kmaintain_value>
+    </get>
+  </kickapps>
+</datas>

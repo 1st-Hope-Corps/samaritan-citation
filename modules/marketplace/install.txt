@@ -1,0 +1,31 @@
+This should all be fairly Drupalish
+
+Enable modules transactions, offers_wants, maybe also autocategorise.
+
+Create a vocabulary for categorising your offers and wants, and put a few terms in it. An xml vocabulary is provided if you want to import it using the module taxonomy_xml.
+
+Autocategorise module is reccommended
+If you want offers, wants and/or transactions to be categorised automatically, on submission, then go the vocabulary properties page.  Check the box at the bottom, and ensure that vocabulary is governing those types.
+
+Offers_wants:
+Offers and wants need to be enabled/disabled in the admin/settings/marketplace/directory options.
+
+Transactions
+Default currency settings are installed, but you can change them at admin/settings/marketplace
+In particular this is your last change to change the rating system before transactions are created: /admin/settings/marketplace/ratings
+
+Don't forget to define the permissions page for these modules at
+/admin/user/permissions
+
+Menus
+Go to the complementary currencies menu and turn some of those off. There are also too many options in the tabs under user/ but these can only be switched off in code.
+
+System should now be set up. For more advanced configuration you should start with the cc_custom module which can be found at http://marketplace.matslats.net/installing.
+
+Before your system makes sense, you'll need to add some data. Prepare your data in csv file and use the cc_import module or:
+-Create some categories for your directory
+-Each user should add some offers or wants
+-Each user should start and complete some transactions
+
+By this point you can start to think about theming. Not only the colours, images and fonts, but also more architectural decisions. You can move any of the menu items and put the menus in blocks, and make the site meet your community's expectations.
+

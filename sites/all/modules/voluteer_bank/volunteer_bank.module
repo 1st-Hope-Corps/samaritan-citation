@@ -1,0 +1,357 @@
+<?php
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function volunteer_bank_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#volunteer_bank":
+			$sOutput = '<p>'. t("Volunteer Bank module.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function volunteer_bank_menu(){
+	$aItems = array();
+	
+	$aItems['secure/bank/about'] = array(
+		'title' => 'About Hope banking',
+		'page callback' => 'volunteer_bank_about',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['secure/bank/statement'] = array(
+		'title' => 'Bank Statment',
+		'page callback' => 'volunteer_bank_statement',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['secure/bank/send'] = array(
+		'title' => 'Send Bucks',
+		'page callback' => 'volunteer_bank_send',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['secure/bank/deposit'] = array(
+		'title' => 'Deposit Bucks',
+		'page callback' => 'volunteer_bank_deposit',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	); 
+	
+	$aItems['secure/kindness/callback/details'] = array(
+		'title' => 'Deposit Bucks',
+		'page callback' => 'volunteer_bank_kindness_callback_details',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['secure/kindness/callback/convert'] = array(
+		'title' => 'Convert Bucks',
+		'page callback' => 'volunteer_bank_kindness_callback_convert',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	return $aItems;
+}
+
+function volunteer_bank_about(){
+	
+	$oBank = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oBank->account_number, "pass" => $oBank->account_pass));
+	
+	$sHtml = '<div class="box02">
+						<div class="in-box1">Balances:</div>
+						<div class="in-box2">'.$aBalances["RETURN"]["BALANCE"].' Hope Bucks</div>
+			</div>
+			<div style="clear:both;">&nbsp;</div>';
+	$sHtml .= "<fieldset>
+				<legend>My Bank Account</legend>";
+
+	$sHtml .= '<table width="650" border="0" cellspacing="0" cellpadding="0">
+								<tr>
+									<td width="30%">Account Number</td>
+									<td width="20%">Balances</td>
+									<td width="10%">&nbsp;</td>
+									<td width="40%">Bank Name</td>
+								</tr>
+								<tr>
+									<td colspan="4" class="hrbg"> </td>
+								</tr>
+								<tr>
+									<td>'.$oBank->account_number.'</td>
+									<td>Balance</td>
+									<td>'.$aBalances["RETURN"]["BALANCE"].'</td>
+									<td>Hope Development Bank</td>
+								</tr>
+								<tr>
+									<td>&nbsp;</td>
+									<td>Pending</td>
+									<td>'.$aBalances["RETURN"]["PENDING"].'</td>
+									<td>&nbsp;</td>
+								</tr>
+								<tr>
+									<td>&nbsp;</td>
+									<td>Turnover</td>
+									<td>'.$aBalances["RETURN"]["TURNOVER"].'</td>
+									<td>&nbsp;</td>
+								</tr>
+							</table>';			
+				
+	$sHtml .= "</fieldset>";
+	
+	$sHtml .= "<fieldset>
+				<legend>Overview of Services</legend>";
+	$sHtml .= "Your My eBank account works just like a real bank account and it provides you with four services
+	including your Bank Statement, Send Bucks and Deposit Bucks. To make a deposit or send Hope Bucks from your 
+	My eBank account just click on the links above. If you would like to see a history of all of your deposits 
+	and withrawals of Hope Bucks then just click on the Bank Statement link.";
+	$sHtml .= "</fieldset>";
+	
+	return $sHtml;
+}
+
+function volunteer_bank_statement(){
+	
+	drupal_add_js(drupal_get_path("module", "volunteer_bank")."/volunteer_bank.js");
+	
+	$oBank = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oBank->account_number, "pass" => $oBank->account_pass));
+	
+	$sHtml = '<div class="box02">
+						<div class="in-box1">Balances:</div>
+						<div class="in-box2">'.$aBalances["RETURN"]["BALANCE"].' Hope Bucks</div>
+			</div>
+			<div style="clear:both;">&nbsp;</div>';
+	$sHtml .= "<fieldset>
+				<legend>Bank Statement</legend>";		
+	
+	$sHtml .= '<div class="bank-account-statement">
+					<div class="bank-account-title"></div>
+					<div class="bank-account-content">
+						<div id="bank_statement_list" class="bank-account-content01"></div>
+					</div>
+				</div>';
+				
+	$sHtml .= "</fieldset>";
+	
+	return $sHtml;
+}
+
+function volunteer_bank_send(){
+
+drupal_add_js(drupal_get_path("module", "volunteer_bank")."/volunteer_bank.js");
+	$oBank = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oBank->account_number, "pass" => $oBank->account_pass));
+	
+	$sHtml = '<div class="box02">
+						<div class="in-box1">Balances:</div>
+						<div class="in-box2"><input type="hidden" id="bank_balance" value="'.$aBalances["RETURN"]["BALANCE"].'" /><span id="current_balance">'.$aBalances["RETURN"]["BALANCE"].'</span> Hope Bucks</div>
+			</div>
+			<div style="clear:both;">&nbsp;</div>';
+	
+	$sHtml .= "<fieldset>
+				<legend>Send Bucks</legend>";		
+	
+	$sHtml .= '<table width="650" border="0" cellspacing="0" cellpadding="0" style="color:#000000 !important">
+						<tr></tr>
+						<tr>
+							<td width="135">
+								<div class="bank-services"><span style="color:#000;">How to Send Bucks</span></div>
+								<div class="bank-content04">
+									<span style="color:#000;">You may send Hope Bucks to any Hopeful. Type in the amount you wish to send to the Hopeful recipient 
+									along with the recipients bank account number and then click on the "Send" button. The Valiant will be 
+									sent immediately.</span>
+								</div>
+							</td>
+							<td width="265" style="vertical-align:top; padding-left:5px;">
+								<table width="378" border="0" cellspacing="0" cellpadding="3px">
+									<tr>
+										<td width="378" style="width:100px; height: 20px; font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000; font-weight:bold">Amount:<span style="font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#e5f031; font-weight:bold">*</span></td>
+									</tr>
+									<tr>
+										<td>
+											<input style=" background-color:#fff; border:#cccccc solid 1px; width:150px; height: 20px; font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000;" id="mBankSendAmount" name="mBankSendAmount" type="text" />
+										</td>
+									</tr>
+									<tr>
+										<td style="width:300px; height: 20px; font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000">The amount to be sent to recipient</td>
+									</tr>
+									<tr>
+										<td style="width:300px; height: 20px; font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000; font-weight:bold">Account Number:<span style="font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000; font-weight:bold">*</span></td>
+									</tr>
+									<tr>
+										<td>
+											<div style="float:left; width:51px;"><span style="width:50px;height:20px; float:left">
+												<input style=" background-color:#fff; border:#cccccc solid 1px; width:40px; height: 20px; font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000;" id="sBankToAccount1" name="sBankToAccount1" type="text" />
+												</span></div>
+											<div style="float:left; width:10px; text-align:center;"><span style="font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000; font-weight:bold">-</span></div>
+											<div style="float:left; width:80px;">
+												<input style=" background-color:#fff; border:#cccccc solid 1px; width:100px; height: 20px; font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000;" id="sBankToAccount2" name="sBankToAccount2" type="text" />
+											</div>
+										</td>
+									</tr>
+									<tr>
+										<td style="clear:both; width:350px; height: 20px; font-family:Arial, Helvetica, sans-serif;
+		font-size:9px; color:#000; padding-top: 3px">The account number of the recipient in this format ABCD-123456789</td>
+									</tr>
+									<tr>
+										<td>
+											<div style="width:30px; float:left">
+												<input name="bBankForTrueCafe" type="checkbox" value="" style=" background-color:#51644c; border:#000 solid 1px" />
+											</div>
+											<div style="float:left; width:300px; height: 20px; font-family:Arial, Helvetica, sans-serif;
+		font-size:11px; color:#000; font-weight:bold">Bucks for deposit to my hope Cybrary Account</div>
+										</td>
+									</tr>
+									<tr>
+										<td>
+											<input id="btnBankWithdrawSend" name="btnBankWithdrawSend" type="button" value="Send" style="cursor:pointer; border:#cccccc solid 1px; width:50px; height: 20px; font-family:Arial, Helvetica, sans-serif;	font-size:11px; color:#000"/>
+										</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+					</table>';
+				
+	$sHtml .= "</fieldset>";
+	
+	return $sHtml;
+}
+
+function volunteer_bank_deposit(){
+
+	drupal_add_js(drupal_get_path("module", "volunteer_bank")."/volunteer_bank.js");
+	$oBank = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oBank->account_number, "pass" => $oBank->account_pass));
+	
+	$sHtml = '<div class="box02">
+						<div class="in-box1">Balances:</div>
+						<div class="in-box2"><input type="hidden" id="bank_balance" value="'.$aBalances["RETURN"]["BALANCE"].'" /><span id="current_balance">'.$aBalances["RETURN"]["BALANCE"].'</span> Hope Bucks</div>
+			</div>
+			<div style="clear:both;">&nbsp;</div>';
+	
+	$sHtml .= "<fieldset>
+				<legend>Deposit Funds</legend>";		
+	
+	$sHtml .= '<div id="bank_deposit_notice"></div>
+			   <div>&nbsp;</div>
+						<table>
+							<tr>
+								<td>
+									<div class="bank-account-info" style="width:300px;">
+										To convert your Kindness Workz hours to Hope Bucks: first check your Kindness Workz balance. 
+										Type in the number of hours you wish to convert and then click and then click the 
+										"Convert to Hope Bucks" button. The Hope Bucks will be immediately deposited into your my eBank 
+										account.
+									</div>
+								</td>
+								<td><div style="width:20px;"></div></td>
+								<td style="vertical-align:top;">
+									<div style="width:120px; height: 20px; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#000; font-weight:bold; padding-left:5px">
+										Kindness Hours:<span style="font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#e5f031; font-weight:bold">*</span>
+									</div>
+									<div style="clear:both; padding:10px 0 10px 10px">
+										<input style="background-color:#fff; border:#ccc solid 1px; width:80px; height: 15px; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#000; margin-bottom: 17px;" id="iTimeToConvert" name="iTimeToConvert" type="text" />
+									</div>
+									<div style="width:200px;padding-left:5px;"><span style="color:#000;font-size:10px;"><b>Amount of Kindness Workz Hours to be converted.
+										Example correct entries: 1. 1.5, 0.25 etc.</b></span></div>
+									<div style="clear:both; padding-left:5px; padding-top:5px">
+										<input id="btnBankDeposit" name="btnBankDeposit" type="button" value="Convert To Valiants" style="cursor:pointer; border:#ccc solid 1px; width:150px; height: 30px; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#000"/>
+									</div>
+									<div id="bank_deposit_status" class="bank-account-content06"></div>
+								</td>
+							</tr>
+						</table>';
+				
+	$sHtml .= "</fieldset>";
+	
+	return $sHtml;
+}
+
+function volunteer_bank_kindness_callback_details(){
+	$iKindnessHours = _volunteer_bank_kindness_get_hours();
+	$iKindnessHours = ($iKindnessHours > 0) ? number_format($iKindnessHours, 2):0;
+	$iTimeHour = intval($iKindnessHours);
+	$iTimeMin = round(($iKindnessHours - floor($iKindnessHours)) * 60);
+	$oBank = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oBank->account_number, "pass" => $oBank->account_pass));
+	
+	//$sKindnessNotice = "You have accumulated a total of ".$iKindnessHours." Kindness Hours. That's ".$iTimeHour." hours(s) and ".$iTimeMin." minute(s).";
+	$sKindnessNotice = "Workz Hours - Balance: ".$iTimeHour." hours(s) and ".$iTimeMin." minute(s).";
+	
+	echo json_encode(array("RETURN" => array("HOURS" => $iKindnessHours, "NOTICE" => $sKindnessNotice, "BALANCE" => $aBalances["RETURN"]["BALANCE"])));
+	
+	exit;
+}
+
+function _volunteer_bank_kindness_get_hours($iUserId=null, $bConverted=false){
+	if (is_null($iUserId)){
+		global $user;
+		$iUserId = $user->uid;
+	}
+	
+	$sqlKindness = "SELECT SUM(iDuration)/60 AS iKindnessHours
+					FROM cybrarian_statement
+					WHERE iUserId = %d";
+	$sqlKindness .= ($bConverted) ? " AND iRefId = 0":"";
+	
+	$iKindnessHours = abs((float)db_result(db_query($sqlKindness, $iUserId)));
+	$iKindnessHours = ($iKindnessHours > 0) ? $iKindnessHours:0;
+	$iKindnessHours = number_format($iKindnessHours, 2);
+	
+	return $iKindnessHours;
+}
+
+function volunteer_bank_kindness_callback_convert(){
+	global $user;
+	
+	$oBankAdmin = _bank_account(1);
+	$oBankChild = _bank_account();
+	$iTime = $_REQUEST["iTime"];
+	$iDuration = ($iTime * 60) * -1;
+	$mKindnessRate = variable_get("kindness_rate", 1);
+	$mAmount = number_format($iTime * $mKindnessRate, 2);
+	
+	$aReqParam = array(
+					"key" => $oBankAdmin->account_number, 
+					"pass" => $oBankAdmin->account_pass, 
+					"amount" => $mAmount,
+					"recipient" => $oBankChild->account_number,
+					"description" => "Converted ".$iTime." Kindness Hour(s) to Valiant(s). Conversion Rate: ".$mKindnessRate
+				);
+	
+	$aBankReply = _bank_post("create", $aReqParam);
+	
+	if ($aBankReply["STATUS"] == "Success"){
+		$sqlInsert = "INSERT INTO {cybrarian_statement} VALUES(NULL, 0, %d, %d, '%s')";
+		db_query($sqlInsert, array($user->uid, $iDuration, date("Y-m-d H:i:s")));
+		
+		$aReply = array("STATUS" => "Success", "RETURN" => "The ".$iTime." Kindness Hour(s) was successfully converted to ".$mAmount." Valiant(s) and was credited to your Bank Account (".$oBankChild->account_number.") with Reference Number ".$aBankReply["RETURN"]["REF"].".");
+	}else{
+		$aReply = array("STATUS" => "Fail", "RETURN" => $aBankReply["ERR_MSG"]);
+	}
+	
+	echo json_encode($aReply);
+	
+	exit;
+}

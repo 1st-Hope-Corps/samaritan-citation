@@ -1,0 +1,57 @@
+#edit-field-to-id-uid-uid-wrapper {
+display:none;
+}
+#edit-field-from-id-uid-uid-wrapper {
+display:none;
+}
+#edit-field-quantity-0-value {
+width:3em;
+}
+div.authored {
+display:none;
+}
+#edit-quantity, #edit-division-wrapper input{
+  display:inline;
+  width:3em;
+}
+
+div.balances {
+float:left;
+margin-left:1em;
+}
+div.balancetypes {
+float:left;
+}
+.summarytransaction{
+margin-top:1em;
+}
+.summarytransaction form, .summarytransaction form div {
+display:inline;
+}
+
+.currency-0:before,
+#edit-quantity:before {
+  /*you can put special characters directly here, not unicodes*/
+  content:'Ʊ';
+}
+
+#complete-transaction-form,
+#complete-transaction-form div,
+#complete-transaction-form div input{
+  display:inline;
+}
+.block #edit-title {width:100%;}
+#edit-completer-uid-3{font-size:85%;}
+
+#edit-quantity-wrapper,
+#edit-division-wrapper{
+	float:left;
+	clear:none;
+}
+.form-item{
+  clear:left;
+}
+#edit-submit{display:block;clear:both;}
+
+table.profile-balances{width:20%}
+table.profile-balances td{text-align:right;}

@@ -1,0 +1,11 @@
+; $Id: cron_control.info,v 1.2 2011/01/29 14:46:19 mkalkbrenner Exp $
+name = Cron Control
+description = Control Drupal cron's behaviour, also in a clustered environment
+core = 6.x
+
+; Information added by drupal.org packaging script on January 1, 1970 - 00:00
+version = "6.x-1.0"
+core = "6.x"
+project = "cron_control"
+datestamp = "1296312695"
+

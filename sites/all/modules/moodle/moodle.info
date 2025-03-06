@@ -1,0 +1,7 @@
+; $Id$
+name = Moodle Module
+description = A module that lets Drupal synchronize/log its users to an instance of Moodle.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x
+dependencies[] = profile

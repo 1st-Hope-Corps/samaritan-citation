@@ -1,0 +1,485 @@
+<?php
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function user_hierarchy_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#user_hierarchy":
+			$sOutput = '<p>'. t("User Hierarchy module.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function user_hierarchy_menu(){
+	$aItems = array();
+	
+	$aItems['admin/user/hierarchy/assign'] = array(
+		'title' => 'User Hierarchy',
+		'description' => "Sets user hierarchy.",
+		'page callback' => 'user_heirarchy_assign_parent',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['admin/user/hierarchy/assign/parent'] = array(
+		'title' => 'Assign Volunteers',
+		'page callback' => 'user_heirarchy_assign_parent',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 1
+	);
+	
+	/*
+	$aItems['admin/user/hierarchy'] = array(
+		'title' => 'User Hierarchy',
+		'description' => "Sets user hierarchy.",
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('user_hierarchy_admin'),
+		'access arguments' => array('access administration pages'),
+		//'type' => MENU_NORMAL_ITEM
+		'type' => MENU_CALLBACK
+	);
+	*/
+	
+	$aItems['admin/user/hierarchy/set'] = array(
+		'title' => 'Create Hierarchy',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('user_hierarchy_admin'),
+		'access arguments' => array('access administration pages'),
+		//'type' => MENU_DEFAULT_LOCAL_TASK
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/user/hierarchy/list'] = array(
+		'title' => 'Hierarchy List',
+		'page callback' => 'user_hierarchy_list',
+		'access arguments' => array('access administration pages'),
+		//'type' => MENU_LOCAL_TASK
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/user/hierarchy/modcheck'] = array(
+		'page callback' => 'user_hierarchy_check_mod',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/user/hierarchy/mentordel'] = array(
+		'page callback' => 'user_hierarchy_del_mentor',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+
+	$aItems['admin/user/hierarchy/set'] = array(
+		'title' => 'Create Hierarchy',
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('user_hierarchy_admin'),
+		'access arguments' => array('access administration pages'),
+		//'type' => MENU_DEFAULT_LOCAL_TASK
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/user/hierarchy/assign/process'] = array(
+		'page callback' => 'user_heirarchy_assign_parent_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+
+	
+	
+	$aItems['admin/user/hierarchy/assign/%/%'] = array(
+		'page callback' => 'user_heirarchy_assign_parent_js',
+		'page arguments' => array(4,5),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/user/hierarchy/assign/%/%/%'] = array(
+		'page callback' => 'user_heirarchy_assign_parent_js',
+		'page arguments' => array(4,5,6),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['user/notify/all'] = array(
+		'title' => "Tutoring",
+		'page callback' => 'user_hierarchy_notify_all',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	return $aItems;
+}
+
+function user_hierarchy_notify_all($uid){
+
+	$sqlUpdate = "UPDATE user_notification
+				  SET accept = '1'
+				  WHERE uid = %d";			
+	
+	db_query($sqlUpdate, $uid);
+	
+	echo json_encode(array("STATUS" => "Success"));
+	exit;
+}
+
+function user_hierarchy_init(){
+	drupal_add_js('var user_hierarchy_sBasePath = "'.base_path().'";', "inline");
+	drupal_add_js(drupal_get_path("module", "user_hierarchy")."/user_hierarchy.js");
+}
+
+
+function user_heirarchy_assign_parent_js($sMode,$iId,$iRoleId = "") {
+	if ($sMode == "hopeful") {
+		user_heirarchy_parent_list($iId);
+	} else if ($sMode == "volunteer") {
+		$aAssigned = array();
+		$res = db_query("SELECT iVolunteerId
+							FROM hopefuls_volunteer 
+							WHERE iRoleId = '" . $iRoleId . "' AND
+								iHopefulId = '" . $iId . "'"
+				);
+		while ($row = db_fetch_object($res)) {
+			$aAssigned[] = $row->iVolunteerId;		
+		}
+		
+		$sData = '<select id="iVolunteerId" name="iVolunteerId"><option value="">Select Parent</option>';
+		$res = db_query("SELECT 
+								u.name,
+								u.uid
+							FROM users_roles ur
+							LEFT JOIN users u ON u.uid = ur.uid
+							WHERE ur.rid = '" . $iRoleId . "'
+							ORDER BY u.name"
+				);
+		while ($row = db_fetch_object($res)) {
+			if (!in_array($row->uid,$aAssigned))
+				$sData .= '<option value="' . $row->uid . '">' . $row->name . '</option>';
+		}
+		ob_end_clean();
+		echo $sData;
+		exit;
+	}
+}
+
+function user_heirarchy_parent_list($iId) {
+	$iCurrParent = 0;
+	
+	$res = db_query("SELECT name FROM users WHERE uid = '" . $iId . "'");
+	$row = db_fetch_object($res);
+	if (!$row)
+		$sData = '<ul style="padding-left:20px">';
+	else
+		$sData = "<h2>Assigned Volunteers for " . $row->name . "</h2><ul>";
+	
+	$res = db_query("SELECT 
+							hv.id,
+							hv.iHopefulId,
+							hv.iVolunteerId,
+							hv.iRoleId,
+							v.name,
+							r.rid,
+							r.name as role
+						FROM hopefuls_volunteer hv
+						LEFT JOIN users v ON v.uid = hv.iVolunteerId
+						LEFT JOIN role r ON r.rid = hv.iRoleId
+						WHERE iHopefulId = '" . $iId . "'
+						ORDER BY r.rid"
+			);
+	while ($row = db_fetch_object($res)) {
+		if ($iCurrParent != $row->rid) {
+			$iCurrParent = $row->rid;
+			if ($sData != '<ul style="padding-left:20px">')
+				$sData .= "</ul>"; 
+			$sData .= '<li style="list-style-type:none;padding:10px 0 5px 0"><b>' . $row->role . '</b></li><ul style="padding-left:20px">';
+		}
+		$sData .= '<li style="padding-left:20px">' . $row->name . ' [<a href="#" onclick="delHeirarchy(\''.$row->id.'\', \''.$row->iHopefulId.'\', \''.$row->iVolunteerId.'\', \''.$row->iRoleId.'\')">remove</a>]</li>';
+	}
+	$sData .= "</ul>";
+	ob_end_clean();
+	die($sData);
+}
+
+function user_heirarchy_assign_parent_process() {
+	if ($_POST["sAction"] == "delete") {
+		db_query("DELETE FROM hopefuls_volunteer WHERE id = '" . $_POST["iId"] . "'");
+		
+		// added by Jed Diaz
+		if($_POST["iRoleId"] == 6){
+		db_query("DELETE FROM volunteer_mentor_hopeful WHERE iHopefulId = '" . $_POST["iHopefulId"] . "' AND iMentorId = '" . $_POST["iVolunteerId"] . "'");
+		}
+		// eof added by Jed Diaz
+		
+	} else if ($_POST["sAction"] == "add") {
+		db_query("INSERT INTO hopefuls_volunteer SET
+					iHopefulId = '" . $_POST["iHopefulId"] . "',
+					iVolunteerId = '" . $_POST["iVolunteerId"] . "',
+					iRoleId = '" . $_POST["iRoleId"] . "'"
+		);
+		
+		// added by Jed Diaz
+		if($_POST["iRoleId"] == 6){
+			db_query("INSERT INTO volunteer_mentor_hopeful SET
+						iHopefulId = '" . $_POST["iHopefulId"] . "',
+						iMentorId = '" . $_POST["iVolunteerId"] . "'"
+			);
+		}
+		// eof added by Jed Diaz
+		
+	}
+}
+
+
+function user_heirarchy_assign_parent() {
+	$aChildren = array("" => "Select Hopeful");
+	$aParentRoles = array(7,4,6,12,16,11);
+	
+	$sRoles = '<select name="iRoleId" id="iRoleId"><option value="">Select Parent Role</option>';
+	$res = db_query("SELECT * FROM role WHERE rid IN (" . implode(",",$aParentRoles) . ") ORDER BY name");
+	while ($row = db_fetch_object($res)) {
+		$sRoles .= '<option value="' . $row->rid . '">' . $row->name . '</option>';	
+	}
+	
+	$sHopefuls = '<select name="iHopefulId" id="iHopefulId"><option value="">Select Hopeful</option>';
+	$res = db_query("SELECT A.uid, A.name
+						FROM users A
+						INNER JOIN users_roles B ON B.uid = A.uid
+						INNER JOIN role C ON C.rid = B.rid
+						WHERE C.rid = 9
+							AND A.status = 1
+						ORDER BY A.name");
+	while ($row= db_fetch_object($res)){
+		$sHopefuls .= '<option value="' . $row->uid . '">' . $row->name . '</option>';
+	}
+	
+	$sData = '<table width="100%">
+				<tr><td style="padding:5px;"><h2>Assign Volunteers</h2></td></tr>
+				<tr>
+					<td>
+						<form id="frmAssign" name="frmAssign" method="post">
+							<table width="600" cellpadding="2" cellspacing="2" border="0">
+								<tr>
+									<td align="right" width="100">Hopeful: </td>
+									<td style="padding:5px;">' . $sHopefuls . '</td>
+								</tr>
+								<tr>
+									<td align="right">Parent Role: </td>
+									<td style="padding:5px;">' . $sRoles . '</td>
+								</tr>
+								<tr>
+									<td align="right">Parent: </td>
+									<td style="padding:5px;">
+										<div id="divParent">
+											<select name="iVolunteerId">
+												<option value="">Select Parent</option>
+											</select>
+										</div>
+									</td>
+								</tr>
+								<tr>
+									<td>&nbsp;</td>
+									<td style="padding:5px;">
+										<input type="hidden" value="add" name="sAction">
+										<input type="hidden" value="" name="iId">
+										<input type="button" id="btnSubmit" value="Submit" class="form-submit" />
+									</td>
+								</tr>
+							<table>
+							<br /><br />
+						</form>
+						<div id="sList"></div>
+					</td>
+				</tr>
+			</table>';
+						
+	return $sData;
+}
+/*
+ * iRoleId	- 11=Moderator, 6=Mentor, 9=Child
+ */
+function user_hierarchy_admin(){
+	$aMods = array("" => "Select a user...");
+	$aMentors = array("" => "Select a user...");
+	$aChildren = array("" => "Select a user...");
+	
+	$sqlUsers = "SELECT A.uid, A.name
+				FROM users A
+				INNER JOIN users_roles B ON B.uid = A.uid
+				INNER JOIN role C ON C.rid = B.rid
+				WHERE C.rid = %d
+					AND A.status = 1
+				ORDER BY A.name";
+	
+	$oModResult = db_query($sqlUsers, 11);
+	$oMentorResult = db_query($sqlUsers, 6);
+	$oChildResult = db_query($sqlUsers, 9);
+	
+	while ($oMod = db_fetch_object($oModResult)){
+		$aMods[$oMod->uid] = $oMod->name;
+	}
+	
+	while ($oMentor = db_fetch_object($oMentorResult)){
+		$aMentors[$oMentor->uid] = $oMentor->name;
+	}
+	
+	while ($oChildren= db_fetch_object($oChildResult)){
+		$aChildren[$oChildren->uid] = $oChildren->name;
+	}
+	
+	$aForm['user_hierarchy_child'] = array(
+		'#type' => 'select',
+		'#title' => 'Child',
+		'#required' => true,
+		'#default_value' => '',
+		'#options' => $aChildren
+	);
+	
+	$aForm['user_hierarchy_mentor'] = array(
+		'#type' => 'select',
+		'#title' => 'Mentor',
+		'#required' => true,
+		'#default_value' => '',
+		'#options' => $aMentors,
+		'#description' => 'The selected user will be the Mentor for the selected Child.'
+	);
+	
+	$aForm['bDefaultMentor'] = array(
+		'#type' => 'checkbox',
+		'#title' => "Sets the selected Mentor as the Child's primary mentor.",
+		'#default_value' => '',
+	);
+	
+	$aForm['user_hierarchy_mod'] = array(
+		'#type' => 'select',
+		'#title' => 'Moderator',
+		'#required' => true,
+		'#default_value' => '',
+		'#options' => $aMods,
+		'#description' => 'The selected user will be the Moderator for the selected Mentor.'
+	);
+	
+
+	$aForm['btnSave'] = array("#type" => "submit", "#value" => "Save User Hierarchy");
+	
+	return $aForm;
+}
+
+function user_hierarchy_admin_submit($oForm, &$aFormState){
+	$aFormVal = $aFormState["values"];
+	$iModId = $aFormVal["user_hierarchy_mod"];
+	$iMentorId = $aFormVal["user_hierarchy_mentor"];
+	$iDefaultMentor = ($aFormVal["bDefaultMentor"] == 1) ? 1:0;
+	$iChildId = $aFormVal["user_hierarchy_child"];
+	
+	$sqlInsertMentor = "INSERT INTO {user_hierarchy_mentor} VALUES (NULL, %d, %d, '%s')";
+	$sqlCheckMod = "SELECT COUNT(id) FROM {user_hierarchy_mod} WHERE uid = %d AND mentor_id = %d";
+	$sqlInsertMod = "INSERT INTO {user_hierarchy_mod} VALUES (NULL, %d, %d)";
+	
+	db_query($sqlInsertMentor, array($iMentorId, $iChildId, $iDefaultMentor));
+	
+	if (db_result(db_query($sqlCheckMod, array($iModId, $iMentorId))) == 0) db_query($sqlInsertMod, array($iModId, $iMentorId));
+	
+	drupal_set_message("User hierarchy has been saved.");
+}
+
+function user_hierarchy_check_mod(){
+	$sqlCheck = "SELECT iVolunteerId FROM hopefuls_volunteer WHERE iHopefulId = %d AND iRoleId = 11";
+	$iModId = db_result(db_query($sqlCheck, $_REQUEST["id"]));
+	
+	echo $iModId;
+	exit;
+}
+
+function user_hierarchy_list(){
+	$sTableHeader = '<table style="margin-top:10px;">
+						<tr>
+							<th style="width:150px;">Child</th>
+							<th style="width:180px;">Mentor</th>
+							<th style="width:150px;">Moderator</th>
+						</tr>';
+						
+	$sTableFooter = '</table>';
+	
+	$iChildrenPerPage = 25;
+	$iChildrenCount = 0;
+	$sOutput = "";
+	$sTempName = "";
+	
+	$sqlCount = "SELECT COUNT(A.child_id)
+				FROM user_hierarchy_mentor A
+				INNER JOIN users B ON B.uid = A.child_id
+				ORDER BY B.name";
+				
+	$sqlChildren = "SELECT A.child_id, B.name
+					FROM user_hierarchy_mentor A
+					INNER JOIN users B ON B.uid = A.child_id
+					ORDER BY B.name";
+	
+	$oChildrenResult = pager_query($sqlChildren, $iChildrenPerPage, 0, $sqlCount);
+	
+	while ($oChildren = db_fetch_object($oChildrenResult)){
+		$iChildrenCount++;
+		$sMentorList = "";
+		$sModList = "";
+		$sqlMentor = "SELECT A.uid, B.name, A.primary
+						FROM user_hierarchy_mentor A
+						INNER JOIN users B ON B.uid = A.uid
+						WHERE A.child_id = %d
+						ORDER BY B.name";
+		
+		$oMentorResult = db_query($sqlMentor, $oChildren->child_id);
+		
+		while ($oMentor = db_fetch_object($oMentorResult)){
+			$sPrimary = ($oMentor->primary == 1) ? " <em>(primary)</em>":""; 
+			$sMentorList .= '<div id="mentor_'.$oMentor->uid.'_'.$oChildren->child_id.'">'.$oMentor->name.$sPrimary.'</div>';
+			
+			$sqlMod = "SELECT A.uid, B.name
+						FROM user_hierarchy_mod A
+						INNER JOIN users B ON B.uid = A.uid
+						WHERE A.mentor_id = %d
+						ORDER BY B.name";
+						
+			$oModResult = db_query($sqlMod, $oMentor->uid);
+			
+			while ($oMod = db_fetch_object($oModResult)){
+				$sModList .= ($sModList != "") ? "<br />":"";
+				$sModList .= '<div id="mod_'.$oMod->uid.'">'.$oMod->name.'</div>';
+			}
+		}
+		
+		$sOutput .= '<tr>
+						<td><div id="child_'.$oChildren->child_id.'">'.$oChildren->name.'</div></td>
+						<td>'.$sMentorList.'</td>
+						<td>'.$sModList.'</td>
+					</tr>';
+	}
+	
+	if ($iChildrenCount > 0){
+		$sPagerHTML = theme("pager", null, $iChildrenPerPage);
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter.$sPagerHTML;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No user hierarchy to display, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function user_hierarchy_del_mentor(){
+	$sqlDel = "DELETE FROM {user_hierarchy_mentor} WHERE uid = %d AND child_id = %d";
+	db_query($sqlDel, array($_REQUEST["mentorid"], $_REQUEST["childid"]));
+	
+	echo json_encode(array("STATUS" => "Success"));
+	exit;
+}
+function user_hierarchy_verify($iChildId){
+	$sqlCheck = "SELECT COUNT(id) AS iMentorCount FROM hopefuls_volunteer WHERE iHopefulId = %d AND iRoleId = 6";
+	
+	return db_result(db_query($sqlCheck, $iChildId));
+}

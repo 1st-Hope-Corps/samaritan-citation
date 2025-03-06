@@ -1,0 +1,935 @@
+<?php
+define("INSTANT_REC_PER_PAGE", 25);
+date_default_timezone_set('Asia/Manila');
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function instant_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#instant":
+			$sOutput = '<p>'. "Instant module.".'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function instant_perm(){
+	return array('access instant content', 'access instant child content', 'administer instant');
+}
+
+function instant_menu(){
+	$aItems = array();
+	
+	$aItems['instant'] = array(
+		'title' => 'Good Deeds',
+		'page callback' => 'instant_dashboard',
+		'access arguments' => array('administer instant'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['instant/mentor/fb/welcome'] = array(
+		'title' => 'Instant Mentor Facebook App',
+		'page callback' => 'instant_mentor_fb_welcome',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor'] = array(
+		'title' => 'Instant Mentor Volunteer',
+		'page callback' => 'instant_mentor',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor/choose/%'] = array(
+		'title' => 'Choose instant Mentor Volunteer',
+		'page callback' => 'instant_mentor_choose',
+		'page arguments' => array(3),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor/choose/remove/%/%'] = array(
+		'title' => 'Choose instant Mentor Volunteer',
+		'page callback' => 'instant_mentor_choose_remove',
+		'page arguments' => array(4,5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aItems['instant/mentor/confirm'] = array(
+		'title' => 'Confirm instant Mentor Volunteer',
+		'page callback' => 'instant_mentor_confirm',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor/confirm_save'] = array(
+		'title' => 'Confirm instant Mentor Volunteer',
+		'page callback' => 'instant_mentor_confirm_save',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aItems['instant/mentor/iMentorCount'] = array(
+		'title' => 'Confirm instant Mentor Volunteer',
+		'page callback' => '_instant_mentor_count',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor/dashboard'] = array(
+		'title' => 'Instant Mentor Volunteer - Dashboard',
+		'page callback' => 'instant_mentor_dashboard',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor/remove'] = array(
+		'title' => 'Instant Mentor Volunteer - Dashboard',
+		'page callback' => 'instant_mentor_remove',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor/enroll'] = array(
+		'title' => 'Instant Mentor Volunteer - Dashboard',
+		'page callback' => 'instant_mentor_enroll',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor/browse'] = array(
+		'title' => 'Instant Mentor Volunteer - Browse',
+		'page callback' => 'instant_mentor_browse',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/mentor/deactivate'] = array(
+		'title' => 'Instant Mentor Volunteer - Deactivate',
+		'page callback' => 'instant_mentor_deactivate',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['instant/testing/table'] = array(
+		'title' => 'Instant Mentor Volunteer - Deactivate',
+		'page callback' => 'instant_testing_table',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+} 
+
+
+function instant_mentor_fb_welcome () {
+	drupal_set_breadcrumb( array() );
+	drupal_add_js( drupal_get_path('module', 'instant') . '/instant.js');
+
+	$sOutput = drupal_eval(_instant_load_template("page-mentor-welcome"));
+	return $sOutput;
+}
+
+function instant_testing_table(){
+	db_query("delete from testing_table where id != 0");
+}
+
+function instant_mentor_deactivate(){
+	global $user;
+	
+	$iUserId = $user->uid; 
+	$sqlDelete1 = "DELETE FROM users_roles WHERE uid = %d AND rid = '22'";
+	$sqlDelete2 = "DELETE FROM volunteer_optin WHERE uid = '%d' and type = 'instant'";
+	$sqlDelete3 = "DELETE FROM instant_ementor_assignment WHERE ementor_id = '%d'";
+	
+	db_query($sqlDelete1, $iUserId);
+	db_query($sqlDelete2, $iUserId);
+	db_query($sqlDelete3, $iUserId);
+	
+	// Point System for Volunteer
+	userpoints_userpointsapi(array("uid" => $user->uid, "tid" => 199, "description" => "User deactivated his/her Volunteer - Instant eMentor Volunteer account."));
+	
+	header("Location: /mystudies/getinvolved/ementoring-volunteers");
+}
+
+function _instant_load_template($sPage) {
+	return file_get_contents(drupal_get_path('module', 'instant') . '/templates/' . $sPage . '.tpl.php');
+}
+
+function instant_mentor_enroll( $bOutput = true ){
+	global $user, $sEnroll;
+	
+	$iUserId = $user->uid;
+	
+	$sql_check = db_result(db_query("SELECT COUNT(uid) AS count FROM users_roles WHERE rid = 22 AND uid = %d", $iUserId));
+
+	if (intval($sql_check) == 0){
+		db_query("INSERT INTO users_roles VALUES (%d, %d)", $iUserId, 22);
+		db_query("INSERT INTO volunteer_optin VALUES (NULL, %d, '%s', '0', '0')", $iUserId, 'instant');
+		
+		// Point System for Volunteer
+		userpoints_userpointsapi(array('uid' => $iUserId, 'tid' => 198, 'description' => 'User opted-in to be a Volunteer - Instant eMentor.'));
+	}
+
+	if ( $bOutput ) {
+		$sEnroll = '<div style = "background:url(/themes/theme2010/images/thank_ementor_box.png); width:483px; height:297px; display:block; margin-left:12px; margin-top:10px;"></div>';
+		$sOutput = drupal_eval( _instant_load_template( "page-mentor-landing" ) );
+		echo '<style>#vmentor_register{
+			display:none;
+		}</style>';
+		
+		return $sOutput;
+	} else {
+		// Being called by another function
+		$success = 1;
+		return $success;
+	}
+
+} 
+
+function instant_mentor(){
+	global $user, $sEnroll;
+
+	// We need some functions from the 'mystudies' module
+	module_load_include( 'module', 'mystudies' );
+	
+	/*
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eMentoring", "mystudies/getinvolved/ementoring-volunteers"),
+			l("Dashboard", "instant/mentor")
+		)
+	);*/
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "mystudies/getinvolved/volunteer"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eMentoring", "mystudies/getinvolved/ementoring-volunteers")
+		)
+	);
+	
+	drupal_add_js(
+		'$(document).ready(
+			function(){
+				//$("div.main_content h2").remove();
+				//$("td").find(".jboxh").parent().remove();
+			}
+		);',
+		"inline"
+	);
+
+	// Possibly show a landing page for anonymous or non-enrolled users
+	$sOutput = _instant_landing_page();
+	if ( false !== $sOutput ) {
+		return $sOutput;
+	}
+
+	// If no landing page is necessary, proceed to the desired content
+	drupal_goto( "instant/mentor/dashboard" );
+
+}
+
+function instant_mentor_browse(){
+	global $user;
+	
+	/*drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("eMentoring", "mystudies/getinvolved/ementoring-volunteers"),
+			l("Selection", "instant/mentor")
+		)
+	);*/
+	
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "mystudies/getinvolved/volunteer"),
+			l("eMentoring", "mystudies/getinvolved/ementoring-volunteers"),
+			l("Dashboard", "instant/mentor/dashboard"),
+			l("Search for Students", "#")
+		)
+	);
+	
+	drupal_add_js(
+		'$(document).ready(
+			function(){
+				//$("div.main_content h2").remove();
+				//$("td").find(".jboxh").parent().remove();
+			}
+		);',
+		"inline"
+	);
+	
+	// Possibly show a landing page for anonymous or non-enrolled users
+	$sOutput = _instant_landing_page();
+	if ( false !== $sOutput ) {
+		return $sOutput;
+	}
+
+	// If no landing page is necessary, proceed to the desired content
+	$sOutput = drupal_eval(_instant_load_template("page-mentor"));
+	
+	return $sOutput;
+}
+
+function instant_mentor_choose($uid){
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "mystudies/getinvolved/volunteer"),
+			l("eMentoring", "mystudies/getinvolved/ementoring-volunteers"),
+			l("Dashboard", "instant/mentor/dashboard"),
+			l("Search for Hopefuls", "instant/mentor/browse"),
+			l("Prospect List", "#")
+		)
+	);
+
+	// Javascript needed by the Kindness Workz box on user profiles
+	drupal_add_js( drupal_get_path( 'module', 'kindness' ) . '/kindness_profile.js' );
+
+	/* $uids = explode("-", $_COOKIE["uids"]);
+	
+	echo '<pre>';
+	print_r($uids);
+	echo '</pre>';
+	
+	foreach ($_REQUEST as $sVar => $sVal){
+		echo $sVar . ' => ' . $sVal.'<br/>';
+	}
+	
+	exit; */
+
+
+	// Possibly show a landing page for anonymous or non-enrolled users
+	$sOutput = _instant_landing_page();
+	if ( false !== $sOutput ) {
+		return $sOutput;
+	}
+
+	// If no landing page is necessary, proceed to the desired content
+	
+	$sBasePath = base_path();
+	$aUid = array();
+	
+	if (!isset($_SESSION['uids'])){
+		$aUid[] = $uid;
+		$_SESSION['uids'] = $uid;
+	}else{
+		$aUid = explode('-', $_SESSION['uids']);
+		
+		if ($uid != 0 && !in_array($uid, $aUid)){
+			$aUid[] = $uid;
+			$_SESSION['uids'] = implode('-', $aUid);
+		}
+	}
+	
+	$iUidCount = count($aUid);
+	
+	/* echo '<pre>';
+	print_r($_SESSION['uids']);
+	echo '</pre>';
+	exit; */
+	
+	drupal_add_js(drupal_get_path("module", "instant")."/instant.js");
+	$sBasePath = base_path();
+	$sOutput = '<div id="hc_HopefulProfileContainer" style="display:none;">
+						<div id="hc_HopefulProfileContainerClose" style="text-align:right; cursor:pointer; font-family:verdana; padding:5px 5px 5px 0; color:maroon; font-weight:bold; background-color:#F8F8F8;">[close this]</div>
+						<iframe id="hc_HopefulProfile" src="" width="838" height="471" border="0"></iframe>
+					</div>	
+					<div id="cbrect" class="clearfix">
+						<div class="cbb">
+							<div class="left-border">
+								<div class="right-border">
+									<div style="padding-bottom:22px;"><span id="indication-pane-1"></span><span id="indication-pane-2" style="display:none;"></span></div>
+									<div style = "width:100%; margin-bottom:50px; float:left;">
+												<img style = "margin-left:36px; float:left;" src="' .$sBasePath.'themes/theme2010/images/top-indication-pane-2.png" border="0" />
+									</div>			
+									<div style = "float:none; clear:both;"></div>
+									<div style = "float:left; width:45%;">
+										<table width="100%" border="0" cellspacing="0" cellpadding="0">';
+	
+	//if ($_COOKIE["uids"] == ""){
+	if (count($aUid) <= 0){
+		drupal_goto("instant/mentor");
+	}
+
+	foreach($aUid as $iUserID){
+
+		$aPathpluspicture = 'sites/default/files/pictures/none.png'; 
+		$sAuth = "SELECT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture FROM users u WHERE u.uid = '".$iUserID."'";
+		
+		$oAuthUsers = db_query($sAuth);
+		$sAuthUsers = db_fetch_object($oAuthUsers);
+		
+		$sqlDetails = "SELECT fid, value
+						FROM profile_values
+						WHERE fid IN (15, 45, 46, 47, 48)
+						AND uid = %d";
+		$oDetails = db_query($sqlDetails, $iUserID);
+					
+		$aTemp = array();
+		$aTemp["uid"] = $iUserID;
+		
+		while ($oDetail = db_fetch_object($oDetails)){
+			if ($oDetail->fid == 15) $aTemp["income"] = ($oDetail->value > 0) ? number_format($oDetail->value, 2):'0.00';
+			if ($oDetail->fid == 45) $aTemp["language"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 46) $aTemp["talent"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 47) $aTemp["favorite"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 48) $aTemp["lives_with"] = $oDetail->value == 0 || $oDetail->value == "" ? "Not specified" :  $oDetail->value;
+		}
+		
+		$aTemp["lives_with"] = $aTemp["lives_with"] == "" ? "Not specified" : $aTemp["lives_with"];
+		
+		$infoMsg .= '<table width="100%" border="0" cellspacing="0" cellpadding="2" >
+					<tr><td colspan="2"><h3><b style="color:black;">You have Chosen to <br/> Instant eMentor: '.ucfirst($sAuthUsers->name).'</b></h3><span style="color:#f9b164;">Has '._instant_mentor_count($iUserID).' eMentors</span></td></tr>';
+		$infoMsg .= '<tr><td width="110" style="color:#606060;">Language(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["language"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Talent(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["talent"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Favorite(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["favorite"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Lives with:</td><td class="info" style="color:#1A03E7;">'.$aTemp["lives_with"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Family Income:</td><td class="info" style="color:#1A03E7;"> '.$aTemp["income"].' per month</td></tr>';
+		$infoMsg .= '<tr><td colspan="2">&nbsp;</td></tr>';
+		$infoMsg .= '</table>';
+					
+		$sOutput .= '						<tr><td></td>
+											</tr>
+											<tr>
+											
+											<td style = "width:100%;">
+											<div style = "width:33%; float:left;">
+											<div style = "width:110px; height:90px; margin:10px 20px;"><img src="'.$sBasePath.$sAuthUsers->picture.'"/></div>
+											<div style = "width:130px;">
+											<input type="checkbox" id="removeHopeful_'.$iUserID.'" onclick="removeHopeful('."'".$iUserID."'".','."'".ucfirst($sAuthUsers->name)."', {$iUidCount}".')"/> Remove
+											</div>
+											</div>
+											<div style = "width:65%; float:left;">
+											'.$infoMsg.'
+											</div>
+											</td>
+											</tr>
+										
+									';
+		$iUserID = "";	
+		$infoMsg = "";
+	}
+		$linkurl = "location.href='/instant/mentor/browse'";
+		$sOutput .= '
+					<tr><td colspan="2">&nbsp;</td></tr>
+					<tr><td colspan="2">
+					<div style = "width:370px;">
+					<div id="reviewchoice">
+					<div style="float:right;"><img src="'.$sBasePath.'themes/theme2010/images/review-choice.png" border="0" style="cursor:pointer;" id="review-choice-button" /></div><div style="float:left;width:4%;v-align:middle;"></div>
+					</div>
+					<div style="float: right;width:500px; display:none;" id="confirmchoice">
+					<div style="float:left;width:35%;display:none;"><img src="'.$sBasePath.'themes/theme2010/images/confirm-choice.png" border="0" style="cursor:pointer;" id="confirm-choice-button" /></div><div style="float:left;width:4%;v-align:middle;display:none;">Or</div><div style="float:left;width:30%;"><img src="'.$sBasePath.'themes/theme2010/images/additional-hopeful.png" border="0" style="cursor:pointer;" onclick="'.$linkurl.'"/></div>
+					</div>
+					<div id="cancel1" style="float:left; width:100px;"><br/><input type="button" id="cancelbutton" value="Cancel" onclick="'.$linkurl.'"/></div>
+					<div style="display:none;" id="cancel2"><input type="button" id="cancelbutton2" value="Cancel"/></div>
+					</div>
+					</td></tr>
+					</table></div>
+					<div style = "float:left; width:432px; margin-left:3%; height:300px; padding:0 25px; background:url('.$sBasePath.'themes/theme2010/images/some_text_here_bg.png) no-repeat;"><span style = "padding:120px 20px 0; display:block; font-size:20px;">Some text will go here to explain this step</span></div>
+					<div style = "float:none; clear:both;"></div>
+								</div>
+							</div>
+						</div>
+					</div>';
+		
+		$sOutput .= '<div id="terms-conditions" style="margin-top:0px;">
+						<div id="divider" class="divider">&nbsp;</div>
+						<div id="cbrect">
+							<div class="cbb">
+								<div class="left-border">
+									<div class="right-border">
+										<div>
+											<table width="100%" border="0" cellspacing="0" cellpadding="0">
+								<tr><td colspan="2"><center><h2>Terms and conditions</h2></center></td></tr>
+								<tr><td colspan="2">
+								<div style="height:400px;">&nbsp;</div>
+								</td></tr>
+								<tr><td colspan="2">
+								<center><input type="checkbox" id="agreetermsandconditions" /> <label for="agreetermsandconditions">I have read and agree to abide by all terms and conditions of the Instant eMentoring program.</label></center>
+								</td></tr>
+								</table></div>
+											</div>
+										</div>
+								</div>
+						</div>
+					</div>';
+										
+	return $sOutput;
+}
+
+function instant_mentor_choose_remove($iRemoveUserId, $iListCount=0){
+	$aUid = explode('-', $_SESSION['uids']);
+	$iKey = array_search($iRemoveUserId, $aUid);
+	
+	/* echo '<pre>';
+	print_r($_SESSION['uids']);
+	echo '</pre>'; */
+	
+	if ($iKey!== false){
+		unset($aUid[$iKey]);
+		$iListCount--;
+	}
+	
+	$_SESSION['uids'] = implode('-', $aUid);
+	
+	/* echo '<pre>';
+	print_r($_SESSION['uids']);
+	echo '</pre>';
+	exit; */
+	
+	$sRedirect = ($iListCount > 0) ? 'instant/mentor/choose/0':'instant/mentor/browse';
+	drupal_goto($sRedirect);
+}
+
+function instant_mentor_confirm(){
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "mystudies/getinvolved/volunteer"),
+			l("eMentoring", "mystudies/getinvolved/ementoring-volunteers"),
+			l("Dashboard", "instant/mentor/dashboard"),
+			l("Search for Hopefuls", "instant/mentor/browse"),
+			l("Prospects List", "instant/mentor/choose/0"),
+			l("Confirm Selection", "#")
+		)
+	);
+
+	// Javascript needed by the Kindness Workz box on user profiles
+	drupal_add_js( drupal_get_path( 'module', 'kindness' ) . '/kindness_profile.js' );
+
+	//$uids = explode("-",$_COOKIE["uids"]);
+	
+	/* $aUid = array();
+	
+	if (!isset($_COOKIE["uids"])){
+		$aUid[] = $uid;
+	}else{
+		$aUid = explode('-', $_COOKIE['uids']);
+	} */
+
+
+	// Possibly show a landing page for anonymous or non-enrolled users
+	$sOutput = _instant_landing_page();
+	if ( false !== $sOutput ) {
+		return $sOutput;
+	}
+
+	// If no landing page is necessary, proceed to the desired content
+	
+	$aUid = explode('-', $_SESSION['uids']);
+	
+	drupal_add_js(drupal_get_path("module", "instant")."/instant.js");
+	$sBasePath = base_path();
+	$sOutput = '<div id="hc_HopefulProfileContainer" style="display:none;">
+						<div id="hc_HopefulProfileContainerClose" style="text-align:right; cursor:pointer; font-family:verdana; padding:5px 5px 5px 0; color:maroon; font-weight:bold; background-color:#F8F8F8;">[close this]</div>
+						<iframe id="hc_HopefulProfile" src="" width="838" height="471" border="0"></iframe>
+					</div>	
+					<div id="cbrect">
+						<div class="cbb">
+							<div class="left-border">
+								<div class="right-border">
+									<div style="padding-bottom:22px;"><img src="'.$sBasePath.'themes/theme2010/images/top-indication-pane-3.png" id="indication-pane-1"/><img src="'.$sBasePath.'themes/theme2010/images/top-indication-pane-2.png" id="indication-pane-2" style="display:none;"/>&nbsp;&nbsp;&nbsp;<img src="/themes/theme2010/images/finish_btn.png" border="0" style="cursor:pointer; display:none; vertical-align:top; margin-top:5px;" id="finish-choice-button" /></div>	
+									<div style="clear:both; width:99%;">
+										<div style="float:left;width:45%;height:150px;border-right: 1px solid #0d7ef8;">	
+											<div id="selected-hopeful-list">
+											</div>
+										</div>
+										<div style="float:left;width:120px;height:auto;padding-left:12px;">	
+											<div id="confirm-hopeful-list">
+												<div class="div-list" style="clear:both;">';
+													
+									foreach($aUid as $iUserID){
+										$aPathpluspicture = 'sites/default/files/pictures/none.png'; 
+										$sAuth = "SELECT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture FROM users u WHERE u.uid = '".$iUserID."'";
+										$oAuthUsers = db_query($sAuth);
+										$sAuthUsers = db_fetch_object($oAuthUsers);
+										
+										$sOutput .= '<div style="float:left;width:120px;height:150px;">
+													<!--<center><img onclick="activate_view('."'".$iUserID."'".','."'".$sAuthUsers->name."'".')" src="/'.$sAuthUsers->picture.'" border="0" style="cursor:pointer;min-height:76px;min-width:85px;" /></center>-->
+													<center><img onclick="confirm_hopeful_ementor('."'".$iUserID."'".')" src="'.$sBasePath.$sAuthUsers->picture.'" border="0" style="cursor:pointer;min-height:76px;min-width:85px;" /></center>
+													<center>'.ucfirst($sAuthUsers->name).'</center>
+													<center><span style="color:#f9b164;">Has <span id="usermentor_'.$iUserID.'">'._instant_mentor_count($iUserID).'</span> eMentors</span></center>
+													</div>';
+									}
+								
+									$sOutput .= '</div>
+												<div style="clear:both;"></div>';
+										
+										if(count($aUid) < 4){
+										$sOutput .= '<div style="display:none;" align="right">';
+										}
+										
+										$sOutput .= '<a href="#" class="eprev">Prev</a>&nbsp;&nbsp;
+												     <a href="#" class="enext">Next</a>';
+													 
+										if(count($aUid) > 4){
+										$sOutput .= '</div>';
+										}
+
+										
+									$sOutput .= '</div>
+											</div>
+											
+										</div><div style="float:right;width:333px;height:288px;margin-top:-68px; margin-right:20px; background:url('.$sBasePath.'themes/theme2010/images/finish_page_msgbox.png) no-repeat; background-size:100%;"></div>
+										';
+										
+	$linkurl = "location.href='".base_path()."instant/mentor/choose/0'";
+		
+	$sOutput .= '</div>
+				<div style="clear:both;"><input type="button" id="cancelbutton" value="Cancel" onclick="'.$linkurl.'"/></div>
+							</div>
+						</div>
+					</div>
+				</div>';
+	
+	return $sOutput;
+}
+
+function instant_mentor_confirm_save(){
+	global $user;
+	session_start();
+	$_SESSION['add_new'] = "1";
+	$iUserID = $_POST['uid'];
+	$countexist = db_result(db_query("SELECT COUNT(id) as count FROM instant_ementor_assignment WHERE hopeful_id = '".$iUserID."' AND ementor_id = '".$user->uid."'"));
+
+	if($countexist == 0){
+		instant_mentor_enroll( $bOutput = false );
+		
+		$sqlInsert = "INSERT INTO instant_ementor_assignment VALUES(NULL, %d, %d, %d)";
+		db_query($sqlInsert, array($user->uid, $iUserID, time()));
+		
+		// Point System for Volunteer
+		userpoints_userpointsapi(array('uid' => $iUserId, 'tid' => 201, 'description' => 'Volunteer - Instant eMentor added a Hopeful to mentor.'));
+		
+		//$instantEmentorexist = db_result(db_query("select count(uid) as count from users_roles where uid = '".$user->uid."' and rid = '22'"));
+		
+		//if($instantEmentorexist == 0){
+		//$sqlInsert = "INSERT INTO users_roles VALUES(%d, %d)";
+		//db_query($sqlInsert, array($user->uid, 22));
+		//}
+		
+		$aPathpluspicture = 'sites/default/files/pictures/none.png'; 
+		$sAuth = "SELECT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture FROM users u WHERE u.uid = '".$iUserID."'";
+		
+		$oAuthUsers = db_query($sAuth);
+		$sAuthUsers = db_fetch_object($oAuthUsers);
+		
+		$sqlDetails = "SELECT fid, value
+						FROM profile_values
+						WHERE fid IN (15, 45, 46, 47, 48)
+						AND uid = %d";
+		$oDetails = db_query($sqlDetails, $iUserID);
+					
+		$aTemp = array();
+		$aTemp["uid"] = $iUserID;
+		
+		while ($oDetail = db_fetch_object($oDetails)){
+			if ($oDetail->fid == 15) $aTemp["income"] = ($oDetail->value > 0) ? number_format($oDetail->value, 2):'0.00';
+			if ($oDetail->fid == 45) $aTemp["language"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 46) $aTemp["talent"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 47) $aTemp["favorite"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 48) $aTemp["lives_with"] = $oDetail->value == 0 || $oDetail->value == "" ? "Not specified" :  $oDetail->value;
+		}
+		
+		$aTemp["lives_with"] = $aTemp["lives_with"] == "" ? "Not specified" : $aTemp["lives_with"];
+		
+		$infoMsg = '<table width="100%" border="0" cellspacing="0" cellpadding="2">
+					<tr><td colspan="2"><h3><b style="color:#f79010;">You have Confirmed that you are an Instant eMentor to '.ucfirst($sAuthUsers->name).'</b></h3><span style="color:#f9b164;">Has '._instant_mentor_count($iUserID).' eMentors</span></td></tr>';
+		$infoMsg .= '<tr><td width="110" style="color:#606060;">Language(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["language"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Talent(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["talent"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Favorite(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["favorite"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Lives with:</td><td class="info" style="color:#1A03E7;">'.$aTemp["lives_with"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Family Income:</td><td class="info" style="color:#1A03E7;"> '.$aTemp["income"].' per month</td></tr>';
+		$infoMsg .= '<tr><td colspan="2">&nbsp;</td></tr>';
+		$infoMsg .= '</table>';
+					
+		$sOutput = '<table width="100%" border="0" cellspacing="0" cellpadding="0">
+						<tr>
+							<td width="212" valign="top">
+							<img style = "visibility:hidden;" src="/themes/theme2010/images/click_my_pic_btn.png" border="0" />
+							<center><img onclick="activate_view('."'".$iUserID."'".','."'".$sAuthUsers->name."'".')" src="/'.$sAuthUsers->picture.'" border="0" style="cursor:pointer" /></center>
+							<div>&nbsp;</div>
+							</td>
+							<td>
+							'.$infoMsg.'
+							</td>
+						</tr>
+					</table>';
+		$status = 1;
+	}else{
+		$sOutput = '<h3><b style="color:#f79010;">You are already eMentoring this hopeful.</b></h3>';
+		
+		$aPathpluspicture = 'sites/default/files/pictures/none.png'; 
+		$sAuth = "SELECT u.uid, u.name, u.mail, IF(u.picture = '','{$aPathpluspicture}',u.picture) as picture FROM users u WHERE u.uid = '".$iUserID."'";
+		
+		$oAuthUsers = db_query($sAuth);
+		$sAuthUsers = db_fetch_object($oAuthUsers);
+		
+		$sqlDetails = "SELECT fid, value
+						FROM profile_values
+						WHERE fid IN (15, 45, 46, 47, 48)
+						AND uid = %d";
+		$oDetails = db_query($sqlDetails, $iUserID);
+					
+		$aTemp = array();
+		$aTemp["uid"] = $iUserID;
+		
+		while ($oDetail = db_fetch_object($oDetails)){
+			if ($oDetail->fid == 15) $aTemp["income"] = number_format($oDetail->value, 2);
+			if ($oDetail->fid == 45) $aTemp["language"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 46) $aTemp["talent"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 47) $aTemp["favorite"] = $oDetail->value == 0 ? "Not specified" :  $oDetail->value;
+			if ($oDetail->fid == 48) $aTemp["lives_with"] = $oDetail->value == 0 || $oDetail->value == "" ? "Not specified" :  $oDetail->value;
+		}
+		
+		$aTemp["lives_with"] = $aTemp["lives_with"] == "" ? "Not specified" : $aTemp["lives_with"];
+		
+		$infoMsg = '<table width="100%" border="0" cellspacing="0" cellpadding="2">
+					<tr><td colspan="2"><h3><b style="color:#f79010;">You are already an <br/> Instant eMentor to '.ucfirst($sAuthUsers->name).'</b></h3><span style="color:#f9b164;">Has '._instant_mentor_count($iUserID).' eMentors</span></td></tr>';
+		$infoMsg .= '<tr><td width="110" style="color:#606060;">Language(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["language"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Talent(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["talent"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Favorite(s):</td><td class="info" style="color:#1A03E7;">'.$aTemp["favorite"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Lives with:</td><td class="info" style="color:#1A03E7;">'.$aTemp["lives_with"].'</td></tr>';
+		$infoMsg .= '<tr><td style="color:#606060;">Family Income:</td><td class="info" style="color:#1A03E7;"> '.$aTemp["income"].' per month</td></tr>';
+		$infoMsg .= '<tr><td colspan="2">&nbsp;</td></tr>';
+		$infoMsg .= '</table>';
+					
+		$sOutput = '<table width="100%" border="0" cellspacing="0" cellpadding="0">
+						<tr>
+							<td width="212" valign="top">
+							<img style = "visibility:hidden;" src="/themes/theme2010/images/click_my_pic_btn.png" border="0" />
+							<center><img onclick="activate_view('."'".$iUserID."'".','."'".$sAuthUsers->name."'".')" src="/'.$sAuthUsers->picture.'" border="0" style="cursor:pointer" /></center>
+							<div>&nbsp;</div>
+							</td>
+							<td>
+							'.$infoMsg.'
+							</td>
+						</tr>
+					</table>';
+					
+		$status = 1;
+	}
+	
+	$count = _instant_mentor_count($iUserID); 
+	
+	echo json_encode(array("STATUS" => $status, "RETURN" => $sOutput, "COUNT" => $count));
+	exit;
+}
+
+function _instant_mentor_count($iUserID){
+	$sqlCount = "SELECT COUNT(A.id) AS iCount
+				FROM instant_ementor_assignment A
+				INNER JOIN users B ON B.uid = A.ementor_id
+				WHERE A.hopeful_id = %d";
+	
+	$iCount = db_result(db_query($sqlCount, $iUserID)); 
+	
+	if ($_POST["ajax"]){
+		echo json_encode(array("COUNT" => $iCount));
+		exit;
+	}else{
+		return $iCount;
+	}
+}
+
+function _instantvar($sVar) {
+	global $$sVar;
+	return $$sVar;
+}
+
+function instant_mentor_dashboard(){
+	global $user, $iUserId, $iNoMentorHopefuls, $iMentoringHopefuls, $iCommentsWaiting, $iCommentsApproved, $iMentoringTotalComments;
+	
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "mystudies/getinvolved/volunteer"),
+			l("eMentoring", "mystudies/getinvolved/ementoring-volunteers"),
+			l("Dashboard", "instant/mentor/dashboard")
+		)
+	);
+
+	// Possibly show a landing page for anonymous or non-enrolled users
+	$sOutput = _instant_landing_page();
+	if ( false !== $sOutput ) {
+		return $sOutput;
+	}
+
+	// If no landing page is necessary, proceed to the desired content
+	
+	$iUserId = $user->uid;
+	$arr_ahopefuls = array();
+	$sql_ahopefuls = db_query("select distinct hopeful_id from {instant_ementor_assignment}");
+	while($query_ahopefuls = db_fetch_object($sql_ahopefuls)){
+		array_push($arr_ahopefuls, $query_ahopefuls->hopeful_id);
+	}
+	$impl_ahopefuls = implode(", ", $arr_ahopefuls);
+	
+	$nomentors = db_result(db_query("select count(A.uid) as count from {users} A left join users_roles B on A.uid = B.uid where B.rid = 9 and A.uid not in (".$impl_ahopefuls.")"));
+	$mentoringhopefuls = db_result(db_query("select count(A.ementor_id) as count from {instant_ementor_assignment} A left join users B on B.uid = A.ementor_id where A.ementor_id = %d", $iUserId));
+
+	$iNoMentorHopefuls = $nomentors;
+	$iMentoringHopefuls = $mentoringhopefuls;
+	
+	$aStats = _instant_admin_stat($iUserId);
+	$iMentoringTotalComments = $aStats['totalcomments'];
+	$iCommentsApproved = $aStats['commentsedordis'];
+	
+	$arr_hope_comment = array();
+	$sql_hopeful_with_comments = db_query("select distinct commentto from {comments_kickapps} where commentfrom = %d", $iUserId);
+	
+	while($query_hopeful_with_comments = db_fetch_object($sql_hopeful_with_comments)){
+		array_push($arr_hope_comment, $query_hopeful_with_comments->commentto);
+	}
+	
+	if (count($arr_hope_comment) > 0){
+		$sHopefulWithComments = " AND hopeful_id NOT IN (".implode(',',$arr_hope_comment).")";
+	}else{
+		$sHopefulWithComments = "";
+	}
+	
+	$iCommentsWaiting = db_result(db_query("SELECT COUNT(id) AS count FROM {instant_ementor_assignment} WHERE ementor_id = %d %s", $iUserId, $sHopefulWithComments));
+	
+	drupal_add_css(drupal_get_path("module", "mystudies")."/jquery-ui-custom.css");
+	//drupal_add_js(drupal_get_path("module", "mystudies")."/jquery-ui.js");
+	drupal_add_js(drupal_get_path("module", "instant")."/instant.js");
+
+	// Javascript needed by the Kindness Workz box on user profiles
+	drupal_add_js( drupal_get_path( 'module', 'kindness' ) . '/kindness_profile.js' );
+	
+	$sOutput = drupal_eval(_instant_load_template("page-mentor-dash"));
+	
+	return $sOutput;
+}
+
+function instant_mentor_remove(){
+	global $user;
+	
+	$uids = $_POST['uids'];
+	$arr_uids = explode('-', $uids);
+	
+	foreach($arr_uids as $iUserID){
+		$sql = db_query("DELETE FROM instant_ementor_assignment where ementor_id = '".$user->uid."' and hopeful_id = {$iUserID}");
+	}
+	
+	echo json_encode(array("STATUS" => $sql));
+	exit;
+}
+
+function _instant_hopeful_comment($hopefulid){
+
+	$commentcount = db_result(db_query("select count(id) as count from comments_kickapps where commentto = %d", $hopefulid));
+	
+	return $commentcount;
+}
+
+function _instant_get_lastest_comment_date($hopefulid){
+
+	$datelatest = db_result(db_query("select commentdate from comments_kickapps where commentto = %d order by id desc", $hopefulid));
+	if($datelatest){
+	$output = date("F j",$datelatest);
+	} else{
+	$output = "No Comment Yet.";
+	}
+	return $output;
+}
+
+function instant_about_box () {
+	$sBasePath = base_path();
+
+	$nodeids = '1747,1748,1749';
+	$nodearray = instant_getContent($nodeids);
+	ob_start();
+	?>
+				<div id="instant-about-box">
+					<div style="float:left;width:282px;background-color:#067dc1;">
+						<div style="padding-left:0px; padding-top: 45px;cursor:pointer;" id="instruction1_selected"><img src="<?php echo $sBasePath ?>themes/theme2010/images/how_instant_helps_selected.png" border="0" id="instruction1_selected_img"/></div>
+						<div style="padding-left:0px; padding-top: 45px;cursor:pointer;display:none;" id="instruction1"><img src="<?php echo $sBasePath ?>themes/theme2010/images/how_instant_helps.png" border="0" id="instruction1_img"/><img src="<?php echo $sBasePath ?>themes/theme2010/images/how_instant_helps_selected.png" border="0" id="instruction1_s_img" style="display:none;" /></div>
+						<div style="padding-left:0px; padding-top: 10px;cursor:pointer;" id="instruction2"><img src="<?php echo $sBasePath ?>themes/theme2010/images/how_instant_works.png" border="0" id="instruction2_img"/> <img src="<?php echo $sBasePath ?>themes/theme2010/images/how_instant_works_selected.png" border="0" id="instruction2_s_img" style="display:none;" /></div>
+						<div style="padding-left:0px; padding-top: 10px;display:none;" id="instruction2_selected"><img src="<?php echo $sBasePath ?>themes/theme2010/images/how_instant_works_selected.png" border="0" id="instruction2_selected_img"/></div>
+						<div style="padding-left:0px; padding-top: 10px;cursor:pointer;" id="instruction3"><img src="<?php echo $sBasePath ?>themes/theme2010/images/meet_other_instant_ementors.png" border="0" id="instruction3_img"/><img src="<?php echo $sBasePath ?>themes/theme2010/images/meet_other_instant_ementors_selected.png" border="0" id="instruction3_s_img" style="display:none;" /></div>
+						<div style="padding-left:0px; padding-top: 10px;display:none;" id="instruction3_selected"><img src="<?php echo $sBasePath ?>themes/theme2010/images/meet_other_instant_ementors_selected.png" border="0" id="instruction3_selected_img"/></div>
+					</div>
+					<div style="float:left;width:640px;padding-left:37px;padding-top:25px;">
+						<div id="instruction_message1"><h1 style="color:#0000f1;"><?php echo $nodearray['1747']['title']?></h1><br /><?php echo $nodearray['1747']['body']?></div>
+						<div id="instruction_message2" style="display:none;"><h1 style="color:#0000f1;"><?php echo $nodearray['1748']['title']?></h1><br /><?php echo $nodearray['1748']['body']?></div>
+						<div id="instruction_message3" style="display:none;"><h1 style="color:#0000f1;"><?php echo $nodearray['1749']['title']?></h1><br /><?php echo $nodearray['1749']['body']?></div>
+					</div>
+				</div>
+	<?php
+	$sOutput = ob_get_contents();
+	ob_end_clean();
+	return $sOutput;
+}
+
+function _instant_landing_page () {
+	global $user;
+	global $sEnroll;
+
+	// Automatically allow admin to proceed
+	if ( user_is_logged_in() && 1 >= $user->uid ) {
+		return false;
+	}
+
+	// Guests or non logged in users
+	if ( ! user_is_logged_in() ) {
+
+		$sEnroll = '<br /><br />Login or Register an account if you\'d like to become a mentor';
+		$sOutput = drupal_eval( _instant_load_template( "page-mentor-landing" ) );
+
+	// Logged in users
+	} else {
+
+		// Make sure the user is not a Hopeful
+		if ( _mystudies_check_hopeful( $user->uid ) == 'notahopeful' ) {
+
+			// Check if the user has opted in
+			$sqlCheck = "SELECT vid, bStatus FROM volunteer_optin WHERE uid = %d AND `type` = '%s'";
+			$aVolunteerResult = db_fetch_array( db_query( $sqlCheck, array( $user->uid, 'instant' ) ) );
+			$bEnrolled = ( 0 < $aVolunteerResult['vid'] ) ? true : false;
+
+			if ( $bEnrolled ) {
+				$bActive = ( $aVolunteerResult['bStatus'] ) ? true : false;
+			}
+
+			if ( ! $bActive ) {
+				if ( ! $bEnrolled ) {
+					// Not yet enrolled
+					$sEnroll = '<br /><a id = "enrollment_btn" style = "background:url(/themes/theme2010/images/enrollment_btn.jpg); width:206px; height:50px; display:block;" href = "/instant/mentor/enroll"></a>';
+				} else {
+					// Enrolment pending
+					$sEnroll = '<div style = "background:url(/themes/theme2010/images/thank_ementor_box.png); width:483px; height:297px; display:block; margin-left:12px; margin-top:10px;"></div>';
+					echo '<style>#vmentor_register{
+						display:none;
+					}</style>';
+				}
+				$sOutput = drupal_eval( _instant_load_template( "page-mentor-landing" ) );
+				
+			} else {
+				// A registered mentor
+				// No need to show a landing page
+				return false;
+			}
+
+		} else {
+			// Hopefuls can't enroll
+			$sOutput = drupal_eval(_instant_load_template("page-mentor-landing"));
+		}
+
+	}
+	
+	return $sOutput;
+}

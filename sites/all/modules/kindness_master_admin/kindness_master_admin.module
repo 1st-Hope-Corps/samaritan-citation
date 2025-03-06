@@ -1,0 +1,560 @@
+<?php
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function kindness_master_admin_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#kindness_master_admin":
+			$sOutput = '<p>'. t("Reviewer Master Admin.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function kindness_master_admin_menu(){
+	$aMenus = array();
+	
+	$aMenus['admin/user/master_reviewer'] = array(
+		'title' => 'Reviewer Master Admin',
+		'description' => 'Tracks the statistics of the Kindness Mentor volunteers.',
+		'page callback' => 'kindness_master_admin_list',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aMenus['admin/user/master_reviewer/list'] = array(
+		'title' => 'List',
+		'description' => 'The list of Kindness Mentor volunteers.',
+		'page callback' => 'kindness_master_admin_list',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 1
+	);
+		
+	$aMenus['admin/user/master_reviewer/list/process'] = array(
+		'title' => 'Reviewer Master Admin',
+		'page callback' => 'kindness_master_admin_list_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/master_reviewer/list/assign/%/%'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'kindness_master_admin_list_assign',
+		'page arguments' => array(5, 6),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/master_reviewer/list/assign/process'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'kindness_master_admin_list_assign_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aMenus;
+}
+
+function kindness_master_admin_list(){
+	if (count($_REQUEST) > 0){
+		foreach ($_REQUEST as $sKey => $sData) {
+			${$sKey} = $sData;
+		}
+	}
+	
+	//Headers
+	//Username, Status, Roles, Total Items Processed, Hopeful Items Waiting for User, Hopefuls waiting for User, Hopefuls Assigned
+	
+	// For some reason, JS files are not being added via drupal_add_js.
+	// Below is a workaround to add those files.
+	$sVolunteerJS = file_get_contents(drupal_get_path('module', 'kindness_master_admin')."/kindness_master_admin.js");
+	
+	drupal_add_js($sVolunteerJS, 'inline');
+	
+	// Original code
+	//drupal_add_js(drupal_get_path("module", "kindness_master_admin")."/kindness_master_admin.js");
+	
+	$sTableContent = '';
+	$sTableHeader = '<form method="post" action="'.base_path().str_replace("q=", "", $_SERVER["QUERY_STRING"]).'">
+						<fieldset style="margin-top:10px;">
+							<legend>Show only users where</legend>
+							
+							<table>
+								<tr>
+									<td style="width:85px; text-align:right; padding-right:10px;">Role is</td>
+									<td>
+										<select name="kindness_master_admin_aFilter1" style="margin-bottom:10px;">
+											<option value="">All Roles</option>
+											<option value="mentor" '.((@$kindness_master_admin_aFilter1 == "mentor") ? 'selected="selected"':'').'>Mentor</option>
+										</select>
+									</td>
+									<td rowspan="2" style="text-align:right; padding-left:10px;"><input type="submit" name="kindness_master_admin_sOp" class="form-submit" value="Filter" /></td>
+								</tr>
+								<tr>
+									<td style="text-align:right; padding-right:10px;">Status is</td>
+									<td>
+										<select name="kindness_master_admin_aFilter2">
+											<option value="">All Status</option>
+											<option value="active" '.((@$kindness_master_admin_aFilter2 == "active") ? 'selected="selected"':'').'>Active</option>
+											<option value="enrolled" '.((@$kindness_master_admin_aFilter2 == "enrolled") ? 'selected="selected"':'').'>Enrolled</option>
+										</select>
+									</td>
+								</tr>
+							</table>
+						</fieldset>
+					</form>
+					
+					<form method="post" action="'.base_path().'admin/user/master_reviewer/list/process">
+						<input type="hidden" id="kindness_master_admin_sPrevURL" name="kindness_master_admin_sPrevURL" value="'.str_replace("q=", "", $_SERVER["QUERY_STRING"]).'" />
+						
+						<fieldset>
+							<legend>Update Options</legend>
+							
+							<select id="kindness_master_admin_sOption" name="kindness_master_admin_sOption">
+								<option value="1">Activate the selected users</option>
+								<option value="0">Deactivate the selected users</option>
+								<option value="2">Delete the selected users</option>
+							</select>
+							
+							<input type="submit" name="kindness_master_admin_bOp" id="mystudies_master_admin_bOp" class="form-submit" value="Update" />
+						</fieldset>
+						
+						<table>
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="kindness_master_admin_bCheckAll" name="kindness_master_admin_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:120px;">Username</th>
+								<th style="width:72px;">Status</th>
+								<th>Roles</th>
+								<th style="text-align:center;">Total Workz Reviewed</th>
+								<th style="text-align:center;">Workz waiting for Reviewer</th>
+								<th style="text-align:center;">Samaritans Waiting</th>
+								<th style="text-align:center;">Samaritans Assigned</th>
+								<th style="text-align:center;">Samaritans Requested</th>
+							</tr>';
+	$sTableFooter = '</table></form><div id="mystudies_master_admin_Container"></div>';
+	
+	$sqlVolunteer = "SELECT A.uid, B.name, A.bStatus, A.type
+					FROM volunteer_optin A
+					INNER JOIN users B ON B.uid = A.uid
+					WHERE A.type = '%s'";
+	
+	$sqlCount = "SELECT COUNT(A.uid)
+				FROM volunteer_optin A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.type = '%s'";
+	
+	$sVolType = 'mentor';
+	
+	if (isset($kindness_master_admin_aFilter1) && $kindness_master_admin_aFilter1 != ""){
+		$sVolType = $kindness_master_admin_aFilter1;
+	}
+	
+	if (isset($kindness_master_admin_aFilter2) && $kindness_master_admin_aFilter2 != ""){
+		$iStatus = ($kindness_master_admin_aFilter2 == 'active') ? 1:0;
+		$sqlVolunteer .= " AND A.bStatus = '".$iStatus."'";
+		$sqlCount .= $sqlVolunteer;
+	}
+	
+	$sqlVolunteer = sprintf($sqlVolunteer, $sVolType);
+	$sqlCount = sprintf($sqlCount, $sVolType);
+	$iMaxRec = 25;
+	
+	$oVolunteerResult = pager_query($sqlVolunteer, $iMaxRec, 0, $sqlCount);
+	
+	while ($oVolunteer = db_fetch_object($oVolunteerResult)){
+		$iUserId = $oVolunteer->uid;
+		$sRole = $oVolunteer->type;
+		$aStats = _kindness_master_admin_stat($iUserId);
+		$sStatus = "active";
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+		
+		$iHopefulCount = _kindness_master_admin_hopefuls($iUserId, true);
+		$aAssignedHopeful = _kindness_mentor_hopeful_count($iUserId, "list");
+		$iTotalRequest = $aStats["iTotalRequest"];
+		
+		$iNeededHopeful = $iTotalRequest;
+		$sHopeful = '';
+		
+		if (count($aAssignedHopeful) > 0){
+			$sHopeful = '<span style="font-size:1.2em; font-weight:bold;">Assigned Hopefuls:</span>';
+			
+			for ($x=0; $x<count($aAssignedHopeful); $x++){
+				$aHopeful = $aAssignedHopeful[$x];
+				$iHopefulId = $aHopeful["uid"];
+				$sHopefulName = $aHopeful["name"];
+				
+				$sHopeful .= '<div>'.$sHopefulName.'</div>';
+			}
+		}else{
+			$sHopeful = '<div>No Hopefuls have been assigned to this user, yet.</div>';
+		}
+		
+		if ($oVolunteer->bStatus == 0) $sStatus = "enrolled";
+		$sRoleReviewerLabel = $sRole == 'mentor' ? 'Reviewer' : '';
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="kindness_master_admin_bCheckThis" name="kindness_master_admin_bCheckThis[]" value="'.$iUserId.'-'.$sRole.'" /></td>
+								<td style="padding-top:'.(($iNeededHopeful > 0 && $sStatus == 'active') ? 0:3).'px; vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$iUserId.'" style="cursor:pointer;">'.$oVolunteer->name.'</span> '.(($iNeededHopeful > 0 && $sStatus == 'active') ? '<sup id="kindness_master_admin_iUserId" value="'.$iUserId.'_'.$sRole.'" style="cursor:pointer;">assign</sup>':'<sup id="kindness_master_admin_iUserId" value="'.$iUserId.'_'.$sRole.'" style="cursor:pointer;">update</sup>').'
+									<div id="kindness_assigned_hopeful_block_'.$iUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+										'.$sHopeful.'
+									</div>
+								</td>
+								<td style="padding-top:3px; vertical-align:top;">'.$sStatus.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$sRoleReviewerLabel.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iTotalItems"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iHopefulItems"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iSamaritanWaiting"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats["iHopefulCount"].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$iTotalRequest.'</td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No voluneers to list based on your criteria.</td>
+										</tr>';
+	
+	$sPagerHTML = ($sTableContent != "") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	return $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+}
+
+function kindness_master_admin_list_process(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	drupal_add_js('setTimeout("location=\''.base_path().$kindness_master_admin_sPrevURL.'\'", 5000)', "inline");
+	$sMessage = (count($kindness_master_admin_bCheckThis) > 0) ? '':'You have not selected any volunteers.';
+	
+	for ($x=0; $x<count($kindness_master_admin_bCheckThis); $x++){
+		$aUser = explode("-", $kindness_master_admin_bCheckThis[$x]);
+		$iUserId = $aUser[0];
+		$sUserRole = $aUser[1];
+		
+		/* $aOption = explode("-", $mystudies_master_admin_sOption);
+		
+		if (count($aOption) == 2){
+			$sOptionOp = $aOption[0];
+			$sOptionRole = $aOption[1];
+		} */
+		
+		if ($kindness_master_admin_bOp == "Update"){
+			if ($kindness_master_admin_sOption == 0 || $kindness_master_admin_sOption == 1){
+				$sqlUpdate = "UPDATE volunteer_optin
+								SET bStatus = '%s'
+								WHERE uid = %d
+									AND type = '%s'";
+				$bSuccess = db_query($sqlUpdate, array($kindness_master_admin_sOption, $iUserId, $sUserRole));
+				
+				if ($bSuccess) $sMessage = 'User(s) successfully updated.';
+			}elseif ($kindness_master_admin_sOption == 2){
+				$iHopefulCount = _kindness_master_admin_hopefuls($iUserId, true);
+				$sHopeful = _kindness_master_admin_hopefuls($iUserId);
+				
+				$sqlDelete1 = "DELETE FROM volunteer_optin WHERE uid = %d AND `type` = '%s'";
+				$sqlDelete2 = "DELETE FROM volunteer_mentor_hopeful WHERE iMentorId = %d";
+				
+				$bSuccess1 = db_query($sqlDelete1, array($iUserId, $sUserRole));
+				$bSuccess2 = db_query($sqlDelete2, $iUserId);
+				
+				if ($bSuccess1 && $bSuccess2){
+					$sMessage = 'User(s) successfully deleted.';
+					
+					switch ($sUserRole){
+						case "mentor": $iRoleId = 6; break;
+						case "tutor": $iRoleId = 4; break;
+						case "private": $iRoleId = 16; break;
+					}
+					
+					// -- BEGIN User Hierarchy
+					if ($iHopefulCount > 0){
+						$sqlHierarchy = "DELETE FROM hopefuls_volunteer WHERE iHopefulId IN (%s) AND iVolunteerId = %d AND iRoleId = %d";
+						db_query($sqlHierarchy, array($sHopeful, $iUserId, $iRoleId));
+					}
+					// -- END User Hierarchy
+					
+					$sqlDelete = "DELETE FROM users_roles WHERE uid = %d AND rid = %d";
+					db_query($sqlDelete, array($iUserId, $iRoleId));
+				}
+			}
+		}
+	}
+	
+	drupal_set_message($sMessage);
+	
+	return "";
+}
+
+function kindness_master_admin_list_assign($iUserId, $sRole){
+	$sqlUser = "SELECT A.name, B.bStatus, B.iRequest
+				FROM users A
+				INNER JOIN volunteer_optin B ON B.uid = A.uid
+				WHERE A.uid = %d
+					AND B.type = '%s'";
+	$oUserResult = db_query($sqlUser, array($iUserId, $sRole));
+	$oUser = db_fetch_object($oUserResult);
+	
+	$aHiddenAssigned = array();
+	$aHiddenUnassigned = array();
+	
+	$iHopefulCount = _kindness_master_admin_hopefuls($iUserId, true);
+	$iNeededHopeful = $oUser->iRequest - $iHopefulCount;
+	
+	if ($iNeededHopeful > 0){
+		// For some reason, JS files are not being added via drupal_add_js.
+		// Below is a workaround to add those files.
+		$sVolunteerJS = file_get_contents(drupal_get_path('module', 'kindness_master_admin')."/kindness_master_admin.js");
+		
+		drupal_add_js($sVolunteerJS, 'inline');
+		
+		// Original code
+		//drupal_add_js(drupal_get_path("module", "kindness_master_admin")."/kindness_master_admin.js");
+	}
+	$sRoleReviewerLabel = $sRole == 'mentor' ? 'Reviewer' : '';
+	$sTableHeader = '<h2>'.$sRoleReviewerLabel.' '.$oUser->name.'</h2>
+					<form name="kindness_master_hopeful_form" method="post" action="'.base_path().'admin/user/master_reviewer/list/assign/process">
+						<input type="hidden" name="kindness_master_admin_iUserId" value="'.$iUserId.'" />
+						<input type="hidden" name="kindness_master_admin_sRole" value="'.$sRole.'" />
+						<input type="hidden" name="kindness_master_admin_sPrevURL" value="'.str_replace("q=", "", $_SERVER["QUERY_STRING"]).'" />
+						<input type="hidden" name="mystudies_master_admin_iNeededHopeful" value="'.$iNeededHopeful.'" />
+						
+						<table>
+							<tr>
+								<td colspan="3" style="padding-bottom:10px">
+									You can add or remove multiple samaritan at the same time (Ctrl + click, Apple Key + click).<br/>
+									This '.$sRoleReviewerLabel.' requested '.$oUser->iRequest.' samaritan(s).
+								</td>
+							</tr>
+							<tr>
+								<th style="width:275px;">Assigned samaritan(s)</th>
+								<th style="width:50px;"></th>
+								<th style="width:275px;">Available samaritan(s)</th>
+							</tr>
+							<tr>
+								<td>';
+	
+	$sAssigned = '';
+	$aAssignedHopeful = _kindness_mentor_hopeful_count($iUserId, "list");
+	
+	if (count($aAssignedHopeful) > 0){
+		for ($x=0; $x<count($aAssignedHopeful); $x++){
+			$aHopeful = $aAssignedHopeful[$x];
+			$sAssigned .= '<option value="'.$aHopeful["uid"].'">'.$aHopeful["name"].'</option>';
+			$aHiddenAssigned[] = $aHopeful["uid"];
+		}
+	}else{
+		$sAssigned .= '<option value="">No samaritan have been assigned, yet.</option>';
+	}
+	
+	$sAssignedHopeful = '<select name="kindness_master_admin_aAssignedHopeful[]" size="10" style="width:275px; margin-top:5px;" multiple="multiple">'.$sAssigned.'</select>';
+	
+	$sqlAvailableHopful = "SELECT B.uid, B.name,
+								(
+									SELECT C.iMentorId
+									FROM volunteer_mentor_hopeful C
+									INNER JOIN users D ON D.uid = C.iMentorId
+									WHERE C.iHopefulId = B.uid
+								) AS iAssignedId,
+								(
+									SELECT F.name
+									FROM volunteer_mentor_hopeful E
+									INNER JOIN users F ON F.uid = E.iMentorId
+									WHERE E.iHopefulId = B.uid
+								) AS sAssignedName
+							FROM users_roles A
+							INNER JOIN users B ON B.uid = A.uid
+							WHERE A.rid = 23
+							ORDER BY B.name";
+	$oAvailableHopfulResult = db_query($sqlAvailableHopful);
+	$sUnassigned = '';
+	
+	while ($oAvailableHopeful = db_fetch_object($oAvailableHopfulResult)){
+		//if ($oAvailableHopeful->iAssignedId != "" && $oAvailableHopeful->sAssignedName == "") continue;
+		
+		$sAssignedTo = ($oAvailableHopeful->iAssignedId == "") ? 'unassigned':$oAvailableHopeful->sAssignedName;
+		$sUnassigned .= '<option value="'.$oAvailableHopeful->uid.'"'.(($oAvailableHopeful->iAssignedId == "") ? ' style="font-weight:bold;':'').'">'.$oAvailableHopeful->name.' ('.$sAssignedTo.')</option>';
+		$aHiddenUnassigned[] = $oAvailableHopeful->uid;
+	}
+	
+	if ($sUnassigned == ''){
+		$sUnassigned = '<option value="">There are no available '.$sVolunteer.'s.</option>';
+	}
+	
+	$sUnassignedHopeful = '<select id="kindness_master_admin_aAvailableHopeful" name="kindness_master_admin_aAvailableHopeful[]" size="10" style="width:275px; margin-top:5px;" multiple="multiple" '.(($iNeededHopeful == 0) ? 'disabled="disabled"':'').'>'.$sUnassigned.'</select>';
+	
+	$sHiddenItems = '<input type="hidden" id="kindness_master_admin_iAssignedUserId" name="kindness_master_admin_iAssignedUserId" value="'.implode(",", $aHiddenAssigned).'" />
+					<input type="hidden" id="kindness_master_admin_iUnassignedUserId" name="kindness_master_admin_iUnassignedUserId" value="'.implode(",", $aHiddenUnassigned).'" />';
+	
+	$sTableFooter = $sAssignedHopeful.'
+						</td>
+						<td style="text-align:center; vertical-align:middle;">
+							'.((count($aAssignedHopeful) == 0) ? '':'<input type="submit" id="kindness_master_admin_bRemoveHopeful" name="kindness_master_admin_bRemoveHopeful" class="form-submit" value=">>" title="Remove Volunteer" />').'
+							'.(($iNeededHopeful == 0) ? '':'<br/><br/><input type="submit" id="kindness_master_admin_bAddHopeful" name="kindness_master_admin_bAddHopeful" class="form-submit" value="<<" title="Add Hopeful" />').'
+						</td>
+						<td>'.$sUnassignedHopeful.'</td></tr></table>
+					</form>';
+	
+	return $sTableHeader.$sHiddenItems.$sTableFooter;
+}
+
+function kindness_master_admin_list_assign_process(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	drupal_add_js('setTimeout("location=\''.base_path().$kindness_master_admin_sPrevURL.'\'", 5000)', "inline");
+	
+	$bReassign = false;
+	$iReassignCount = 0;
+	
+	if (isset($kindness_master_admin_bAddHopeful)){
+		if (count($kindness_master_admin_aAvailableHopeful) > 0){
+			foreach ($kindness_master_admin_aAvailableHopeful as $iUserId){
+				$biAssignedVolunteer = _kindness_master_admin_hopeful_check($iUserId);
+				
+				if ($biAssignedVolunteer){
+					$bReassign = true;
+					$iReassignCount++;
+					
+					$sqlDelete = "DELETE FROM volunteer_mentor_hopeful WHERE iHopefulId = %d AND iMentorId = %d";
+					db_query($sqlDelete, array($iUserId, $biAssignedVolunteer));
+					
+					// -- BEGIN User Hierarchy
+					$sqlHierarchy = "DELETE FROM hopefuls_volunteer WHERE iHopefulId = %d AND iVolunteerId = %d AND iRoleId = 6";
+					db_query($sqlHierarchy, array($iUserId, $biAssignedVolunteer));
+					// -- END User Hierarchy
+				}
+				
+				$sqlInsert = "INSERT INTO volunteer_mentor_hopeful VALUES(NULL, %d, %d)";
+				db_query($sqlInsert, array($kindness_master_admin_iUserId, $iUserId));
+				
+				// -- BEGIN User Hierarchy
+				$sqlHierarchy = "INSERT INTO hopefuls_volunteer SET iHopefulId = %d, iVolunteerId = %d, iRoleId = '6'";
+				db_query($sqlHierarchy, array($iUserId, $kindness_master_admin_iUserId));
+				// -- END User Hierarchy
+			}
+		}
+	}else{
+		if (count($kindness_master_admin_aAssignedHopeful) > 0){
+			$sqlDelete = "DELETE FROM volunteer_mentor_hopeful WHERE iHopefulId IN (%s) AND iMentorId = %d";
+			db_query($sqlDelete, array(implode(',', $kindness_master_admin_aAssignedHopeful), $kindness_master_admin_iUserId));
+			
+			// -- BEGIN User Hierarchy
+			$sqlHierarchy = "DELETE FROM hopefuls_volunteer WHERE iHopefulId IN (%s) AND iVolunteerId = %d AND iRoleId = 6";
+			db_query($sqlHierarchy, array(implode(",", $kindness_master_admin_aAssignedHopeful), $kindness_master_admin_iUserId));
+			// -- END User Hierarchy
+		}
+	}
+	
+	$sWhatProc = (isset($kindness_master_admin_bAddHopeful)) ? "added":"removed";
+	$iCount = (isset($kindness_master_admin_bAddHopeful)) ? count($kindness_master_admin_aAvailableHopeful):count($kindness_master_admin_aAssignedHopeful);
+	
+	if ($bReassign){
+		$AppendMsg = ' and reassigned '.$iReassignCount;
+		$iCount -= $iReassignCount;
+	}
+	
+	drupal_set_message('You have '.$sWhatProc.' '.$iCount.' hopeful(s)'.$AppendMsg.'.');
+	
+	return "";
+}
+
+function _kindness_master_admin_hopeful_check($iUserId){
+	$sqlCheck = "SELECT iMentorId
+				FROM volunteer_mentor_hopeful
+				WHERE iHopefulId = %d";
+	
+	$iMentorId = db_result(db_query($sqlCheck, $iUserId));
+	
+	return ($iMentorId != "") ? $iMentorId:false;
+}
+
+function _kindness_master_admin_stat($iUserId){
+	$sHopeful = _kindness_master_admin_hopefuls($iUserId);
+	$iHopefulCount = _kindness_master_admin_hopefuls($iUserId, true);
+	
+	$sqlTotalItems		= "SELECT COUNT(DISTINCT A.id)
+							FROM kindness_submit A
+							INNER JOIN kindness_comment B ON B.iSubmitId = A.id
+							INNER JOIN users C ON C.uid  = B.iUserId
+							LEFT JOIN users samaritan ON samaritan.uid = A.iUserId
+							LEFT JOIN users beneficiary ON beneficiary.uid = A.beneficiary_id
+							LEFT JOIN users reporter ON reporter.uid = A.reporter_id
+							WHERE B.iUserId = %d
+								AND A.bApprovedMentor = '1'
+								AND A.iUserId IN (%s)
+								AND
+								reporter.uid IS NOT NULL AND 
+								(samaritan.uid IS NOT NULL OR A.is_benefactor_anonymous = 1) AND
+								(beneficiary.uid IS NOT NULL OR A.is_beneficiary_anonymous = 1)";
+	$sqlHopefulItems	= "SELECT COUNT(A.id)
+							FROM kindness_submit A
+							LEFT JOIN users samaritan ON samaritan.uid = A.iUserId
+							LEFT JOIN users beneficiary ON beneficiary.uid = A.beneficiary_id
+							LEFT JOIN users reporter ON reporter.uid = A.reporter_id
+							WHERE A.iUserId IN (%s)
+								AND A.bApprovedMentor = '0'
+								AND
+								reporter.uid IS NOT NULL AND 
+								(samaritan.uid IS NOT NULL OR A.is_benefactor_anonymous = 1) AND
+								(beneficiary.uid IS NOT NULL OR A.is_beneficiary_anonymous = 1)";
+	$sqlWorkzWaiting	= "SELECT COUNT(A.id)
+							FROM kindness_submit A
+							LEFT JOIN users samaritan ON samaritan.uid = A.iUserId
+							LEFT JOIN users beneficiary ON beneficiary.uid = A.beneficiary_id
+							LEFT JOIN users reporter ON reporter.uid = A.reporter_id
+							WHERE A.iUserId IN (%s)
+								AND A.bApprovedMentor = '0'
+								AND
+								reporter.uid IS NOT NULL AND 
+								(samaritan.uid IS NOT NULL OR A.is_benefactor_anonymous = 1) AND
+								(beneficiary.uid IS NOT NULL OR A.is_beneficiary_anonymous = 1)";
+	$sqlTotalRequest	= "SELECT iRequest
+							FROM volunteer_optin
+							WHERE uid = %d
+								AND `type` = 'mentor'";
+	$sqlSamaritanWaiting	= "SELECT COUNT(1)
+							FROM users_roles A
+							INNER JOIN users B ON B.uid = A.uid
+							WHERE A.rid = 23 AND (
+									SELECT F.name
+									FROM volunteer_mentor_hopeful E
+									INNER JOIN users F ON F.uid = E.iMentorId
+									WHERE E.iHopefulId = B.uid
+								) IS NULL
+							ORDER BY B.name";
+	
+	$iTotalItems		= ($iHopefulCount == 0) ? 0:db_result(db_query($sqlTotalItems, array($iUserId, $sHopeful)));
+	$iHopefulItems		= ($iHopefulCount == 0) ? 0:db_result(db_query($sqlHopefulItems, $sHopeful));
+	$iWorkzWaiting	= ($iHopefulCount == 0) ? 0:db_result(db_query($sqlWorkzWaiting, $sHopeful));
+	$iWorkzWaiting	= ($iHopefulCount == 0) ? 0:db_result(db_query($sqlWorkzWaiting, $sHopeful));
+	$iSamaritanWaiting	= db_result(db_query($sqlSamaritanWaiting));
+	$iTotalRequest		= db_result(db_query($sqlTotalRequest, $iUserId));
+	
+	return array(
+				"iTotalItems"		=> $iTotalItems,
+				"iHopefulItems"		=> $iHopefulItems,
+				"iWorkzWaiting"	=> $iWorkzWaiting,
+				"iSamaritanWaiting"	=> $iSamaritanWaiting,
+				"iHopefulCount"		=> $iHopefulCount,
+				"iTotalRequest"		=> $iTotalRequest,
+			);
+}
+
+function _kindness_master_admin_hopefuls($iUserId, $bStat=false){
+	$sField = ($bStat) ? "COUNT(iHopefulId)":"GROUP_CONCAT(iHopefulId SEPARATOR ', ')";
+	$sqlHopeful = "SELECT ".$sField." FROM volunteer_mentor_hopeful INNER JOIN users ON volunteer_mentor_hopeful.iHopefulId = users.uid WHERE iMentorId = %d ";
+	
+	$siHopeful = db_result(db_query($sqlHopeful, $iUserId));
+	
+	return $siHopeful;
+}

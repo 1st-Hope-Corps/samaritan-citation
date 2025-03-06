@@ -1,0 +1,62 @@
+<?php
+// $Id: requack.install,v 1.2 2009/01/31 16:34:49 matslats Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function requack_install() {
+  //this does not seek out and incorporate existing nodes of type 'requack'
+  drupal_install_schema('requack');
+  $names = variable_get('cc_transaction_types', array());
+  $names['requack'] = array('request' => 'Request', 'acknowledgement' => 'Acknowledgement');
+  variable_set('cc_transaction_types', $names);
+}
+
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function requack_uninstall () {
+  //this does not delete any nodes of type 'requack'
+  drupal_uninstall_schema('requack');
+  $names = variable_get('cc_transaction_types', array('requack' => array()));
+  unset ($names['requack']);
+  variable_set('cc_transaction_types', $names);
+}
+
+/**
+ * Implementation of hook_schema)().
+ * http://api.drupal.org/api/function/hook_schema/6
+ */
+function requack_schema () {
+  $schema['cc_requack'] = array(
+    'description'=>'currency exchanges between users',
+    'fields'=> array(
+      'nid'=> array(
+        'description' =>'the node to which this entry is attached',
+        'type'=>'int',
+        'size'=>'normal'
+      ),
+      'completer_uid'=> array(
+        'description' => 'the user id of the completer of the request',
+        'type'=>'int',
+        'size'=>'normal'
+      ),
+    ),
+    'primary key' => array('nid')
+  );
+  $schema['cc_requack_count'] = array(
+    'description' => 'a tally of the number of favours accrued by each user, for exposure to views',
+    'fields' => array(
+      'uid' => array(
+        'description' => 'the user uid',
+        'type' => 'int'
+      ),
+      'count' => array(
+        'description' => 'the number of occurences of this uid in table cc_requack',
+        'type' => 'int'
+      )
+    )
+  );
+  return $schema;
+}

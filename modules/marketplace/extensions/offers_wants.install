@@ -1,0 +1,27 @@
+<?php
+// $Id: offers_wants.install,v 1.2 2009/01/21 17:01:04 matslats Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function offers_wants_install() {
+	
+}
+
+/**
+ * Implementation of hook_enable().
+ */
+function offers_wants_enable(){
+  drupal_set_message(t('The offers_wants contentTypes are installed. Now go to !link make a vocabulary control one or both of them.', 
+    array('!link'=>l('admin/content/taxonomy', 'admin/content/taxonomy', array('attributes'=>array('target'=> '_blank')))))
+  );
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function offers_wants_uninstall() {
+	
+}
+
+?>

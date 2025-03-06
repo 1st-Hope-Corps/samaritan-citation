@@ -1,0 +1,8 @@
+; $Id$
+name = Values Portal Master Admin Module
+description = A module that tracks the activities in the Values Portal and its volunteers.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x
+dependencies[] = mystudies
+dependencies[] = values

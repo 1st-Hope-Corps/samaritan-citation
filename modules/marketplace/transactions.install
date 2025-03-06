@@ -1,0 +1,179 @@
+<?php
+// $Id: transactions.install,v 1.10 2009/01/29 15:15:17 matslats Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function transactions_install() {
+  drupal_install_schema('transactions');
+  variable_set('comment_transactions', '0');
+  variable_set('node_options_transaction', array());
+  variable_set('cc_description_min_words', 1);
+  variable_set ('cc_transaction_types', array(
+    'transactions' => array (
+      'incoming_confirm' => t('invoice'),
+      'outgoing_confirm' => t('payment'),
+      'incoming_direct' => t('take'),
+      'outgoing_direct' => t('give'),
+    )
+  ));
+  variable_set('cc_transaction_qualities', array(
+    '0'=>'unnacceptable',
+    '1'=>'acceptable',
+    '2'=>'good',
+    '3'=>'outstanding'
+  ));
+  variable_set('cc_currencies', array(0=>(object)array(
+    'unit_type'=>'integer',
+    'max_balance'=>'500',
+    'min_balance'=>'-500',
+    'cid'=>0,
+  )));
+  drupal_set_message(t('Transaction module is installed. Set the default currency at !link',
+    array('!link'=>l('admin/settings/marketplace', 'admin/settings/marketplace', array('attributes'=>array('target'=> '_blank')))))
+  );
+  db_query("INSERT INTO {menu_custom} (menu_name, title, description) VALUES ('%s', '%s', '%s')", 'complementary-currencies', t('Complementary Currencies'), t('Links from the complementary currencies package'));
+}
+
+function transactions_enable(){
+  //set the start payment block to appear on user pages only. It still needs to be moved into a region before it can be seen.
+  drupal_set_message(t("Now go to the blocks page and set the 'new payment' block to appear only on pages 'user*', and place it in a region.",
+    array('!link'=>l('admin/build/block', 'admin/build/block', array('attributes'=>array('target'=> '_blank')))))
+  );
+}
+
+/**
+ * Implementation of hook_uninstall().
+ * http://api.drupal.org/api/function/hook_uninstall/6
+ * Remove any tables or variables that the module sets.
+ */
+function transactions_uninstall() {
+  //this does not delete the transactions from the node table.
+  drupal_uninstall_schema('transactions');
+  variable_del ('comment_transactions');
+  variable_del ('cc_transaction_types');
+  variable_del ('cc_transaction_qualities');
+  variable_del ('cc_currencies');
+  variable_del ('node_options_transaction');
+}
+
+function transactions_disable() {
+  db_query("DELETE FROM {menu_custom} WHERE menu_name = 'complementary-currencies'");
+}
+
+/**
+ * Implementation of hook_schema)().
+ * http://api.drupal.org/api/function/hook_schema/6
+ * You don't have to deal with the different SQL dialects for table creation and alteration of the supported database engines.
+ */
+//TODO what about storing all this info in the user table instead?
+function transactions_schema () {
+  $schema['cc_transactions'] = array(
+    'description'=>'currency exchanges between users',
+    'fields'=> array(
+      'nid'=> array (
+        'description' => t('the node to which this entry is attached'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'ttype' => array(
+        'description' => t('The type of transaction'),
+        'type' => 'varchar',
+        'length' => 32,
+      ),
+      'payer_uid'=> array(
+        'description' => t('the user id of the payer'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'payee_uid' => array(
+        'description' => t('the user id of the payee'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'starter_uid' => array(
+        'description' => t('the uid of the subject of the transaction, the starter'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'completer_uid'=> array(
+        'description' => t('uid of the object of the transaction'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'cid' =>array(
+        'description' => t('the id of the currency used'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'quantity' => array(
+        'description' => t('the number of units transferred'),
+        'type' => 'int',
+        'size' => 'normal'
+      ),
+      'transaction_type' =>array(
+        'description' => t('The type of transaction, types are provided by modules'),
+        'type' => 'varchar',
+        'length' => 32,
+      ),
+      'quality' => array(
+        'description' => t('the quality of the work done, expressed as a quantity'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'depends_on' => array(
+        'description' => t('nid of parent transaction'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+    ),
+  );
+  $schema['cc_balance_cache'] = array(
+    'description' => t('cached balances, turnovers and pending balances, for exposure to views'), 
+    'fields'=> array(
+      'uid'=> array(
+        'description' => t('the node to which this entry is attached'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'cid' => array(
+        'description' => t('the currency id, where there is more than one currency'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'balance' => array(
+        'description' => t('sum of all completed transactions for this user in this currency (integer)'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'pending' => array(
+        'description' => t('the sum of all incomplete transactions for this user in this currency (integer)'),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+      'turnover' => array(
+        'description' => t("the sum of all this user's income in this currency (integer)"),
+        'type' => 'int',
+        'size' => 'normal',
+      ),
+  	)
+  );
+  return $schema;
+}
+
+function transactions_update_1(){
+  $ret=array();
+  db_change_field($ret, 'cc_transactions', 'from_uid', 'payer_uid', array('description' =>'the user id of the payer','type'=>'int','size'=>'normal'));
+  db_change_field($ret, 'cc_transactions', 'to_uid', 'payee_uid', array('description' =>'the user id of the payer','type'=>'int','size'=>'normal'));
+  db_change_field($ret, 'cc_transactions', 'transaction_type', 'transaction_type', array(
+    'description' => t('The type of transaction, types are provided by modules'),
+    'type' => 'varchar',
+    'length' => 32,
+    'not null' => TRUE,
+  ));
+  db_query("UPDATE {cc_transactions} SET transaction_type = 'incoming_confirmed' WHERE transaction_type = 1");
+  db_query("UPDATE {cc_transactions} SET transaction_type = 'outgoing_confirmed' WHERE transaction_type = 2");
+  db_query("UPDATE {cc_transactions} SET transaction_type = 'incoming_direct' WHERE transaction_type = 3");
+  db_query("UPDATE {cc_transactions} SET transaction_type = 'outgoing_direct' WHERE transaction_type = 4");
+  return $ret;
+}

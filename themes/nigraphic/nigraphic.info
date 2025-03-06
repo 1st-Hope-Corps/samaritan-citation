@@ -1,0 +1,25 @@
+name = 007 niGraphic Studio
+description = 007 niGraphic is light-weight, 2-column, fixed width and uses CSS.
+regions[left] = Left sidebar
+regions[topleft] = Header Left
+regions[content] = Content
+features[] = name
+features[] = slogan
+features[] = logo
+features[] = search
+features[] = favicon
+features[] = primary_links
+stylesheets[all][] = style.css
+version = VERSION
+core = 6.x
+engine = phptemplate
+
+;
+
+
+; Information added by drupal.org packaging script on 2008-09-22
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "nigraphic"
+datestamp = "1222085443"
+

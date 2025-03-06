@@ -1,0 +1,6 @@
+; $Id$
+name = Sponsor Master Admin Module
+description = A module that manage the sponsors.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

@@ -1,0 +1,13 @@
+name = "PHP Quick Profiler"
+description = "Provides integration of Particletree.com's PHP Quick Profiler."
+package = "Development"
+core = 6.x
+dependencies[] = devel
+dependencies[] = performance
+
+; Information added by drupal.org packaging script on 2011-02-25
+version = "6.x-1.x-dev"
+core = "6.x"
+project = "pqp"
+datestamp = "1298619971"
+

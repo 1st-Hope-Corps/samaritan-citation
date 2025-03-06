@@ -1,0 +1,59 @@
+u{
+	font-family: Arial, Helvetica, sans-serif;
+	color: navy;
+	font-weight: bold;
+}
+u.hint{
+	color: #666666;
+	font-weight: bold;
+}
+b{
+	font-family: Arial, Helvetica, sans-serif;
+	color: red;
+}
+div.hint{
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 11px;
+	color: #666666;
+}
+div.success{
+	text-align: center;
+	padding: 15px 0 20px 0;
+}
+div.error{
+	margin:auto;
+	width:400px;
+	padding: 15px;
+}
+td.catList{
+	padding-bottom: 8px;
+}
+td.title{
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 1.1em;
+	vertical-align: top;
+	text-align: right;
+	width: 350px;
+	padding-right: 10px;
+}
+td.input{
+	font-family: Arial, Helvetica, sans-serif;
+	vertical-align: top;
+	width: 370px;
+	padding-bottom: 5px;
+}
+input{
+	font-family: Arial, Helvetica, sans-serif;
+}
+input.text{
+	width: 300px;
+}
+input.button{
+	width: 150px;
+}
+textarea{
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 13px;
+	width: 300px;
+	height: 200px;
+}

@@ -1,0 +1,813 @@
+<?php
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function instant_admin_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#instant_admin":
+			$sOutput = '<p>'. t("Reviewer Master Admin.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+function instant_admin_menu(){
+	$aMenus = array();
+	
+	$aMenus['admin/instant/dashboard'] = array(
+		'title' => 'Instant eMentors',
+		'description' => 'Tracks the statistics of the instat eMentors.',
+		'page callback' => 'instant_admin_dasboard',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aMenus['admin/instant/savetocomment'] = array(
+		'title' => 'Instant eMentors',
+		'description' => 'Tracks the statistics of the instat eMentors.',
+		'page callback' => 'instant_save_comment',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	); 
+	
+	$aMenus['admin/instant/refreshtable'] = array(
+		'title' => 'Refresh Table',
+		'page callback' => 'instant_master_refresh_table',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['admin/instant/searchementor'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_instant_admin_searchsearchementor',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/instant/searchcomment'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'volunteer_instant_admin_searchcomment',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/instant/unblockitems'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'instant_master_admin_unblock_unblockitems',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/instant/removecomment'] = array(
+		'title' => 'Assign Samaritan',
+		'page callback' => 'comment_instant_admin_remove_comment',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);  
+	
+	$aMenus['admin/instant/showpendingcomments'] = array(
+		'title' => 'Pending Comments',
+		'page callback' => 'instant_comment_list',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+
+	$aMenus['admin/instant/commentform'] = array(
+		'title' => 'Pending Comments',
+		'page callback' => 'instant_comment_form',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);	
+	
+	$aMenus['admin/instant/saveapprovecomment'] = array(
+		'title' => 'Pending Comments',
+		'page callback' => 'instant_comment_save_approve',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);	
+	
+	return $aMenus; 
+}
+
+function instant_comment_save_approve(){
+	$id = $_POST['id'];
+	$comment = $_POST['comment'];
+	$status = $_POST['status'];
+	$uid = $_POST['fromid'];
+	
+	$sql_update = db_query("update comments_kickapps set comment = '".$comment."', status = '".$status."' where id = '".$id."'");
+	
+	$content = instant_comment_list($uid, "func");
+	$content2 = loadCommentTable();
+	$content3 = instant_admin_table();
+	
+	echo json_encode(array("STATUS" => 1, "CONTENT" => $content, "CONTENT2" => $content2, "CONTENT3" => $content3));
+	exit;
+}
+
+function instant_comment_form(){
+	$id = $_POST['id'];
+	
+	$com_sql = db_query("select comment, commentfrom from comments_kickapps where id = '".$id."'");	
+	$com_q = db_fetch_object($com_sql);
+	
+	$com_text = $com_q->comment;	
+	$com_fromid = $com_q->commentfrom;	
+	
+	$content = '<form id="commentform" name="commentform">
+				<div>
+				<input type="hidden" id="com_id" name="com_id" value="'.$id.'" />
+				<input type="hidden" id="com_id" name="com_fromid" value="'.$com_fromid.'" />
+				';
+	$content .= '<p><textarea id="commenttext" name="commenttext" cols="48">'.$com_text.'</textarea></p>
+				 <p>&nbsp;</p>
+				 <p><input type="radio" id="commentstatus" name="commentstatus" value="1" /> Approve <input type="radio" id="commentstatus" name="commentstatus" value="2" /> Disapprove</p>';
+	$content .= "</div></form>";	
+	
+	echo json_encode(array("STATUS" => 1, "CONTENT" => $content));
+	exit;	
+}
+
+function instant_save_comment(){
+	$iMentorId = $_POST['iMentorId'];
+	$iUserId = $_POST['iUserId'];
+	$sComment = $_POST['sComment'];
+	$sType = $_POST['sType'];
+	$iKAid = 0;
+	
+	/* $arr_hopeful = explode('boxing123',$hopeful);
+	$hopefulname = $arr_hopeful[0]; 
+	$kickappsuserid = $arr_hopeful[1];
+	
+	$hopefulid = db_result(db_query("select uid from users where name = '".$hopefulname."'"));*/
+	
+	db_query("insert into {comments_kickapps} values (NULL, '".$sComment."', '".$iMentorId."', '".$iUserId."', '".$sType."', '".$iKAid."', '".time()."', 0)");
+	
+	echo json_encode(array("STATUS" => 1));
+	exit;
+}
+
+// buttons functionality
+function comment_instant_admin_remove_comment(){
+	$id = $_POST['id'];
+	$oComments = explode("-", $id);
+		foreach($oComments as $id){
+			$sqlDelete = "DELETE FROM comments_kickapps
+						  WHERE id = '".$id."'";	
+		db_query($sqlDelete, $id);
+	}
+	
+	$content = loadCommentTable();
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content));
+	exit;
+}
+
+function instant_master_admin_unblock_unblockitems($ids){
+	
+	$status = $_POST['status'];
+	
+	switch($status){
+	case 'activate':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlUpdate = "UPDATE volunteer_optin
+					  SET 
+					  bStatus = '1'
+					  WHERE uid = '".$id."'
+					  AND type = 'instant'";						  
+		$bSuccess = db_query($sqlUpdate);
+	  }
+	$content = instant_admin_table();
+	break;
+	case 'deactivate':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlUpdate = "UPDATE volunteer_optin
+					  SET 
+					  bStatus = '0'
+					  WHERE uid = '".$id."'
+					  AND type = 'instant'";						  
+		$bSuccess = db_query($sqlUpdate);
+	  }
+	$content = instant_admin_table();
+	break;
+	case 'delete':
+	  $arr_ids = explode("-", $ids);
+	
+	  foreach($arr_ids as $id){
+		$sqlDelete = "DELETE FROM volunteer_optin
+					  WHERE uid = '".$id."'
+					  AND type = 'instant'";	
+		
+		$sqlDelete2 = "DELETE FROM users_roles
+					  WHERE uid = '".$id."'
+					  AND rid = '22'";	
+		
+		db_query($sqlDelete);
+		db_query($sqlDelete2);
+	  }
+	$content = instant_admin_table();
+	break;
+	}
+	
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $content));
+	exit;
+}
+
+function instant_master_refresh_table(){
+	$type = $_POST['type'];
+	
+	switch($type){
+	case 'instant':
+	$table = instant_admin_table();
+	break;
+	case 'comment':
+	$table = loadCommentTable();
+	break;
+	}
+	
+	echo json_encode(array("TABLE" => $table));
+	exit;
+}
+// eof buttons functionality
+
+function volunteer_instant_admin_searchsearchementor(){
+	$type = $_POST["type"];
+	$value = $_POST["value"];
+
+	$content = instant_admin_table($type, $value);
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+} 
+
+function volunteer_instant_admin_searchcomment(){
+	$type = $_POST["type"];
+	$value = $_POST["value"];
+
+	$content = loadCommentTable($type, $value);
+	
+	echo json_encode(array("CONTENT" => $content));
+	exit;
+}
+
+function instant_admin_dasboard(){
+
+	if (count($_REQUEST) > 0){
+		foreach ($_REQUEST as $sKey => $sData) {
+			${$sKey} = $sData;
+		}
+	}
+	
+	//Headers
+	//Username, Status, Roles, Total Items Processed, Hopeful Items Waiting for User, Hopefuls waiting for User, Hopefuls Assigned
+	drupal_add_js(drupal_get_path("module", "instant_admin")."/instant_admin.js");
+	drupal_add_js("misc/jqueryui/jquery-ui.min.js");
+	$sTableContent = '';
+	$sTableHeader = '';
+	
+	$sTableHeader .= '
+				<div id="addofflinevolunteer_Dialog" title="Add Offline Volunteer" style="display:none;">
+					<div id="addoffline_content">&nbsp;</div>
+				</div>
+				<div id="assignofflinevolunteer_Dialog" title="Assign Offline Volunteer" style="display:none;">
+					<div id="assignoffline_content">&nbsp;</div>
+				</div>
+				<div id="removeofflinevolunteer_Dialog" title="Assign Offline Volunteer" style="display:none;">
+					<div id="removeoffline_content">&nbsp;</div>
+				</div>
+				<div id="totalKindnessWorkz_Dialog" title="Total Kindness Workz Processed" style="display:none;">
+					<div id="totalKindnessWorkz_div"></div>
+				</div>
+				<div id="volPendingKindnessWorkz_Dialog" title="Volunteer Kindness Workz Waiting for eAdministrator" style="display:none;">
+					<div id="volPendingKindnessWorkz_div"></div>
+				</div>
+				<div class="demo">
+				<div id="Volunteerstabs">
+					<ul>
+						<li><a href="#tabs-1" style="text-decoration:none;font-size:12px;">By eMentors</a></li>
+					</ul>';
+					
+	$sTableHeader .= '<div id="tabs-1">';
+	
+		$sTableHeader .= '
+						<div align="right">
+							<input type="text" style="font-size:11px;width:105px;" id="in-search-input" name="in-search-input" value=""/>
+						    <select id="in-field-search" style="font-size:11px;">
+								<option value="">Fields</option>
+								<option value="username">Username</option>
+							</select>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-search" name="in-search" value="Search"/>
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="in-unblock" name="in-unblock" value="Activate"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-comment" name="in-comment" value="Comments"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-block" name="in-block" value="Deactivate"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-delete" name="in-delete" value="Remove"/>
+						    <input type="button" style="cursor:pointer;font-size:11px;" id="in-toggle" name="in-toggle" value="Toggle"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="in-refresh" name="in-refresh" value="Refresh"/>
+						</div>';
+						
+	$sTableHeader .= '<div id="instantTable">';
+	
+	$sTableContent .= instant_admin_table();
+
+	
+	$iMaxRec = 25;
+	
+	$sPagerHTML = ($sTableContent != "") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	
+	$sTableFooter = '</div><div id="mystudies_master_admin_Container"></div>';
+	$sTableFooter .= '</div>
+	                 </div>
+				    </div>';
+	
+	$sTableFooter .= instant_admin_comments();
+	
+	return $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+}
+
+function _instant_admin_stat($iUserId){
+	
+	$commentsedordis	= "SELECT COUNT(id)
+					   FROM comments_kickapps
+					   WHERE commentfrom = %d
+					   AND status != '0'";
+					   
+	$totalcomments	= "SELECT COUNT(id)
+					   FROM comments_kickapps
+					   WHERE commentfrom = %d";
+					   
+	$comentspending	= "SELECT COUNT(id)
+					   FROM comments_kickapps
+					   WHERE commentfrom = %d
+					   AND status = '0'";
+								
+	$totalementoring = "SELECT count(id)
+						FROM instant_ementor_assignment
+						WHERE ementor_id = %d";
+	
+	$totalementoring = db_result(db_query($totalementoring, $iUserId));
+	$comentspending	 = db_result(db_query($comentspending, $iUserId));
+	$totalcomments = db_result(db_query($totalcomments, $iUserId));
+	$commentsedordis = db_result(db_query($commentsedordis, $iUserId));
+	/*$hopefulswaiting = db_result(db_query($sqlTotalRequest, $iUserId));
+	*/
+	return array(
+				"totalementoring"	=> $totalementoring,
+				"comentspending"	=> $comentspending,
+				"totalcomments"		=> $totalcomments,
+				"commentsedordis"	=> $commentsedordis,
+				"hopefulswaiting"	=> 0, //$hopefulswaiting,
+			);
+}
+
+function _selected_ementor_hopeful_count($iUserId, $sType="count"){
+
+	$sField = ($sType == "count") ? "COUNT(A.cyb_id)":"A.hopeful_id, B.name";
+	
+	$sqlCount = "SELECT %s
+				FROM instant_ementor_assignment A
+				INNER JOIN users B ON B.uid = A.hopeful_id
+				WHERE A.ementor_id = %d";
+					
+	$oSQLResult = db_query($sqlCount, array($sField, $iUserId));
+	
+	if ($sType == "count"){
+		$iCount = db_result($oSQLResult);
+		
+		return $iCount;
+	}elseif ($sType == "list"){
+		$aAssignedHopefuls = array();
+		
+		while ($oSQL = db_fetch_object($oSQLResult)){
+			$aAssignedHopefuls[] = array("uid" => $oSQL->hopeful_id, "name" => $oSQL->name);
+		}
+		
+		return $aAssignedHopefuls;
+	}
+}
+
+function instant_admin_table($searchtype = "", $searchvalue = ""){
+	global $user;
+
+	$sTableContent = '<table>
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="volunteer_master_admin_bCheckAll" name="volunteer_master_admin_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:120px;">Username</th>
+								<th style="width:72px;">Status</th>
+								<th>Roles</th>
+								<th style="text-align:center;font-size:9px;">Total Hopefuls eMentoring</th>
+								<th style="text-align:center;font-size:9px;">Comments Pending</th>
+								<th style="text-align:center;font-size:9px;">Total Comments</th>
+								<th style="text-align:center;font-size:9px;">Comments edited or disapproved</th>
+								<th style="text-align:center;font-size:9px;">Hopefuls waiting for comments</th>
+							</tr>';
+	
+	$queryName = "";
+	if($searchtype == "username"){
+	$queryName = "AND B.name like '%{$searchvalue}%'";
+	}
+	
+	$sqlVolunteer = "SELECT A.uid, B.name, A.bStatus, A.type
+					FROM volunteer_optin A
+					INNER JOIN users B ON B.uid = A.uid
+					WHERE A.type = 'instant' {$queryName} ORDER BY A.bStatus ASC";
+	
+	$sqlCount = "SELECT COUNT(A.uid)
+				FROM volunteer_optin A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.type = 'instant' {$queryName}";
+	
+	$sVolType = 'instant';
+	
+	if (isset($volunteer_master_admin_aFilter1) && $volunteer_master_admin_aFilter1 != ""){
+		$sVolType = $volunteer_master_admin_aFilter1;
+	}
+	
+	if (isset($volunteer_master_admin_aFilter2) && $volunteer_master_admin_aFilter2 != ""){
+		$iStatus = ($volunteer_master_admin_aFilter2 == 'active') ? 1:0;
+		$sqlVolunteer .= " AND A.bStatus = '".$iStatus."'";
+		$sqlCount .= $sqlVolunteer;
+	}
+
+	$iMaxRec = 25;
+	
+	$oVolunteerResult = pager_query($sqlVolunteer, $iMaxRec, 0, $sqlCount);
+	
+	while ($oVolunteer = db_fetch_object($oVolunteerResult)){
+		$iUserId = $oVolunteer->uid;
+		$sRole = $oVolunteer->type == "instant" ? "eMentor": "";
+		$aStats = _instant_admin_stat($iUserId);
+		$sStatus = "active";
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+		
+		$aAssignedHopeful = _selected_ementor_hopeful_count($iUserId, "list");
+		
+		$totalementoring = $aStats["totalementoring"];
+		
+		$sHopeful = '';
+		
+		if (count($aAssignedHopeful) > 0){
+			$sHopeful = '<span style="font-size:1.2em; font-weight:bold;">Assigned Hopefuls:</span>';
+			for ($x=0; $x<count($aAssignedHopeful); $x++){
+				$aHopeful = $aAssignedHopeful[$x];
+				$iHopefulId = $aHopeful["uid"];
+				$sHopefulName = $aHopeful["name"];
+				$sHopeful .= '<div>'.$sHopefulName.'</div>';
+			}
+		}else{
+			$sHopeful = '<div>No Hopefuls have been assigned to this user, yet.</div>';
+		}
+		
+		if ($oVolunteer->bStatus == 0) $sStatus = "enrolled";
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="volunteer_master_admin_bCheckThis" name="volunteer_master_admin_bCheckThis[]" value="'.$iUserId.'" /></td>
+								<td style="vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$iUserId.'" style="cursor:pointer;">'.$oVolunteer->name.'</span>
+									<div id="kindness_assigned_hopeful_block_'.$iUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;z-index:1;">
+										'.$sHopeful.'
+									</div>
+								</td>
+								<td style="padding-top:3px; vertical-align:top;">'.$sStatus.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$sRole.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats['totalementoring'].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><a href="javascript:void(0);" onclick="instantPendingComments('."'".$iUserId."'".');" style="text-decoration:none;"><span style="color:white;text-decoration:underline;">'.$aStats['comentspending'].'</span></a></td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats['totalcomments'].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats['commentsedordis'].'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$aStats['hopefulswaiting'].'</td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No eMentors to list, yet.</td>
+										</tr>';
+										
+	$sTableContent .= '</table>';
+	
+    return $sTableContent;
+}
+
+function instant_admin_comments($searchtype = "", $searchvalue = ""){
+	drupal_add_js(drupal_get_path("module", "instant_admin")."/instant_admin.js");
+	
+	
+	$sTableHeader = '
+				<div class="demo">
+				<div id="OfflineVolunteerstabs">
+					<ul>
+						<li><a href="#offlinetab-1" style="text-decoration:none;font-size:12px;">By Comment</a></li>
+					</ul>';
+					
+	$sTableHeader .= '<div id="offlinetab-1">';
+	
+	$sTableHeader .= '
+					<div id="profile_Dialog" title="View Comment" style="display:none;">
+						<iframe id="hc_HopefulProfile1" style="position: abosolute;top: 0; left: 0;width:100%;height:95%;"></iframe>
+					</div>
+					<div id="show_pending_Dialog" title="Pending Comments" style="display:none;">
+						<div id="pendingComments_div"></div>
+					</div>
+					<div id="approve_disapprove_Dialog" title="<span id='."'add_label'".'></span>" style="display:none;">
+						<div id="pendingForm_div"></div>
+					</div>
+					<div id="admin_kindnessreport_Dialog_edit" title="Kindness Status" style="display:none;">
+							<div style="clear:both;width:500px;">
+								<div style="margin:5px;">
+									<div style="float:left;vertical-align:bottom;">&nbsp;</div>
+									<div align="left" style="width:100%">
+									<div style="float:left;width:30%;"><b>Start Time:</b> <label id="fstart_edit"></label></div>
+									<div style="float:left;width:30%;"><b>Stop Time:</b> <label id="fstop_edit"></label></div>
+									<div style="float:left;width:30%;"><b>Elapsed Time:</b> <label id="felapse_edit"></label></div>
+									</div>
+									<div style="clear:both;height:10px;">&nbsp;</div>
+									<div style="clear:both;">Title:<br/><span id="kindnesstitle_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div style="float:left;">Description:</div><div style="float:right;">&nbsp;</div>
+									<div style="clear:both;"><span id="kindnessdescription_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div style="float:left;">Location:</div><div style="float:right;">&nbsp;</div>
+									<div style="clear:both;"><span id="kindnesslocation_edit"></span></div>
+									<div style="clear:both;">&nbsp;</div>
+									<div id="icomment"></div>
+								</div>
+							</div>
+					</div>
+					<div id="offlinevolunteerfilter_Dialog" title="eAdministrator Filter" style="display:none;">
+					<form method="post" action="'.base_path().str_replace("q=", "", $_SERVER["QUERY_STRING"]).'">
+						<fieldset style="margin-top:10px;">
+							<legend>Show only coordinators where</legend>
+							
+							<table>
+								<tr>
+									<td style="width:85px; text-align:right; padding-right:10px;">Role is</td>
+									<td>
+										<select name="volunteer_master_admin_aFilter1" style="margin-bottom:10px;">
+											<option value="">All Roles</option>
+											<option value="cybrarian" '.((@$volunteer_master_admin_aFilter1 == "cybrarian") ? 'selected="selected"':'').'>Cybrarian</option>
+										</select>
+									</td>
+									<td rowspan="2" style="text-align:right; padding-left:10px;"><input type="submit" name="volunteer_master_admin_sOp" class="form-submit" value="Filter" /></td>
+								</tr>
+								<tr>
+									<td style="text-align:right; padding-right:10px;">Status is</td>
+									<td>
+										<select name="volunteer_master_admin_aFilter2">
+											<option value="">All Status</option>
+											<option value="active" '.((@$volunteer_master_admin_aFilter2 == "active") ? 'selected="selected"':'').'>Active</option>
+											<option value="enrolled" '.((@$volunteer_master_admin_aFilter2 == "enrolled") ? 'selected="selected"':'').'>Enrolled</option>
+										</select>
+									</td>
+								</tr>
+							</table>
+						</fieldset>
+					</form>
+					</div>
+					';
+	
+		$sTableHeader .= '
+						<div align="right">
+							<input type="text" style="font-size:11px;width:105px;" id="off-search-input" name="off-search-input" value=""/>
+						    <select id="off-field-search" style="font-size:11px;">
+								<option value="">Fields</option>
+								<option value="username">Type</option>
+							</select>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-search" name="off-search" value="Search"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-remove" name="off-remove" value="Remove" onClick="remove_comment();"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-selectall" name="off-selectall" value="Toggle"/>
+							<input type="button" style="cursor:pointer;font-size:11px;" id="off-refresh" name="off-refresh" value="Refresh"/>
+						</div>
+						
+						<div id="commentTable">';
+						
+	$iMaxRec = 25;
+	
+	$sTableContent .= loadCommentTable();
+	
+	$sPagerHTML = ($sTableContent != "") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	
+	$sTableFooter = '</div></div></div><div id="mystudies_master_admin_Container"></div>';
+	
+	return $sTableHeader.$sTableContent.$sTableFooter.$sPagerHTML;
+}
+
+function loadCommentTable($searchtype = "", $searchvalue = ""){
+	$sTableContent = '
+	<div align="left" style="margin: 6px 6px 6px 6px;background-color:#ffb4b4;border: 1px solid #ff0000;width:165px;">&nbsp;'.db_result(db_query("select count(id) as count from comments_kickapps where status = 0")).' Comment Pending</div>
+	<table style="width:650px;">
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><input type="checkbox" id="offline_volunteer_master_admin_bCheckAll" name="volunteer_master_admin_bCheckAll" title="Select all rows in this table" /></th>
+								<th style="width:150px;">Comment Message</th>
+								<th style="text-align:center;font-size:10px;">eMentor</th>
+								<th style="text-align:center;font-size:10px;">Hopeful</th>
+								<th style="text-align:center;font-size:10px;">Type</th>
+								<th style="width:72px;">Commentded Date</th>
+								<th style="text-align:center;font-size:10px;">Status</th>
+							</tr>';
+
+	$queryName = "";
+	if($searchtype == "username"){
+	$queryName = "AND B.commentfrom like '%{$searchvalue}%'";
+	$queryNameCount = "WHERE B.commentfrom like '%{$searchvalue}%'";
+	}							
+							 
+	$sqlComment = "SELECT A.id, A.comment, A.commentfrom, A.commentto, A.type, A.kickaps_userid, A.commentdate, A.status
+					FROM comments_kickapps A
+					INNER JOIN users B ON B.uid = A.commentfrom
+					{$queryName}
+					ORDER BY A.id DESC";
+	
+	$sqlCount = "SELECT COUNT(A.commentfrom)
+				FROM comments_kickapps A
+				INNER JOIN users B ON B.uid = A.commentfrom 
+				{$queryNameCount}";
+	
+	if (isset($volunteer_master_admin_aFilter1) && $volunteer_master_admin_aFilter1 != ""){
+		$sVolType = $volunteer_master_admin_aFilter1;
+	}
+	
+	if (isset($volunteer_master_admin_aFilter2) && $volunteer_master_admin_aFilter2 != ""){
+		$iStatus = ($volunteer_master_admin_aFilter2 == 'active') ? 1:0;
+		$sqlComment .= " AND A.status = '".$iStatus."'";
+		$sqlCount .= $sqlComment;
+	}
+	
+	$iMaxRec = 25;
+	
+	$oCommentResult = pager_query($sqlComment, $iMaxRec, 0, $sqlCount);
+	
+	while ($oComment = db_fetch_object($oCommentResult)){
+		$nUserId = $oComment->id;
+		$sStatus = "active";
+		$comment = substr($oComment->comment, 0, strrpos(substr($oComment->comment, 0, 20), ' ')) . '...';
+		
+		switch($oComment->status){
+		case 1:
+		$status = "Approved";
+		break;
+		case 2:
+		$status = "Disapproved";
+		break;
+		default:
+		$status = "Pending";
+		}
+		
+		$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+
+		if ($oComment->activate == 0) $sStatus = "enrolled";
+		
+		switch($oComment->type){
+		case 'profile':
+		$com_type = '<a href="javascript:void(0);" style="text-decoration:none;" onclick="open_for_comment_dialog('."'".$oComment->type."'".","."'".$oComment->commentto."'".","."'"._instant_get_hopeful_name($oComment->commentto)."'".');">'.'<span style="color:#fff;"><u>'.ucfirst($oComment->type).'</u></span>'.'</a>';
+		break;
+		case 'photo':
+		case 'video':
+		case 'blog':
+		$arr_links = explode("box4life",$oComment->kickaps_userid);
+		$com_type = '<a href="javascript:void(0);" style="text-decoration:none;" onclick="open_blog_photo_video_for_comment_dialog('."'".$arr_links[0]."'".","."'".$arr_links[1]."'".","."'".$arr_links[2]."'".","."'"._instant_get_hopeful_name($oComment->commentto)."'".');">'.'<span style="color:#fff;"><u>'.ucfirst($oComment->type).'</u></span>'.'</a>';
+		break;
+		default:
+		$com_type = '';
+		}
+		
+		$sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;"><input type="checkbox" id="comment_volunteer_master_admin_bCheckThis" name="comment_volunteer_master_admin_bCheckThis[]" value="'.$nUserId.'" /></td>
+								<td style="padding-top:'.(($iNeededHopeful > 0 && $sStatus == 'active') ? 0:3).'px; vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$nUserId.'" style="cursor:pointer;">'.$comment.'</span>
+									<div id="kindness_assigned_hopeful_block_'.$nUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+											'.$oComment->comment.'
+									</div>
+								</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.ucfirst(_instant_get_hopeful_name($oComment->commentfrom)).'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.ucfirst(_instant_get_hopeful_name($oComment->commentto)).'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.$com_type.'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.date("F j, Y, g:i a", $oComment->commentdate).'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><a href="javascript:void(0);" onclick="ApproveDisapproveComments('."'".$nUserId."'".","."'"._instant_get_hopeful_name($uid)." comment to "._instant_get_hopeful_name($oComment->commentto)."'".');"><span style="color:white;"><u>'.$status.'</u></span></a></td>
+							</tr>';
+		
+		$iCount++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No comments to list based, yet.</td>
+										</tr>';
+						
+	$sTableContent .= '</table>';
+	
+	return $sTableContent;
+}
+
+function _instant_get_hopeful_name($uid){
+
+	return db_result(db_query("select name from users where uid = %d", $uid));
+}
+
+function instant_comment_list($uid, $type=""){
+	global $user;
+
+	$sTableContent = '
+	<div align="left" style="margin: 6px 6px 6px 6px;background-color:#ffb4b4;border: 1px solid #ff0000;width:165px;">&nbsp;'.db_result(db_query("select count(id) as count from comments_kickapps where status = 0")).' Comment Pending</div>
+	<table style="width:650px;">
+							<tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;">&nbsp;</th>
+								<th style="text-align:center;font-size:10px;">Hopeful</th>
+								<th style="width:150px;">Comment Message</th>
+								<th style="text-align:center;font-size:10px;">Type</th>
+								<th style="width:72px; font-size:10px;">Date</th>
+								<th style="text-align:center;font-size:10px;">Status</th>
+							</tr>';
+							
+	$sqlComment = "SELECT A.id, A.comment, A.commentfrom, A.commentto, A.type, A.kickaps_userid, A.commentdate, A.status
+					FROM comments_kickapps A
+					INNER JOIN users B ON B.uid = A.commentfrom
+					WHERE B.uid = '".$uid."'
+					AND A.status = 0
+					ORDER BY A.id DESC";
+	
+	$sqlCount = "SELECT COUNT(A.commentfrom)
+				FROM comments_kickapps A
+				INNER JOIN users B ON B.uid = A.commentfrom 
+				WHERE B.uid = '".$uid."'
+				AND A.status = 0";
+	
+
+	$iMaxRec = 25;
+	
+	$oCommentResult = pager_query($sqlComment, $iMaxRec, 0, $sqlCount);
+	
+	$count = 1;
+	while ($oComment = db_fetch_object($oCommentResult)){
+		$nUserId = $oComment->id;
+		$sStatus = "active";
+		$comment = $oComment->comment;
+		$status = $oComment->status == 0 ? "Pending" : "Approved";
+		//$sRowClass = ($iCount % 2 == 0) ? 'even':'odd';
+
+		if ($oComment->activate == 0) $sStatus = "enrolled";
+		
+		$sTableContent .= '<tr style="font-size:0.8em;">
+								<td style="padding:5px; vertical-align:top;">'.$count.'.</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.ucfirst(_instant_get_hopeful_name($oComment->commentto)).'</td>
+								<td style="padding-top:'.(($iNeededHopeful > 0 && $sStatus == 'active') ? 0:3).'px; vertical-align:top;">
+									<span id="kindness_volunteer_name_'.$nUserId.'" style="cursor:pointer;">'.$comment.'</span>
+									<div id="kindness_assigned_hopeful_block_'.$nUserId.'" style="display:none; width:250px; padding:5px; position:absolute; left:150px; background-color:#FFFFFF; border:2px solid #acacac; color:black;">
+											'.$oComment->comment.'
+									</div>
+								</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.ucfirst($oComment->type).'</a></td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;">'.date("F j, Y, g:i a", $oComment->commentdate).'</td>
+								<td style="padding-top:3px; text-align:center; vertical-align:top;"><a href="javascript:void(0);" onclick="ApproveDisapproveComments('."'".$nUserId."'".","."'"._instant_get_hopeful_name($uid)." comment to "._instant_get_hopeful_name($oComment->commentto)."'".');">'.$status.'</a></td>
+							</tr>';
+		
+		$iCount++;
+		$count++;
+	}
+	
+	if ($iCount == 0) $sTableContent .= '<tr class="'.$sRowClass.'" style="font-size:0.9em;">
+											<td colspan="9" style="font-weight:bold;">No comments to list based, yet.</td>
+										</tr>';
+						
+	$sTableContent .= '</table>';
+	
+	if($type == "func"){
+	
+	return $sTableContent;
+	
+	} else{
+	echo json_encode(array("STATUS" => "Success", "CONTENT" => $sTableContent));
+	exit;
+	}
+}
+
+function instant_getContent($nodeids){
+	
+	$rsContent = db_query("SELECT nid, title, body FROM node_revisions where nid in (" . $nodeids . ")");
+	while($row = db_fetch_object($rsContent)) {
+		$aData[$row->nid] = array(
+								'id' => $row->nid, 
+								'title' => $row->title, 
+								'body' => $row->body
+							);
+	}
+	
+	return $aData;
+}
+
+function instant_redirect($nodeid){
+	
+	$aGetURL = db_result(db_query("SELECT field_pageurl_value FROM content_field_pageurl where nid = '" . $nodeid . "'"));
+	
+	if(!empty($aGetURL)){
+	header('Location: ' . $aGetURL);
+	}
+}

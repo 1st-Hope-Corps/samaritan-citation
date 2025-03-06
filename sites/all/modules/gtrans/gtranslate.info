@@ -1,0 +1,5 @@
+; $Id: gtranslate.info,v 1.1.2.1 2009/11/23 10:54:53 edo888 Exp $
+name = GTranslate
+description = Uses Google power to translate your web site.
+version = 6.x.17
+core = 6.x

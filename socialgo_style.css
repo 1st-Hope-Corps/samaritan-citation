@@ -1,0 +1,386 @@
+body {
+	background:#182520 url(http://www.hopecybrary.org/socialgo_images/bg.gif) repeat-x;
+}
+.clr {
+	clear:both;
+}
+.sidebar-box .sb-action:link, .sidebar-box .sb-action:visited, .sidebar-box .sb-action:hover, .sidebar-box .sb-action:active,
+a:link, a:visited, a:hover, a:active {
+	color:#5D8D35;
+}
+div#wrapper-header-inner,
+div.has-body-header-image,
+div#wrapper-header-inner.has-full-header-image,
+div#wrapper-header-inner.has-body-header-image {
+	background:none !important;
+}
+div#wrapper-header-outer.has-full-header-image {
+	background:none;
+	padding:0px;
+}
+div#wrapper-header {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/bg-top.jpg) no-repeat center top;
+	height:430px;
+	width:970px;
+}
+div#header .header_logo {
+	color:#9F9F88;
+	height:74px;
+	padding:0 50px;
+}
+div#header h1 a {
+	line-height:normal;
+}
+div#header h1 {
+	line-height:normal;
+	padding:15px 0 0 0;
+}
+div#header .header_img {
+	height:245px;
+}
+div#header .header_mnu{
+	height:57px;
+	padding:0 30px;
+}
+div#search-bar-background {
+	background:none;
+	border:none;
+	visibility:hidden;
+}
+div#wrapper-header-outer {
+	border:none;
+}
+div#navigation-wrapper {
+	margin:0px;
+	position:static;
+	visibility:hidden;
+}
+ul#main-navigation {
+	width:auto;
+}
+ul#main-navigation li {
+	background:none;
+	height:57px;
+	margin:0 1px 0 0;
+	font-weight:normal;
+}
+ul#main-navigation li a:link, ul#main-navigation li a:visited, ul#main-navigation li a:hover, ul#main-navigation li a:active {
+	font-size:10px;
+}
+ul#main-navigation li:hover {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/bg-li2.gif) no-repeat left top;
+}
+ul#main-navigation li a:link, ul#main-navigation li a:visited, ul#main-navigation li a:active {
+	color:#9F9F88;
+	padding:27px 0 18px 0;
+}
+ul#main-navigation li a:hover {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/bg-li2.gif) no-repeat left top;
+	color:#FFFFFF;
+	text-decoration:underline;
+	padding:27px 0 18px 0;
+}
+ul#main-navigation li.nav-selected a {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/bg-li2.gif) no-repeat left top;
+	color:#FFFFFF !important;
+	text-decoration:none;
+	padding:27px 0 18px 0;
+	border:none;
+}
+ul#main-navigation li.nav-selected a:hover {
+	text-decoration:underline;
+	color:#FFFFFF !important;
+	padding:27px 0 18px 0;
+	border:none;
+}
+ul#main-navigation li.nav-selected {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/bg-li2.gif) no-repeat left top;
+	border:none;
+	margin:0 1px 0 0;
+	height:57px;
+}
+ul#main-navigation li a {
+	color:#9F9F88;
+	display:block;
+	font-size:10px;
+	font-weight:normal;
+	padding:27px 0 18px 0;
+	text-decoration:none;
+	text-transform:uppercase;
+	text-align:center;
+	width:103px;
+}
+div#wrapper-container {
+	width:975px;
+}
+div#body-container {
+	margin:0px;
+	padding:0 0 13px 0;
+}
+div#body-container .border-left {
+	background:#E2E2D3 url(http://www.hopecybrary.org/socialgo_images/border-left.gif) repeat-y left center;
+}
+div#body-container .border-right {
+	background:url(http://www.hopecybrary.org/socialgo_images/border-right.gif) repeat-y right center;
+}
+div#body-container .border-top {
+	background:url(http://www.hopecybrary.org/socialgo_images/border-top.gif) repeat-x center top;
+}
+div#body-container .border-bot{
+	background:url(http://www.hopecybrary.org/socialgo_images/border-bot.gif) repeat-x center bottom;
+}
+div#body-container .corner-top-left {
+	background:url(http://www.hopecybrary.org/socialgo_images/corner-top-left.gif) no-repeat left top;
+}
+div#body-container .corner-top-right {
+	background:url(http://www.hopecybrary.org/socialgo_images/corner-top-right.gif) no-repeat right top;
+}
+div#body-container .corner-bot-left {
+	background:url(http://www.hopecybrary.org/socialgo_images/corner-bot-left.gif) no-repeat left bottom;
+}
+div#body-container .corner-bot-right {
+	background:url(http://www.hopecybrary.org/socialgo_images/corner-bot-right.gif) no-repeat right bottom;
+}
+div#body-container .inner {
+	padding:0 18px 0 24px;
+}
+div#body-container .inner_pdg {
+	padding:30px 15px;
+}
+div#container {
+	position:static;
+	width:700px;
+}
+div#search-bar-background.has-full-header-image, div#search-bar-background.has-body-header-image, div#search-bar-background {
+	display:none;
+	visibility:hidden;
+}
+div#wrapper-header-outer {
+	border:none;
+}
+div#navigation-wrapper {
+	margin:0px;
+	position:static;
+	display:none;
+}
+div#sidebar {
+	margin:0 0 0 0;
+	position:static;
+	width:185px;
+}
+div#sidebar {
+	width:200px;
+	background:none;
+}
+div#sidebar .sidebar_top {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/block-top.png) no-repeat left top;
+	height:8px;
+	line-height:8px;
+	font-size:0px;
+}
+div#sidebar .sidebar_bot {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/block-bot.png) no-repeat left bottom;
+	height:8px;
+	line-height:8px;
+	font-size:0px;
+}
+div#sidebar .sidebar_mid {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/bg-block.png) repeat-y left center;
+	padding:0 5px;
+}
+div#sidebar .sidebar_lst {
+	clear:both;
+	padding:5px;
+}
+div#sidebar #sb-signup {
+	margin-top:0px !important;
+	padding-top:5px;
+}
+form#theform-search {
+	padding:6px;
+}
+.twelve {
+	width:auto;
+}
+.eight {
+	width:430px;
+}
+div#main-content {
+	margin:0px 0 10px 5px;
+}
+div#main-content > div {
+	margin-bottom:0px!important;
+}
+.four,
+.five {
+	width:256px;
+}
+.four #zone-e .four_top,
+#zone-f .four_top {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/block-top2.png) no-repeat left top;
+	height:8px;
+	line-height:8px;
+	font-size:0px;
+}
+.four #zone-e .four_bot,
+#zone-f .four_bot {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/block-bot2.png) no-repeat left bottom;
+	height:8px;
+	line-height:8px;
+	font-size:0px;
+}
+.four #zone-e .four_mid,
+#zone-f .four_mid {
+	background:transparent url(http://www.hopecybrary.org/socialgo_images/bg-block2.png) repeat-y left center;
+	padding:10px;
+}
+.eight #zone-f .four_bot,
+.eight #zone-f .four_top {
+	background:none;
+	height:auto;
+}
+.eight #zone-f .four_mid {
+	background:none;
+	padding:10px;
+}
+#zone-e div.content-box, 
+#zone-f div.content-box, 
+#zone-g div.content-box {
+	background:none;
+	border:none;
+}
+#zone-e h2,
+#zone-f h2,
+#zone-g h2 {
+	color:#BC5500;
+	font-weight:bold;
+	background:none;
+	border:none;
+	font-size:18px;
+}
+#profile-about, #members-home-list, #groups-home-list, #groups-top-list, #events-home-list, #profile-interact, #magazine-list {
+	border:none;
+	padding:0px;
+}
+#profile-location .content-box-content {
+	padding:4px;
+}
+.content-box {
+	padding:0px;
+}
+ul#sub-navigation, ul.sub-navigation {
+	font-size:11px;
+}
+ul#sub-navigation li.nav-selected, ul.sub-navigation li.nav-selected {
+	background-color:#5D8D35;
+}
+ul#sub-navigation, ul.sub-navigation {
+	border-bottom-color:#5D8D35;
+}
+ul#sub-navigation li a, ul.sub-navigation li a {
+	color:#5D8D35;
+}
+.twelve {
+	width:700px;
+}
+#forum-index-list table {
+	border-collapse:collapse;
+	width:680px;
+}
+button:hover, .buttons a:hover {
+	background-color:#E7FFDF;
+	border:1px solid #E7FFDF;
+	color:#5D8D35;
+}
+div#footer {
+	color:#4D6558;
+	font-size:12px;
+	font-weight:normal;
+	text-align:center;
+	text-transform:none;
+	background:none;
+	padding:0 30px;
+	margin:0px;
+	float:none;
+	width:auto;
+}
+div#footer a {
+	color:#4D6558;
+	font-weight:bold;
+}
+#zone-f div.content-box {
+	background:url(http://www.hopecybrary.org/socialgo_images/block-bot3.png) no-repeat left bottom;
+}
+#zone-f .content-box div {
+	background:url(http://www.hopecybrary.org/socialgo_images/block-top3.png) no-repeat left top;
+	padding:10px;
+}
+#zone-f .content-box div div {
+	background:none;
+}
+.eight #zone-f div.content-box,
+.eight #zone-f div.content-box div {
+	background:none;
+	padding:0px;
+}
+.twelve .four #zone-e div.content-box {
+	background:url(http://www.hopecybrary.org/socialgo_images/block-bot4.png) no-repeat left bottom;
+}
+.twelve .four #zone-e div#profile-mp3.content-box div,
+.twelve .four #zone-e .content-box .vcard,
+.twelve .four #zone-e .content-box h2 {
+	background:url(http://www.hopecybrary.org/socialgo_images/block-top4.png) no-repeat left top;
+	padding:10px;
+}
+.twelve .four #zone-e div#profile-mp3.content-box h2 {
+	background:none;
+	padding:0px;
+}
+.twelve .four #zone-e div#profile-mp3.content-box div {
+	padding:10px 5px;
+}
+.twelve .four #zone-e div#profile-mp3.content-box div div {
+	background:none;
+	padding:0px;
+}
+.twelve .four #zone-e .content-box div {
+	padding:10px;
+}
+.twelve .four #zone-e .content-box div div {
+	background:none;
+	padding:0px;
+}
+.twelve .four #zone-e .content-box img {
+	margin:0 auto;
+}
+.twelve #zone-e div.content-box,
+.twelve #zone-e div.content-box div {
+	background:none;
+	padding:0px;
+}
+.eight #zone-f div.content-box {
+	background:url(http://www.hopecybrary.org/socialgo_images/block-bot5.png) no-repeat right bottom;
+}
+.eight #zone-f div.content-box h2 {
+	background:url(http://www.hopecybrary.org/socialgo_images/block-top5.png) no-repeat right top;
+	padding:10px;
+}
+.eight #zone-f div#profile-blog.content-box div,
+.eight #zone-f div#profile-interact.content-box div {
+	background:url(http://www.hopecybrary.org/socialgo_images/block-top5.png) no-repeat right top;
+}
+.eight #zone-f div#profile-blog.content-box div div,
+.eight #zone-f div#profile-interact.content-box div div {
+	background:none;
+	padding:0px;
+}
+.eight #zone-f div#profile-blog.content-box h2 {
+	background:none;
+	padding:0px;
+}
+.eight #zone-f div.content-box div {
+	padding:10px;
+}
+.eight #zone-f div.content-box div div {
+	background:none;
+}

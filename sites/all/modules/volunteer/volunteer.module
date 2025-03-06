@@ -1,0 +1,2409 @@
+<?php
+// $Id$
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function volunteer_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#volunteer":
+			$sOutput = '<p>'. t("Volunteer module.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+ * Valid permissions for this module
+ * @return array	- An array of valid permissions for this module
+ **/
+function volunteer_perm(){
+	return array('access volunteer content');
+}
+
+function volunteer_init(){
+	// The code inside will only be included/executed if the specified URLs are statisfied.
+	if (_volunteer_in_array($_REQUEST["q"], array("volunteer*", "mystudies/getinvolved/cybrarian*"))){
+		drupal_add_css(drupal_get_path("module", "volunteer")."/volunteer.css");
+		drupal_add_js('var volunteer_sBasePath = "'.base_path().'";', "inline");
+
+		// For some reason, JS files are not being added via drupal_add_js.
+		// Below is a workaround to add those files.
+		$sVolunteerJS = file_get_contents(drupal_get_path('module', 'volunteer')."/volunteer.js");
+
+		drupal_add_js($sVolunteerJS, 'inline');
+
+		// Original code that is not working.
+		//drupal_add_js(drupal_get_path("module", "volunteer")."/volunteer.js");
+	}
+}
+
+function volunteer_menu(){
+	$aItems['volunteer'] = array(
+		'title' => "Volunteer's Portal",
+		'page callback' => 'volunteer_main',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/optin'] = array(
+		'title' => '',
+		'page callback' => 'volunteer_optin',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_CALLBACK
+	);
+
+	$aItems['register/user'] = array(
+		'title' => '',
+		'page callback' => 'volunteer_register',
+		'access callback' => 'user_register_access',
+		'type' => MENU_CALLBACK
+	);
+
+	$aItems['volunteer/tutor'] = array(
+		'title' => "Tutoring",
+		'page callback' => 'volunteer_tutoring',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+
+	$aItems['volunteer/tutordetail'] = array(
+		'title' => "Tutoring",
+		'page callback' => 'volunteer_tutoring_explain',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+
+	$aItems['volunteer/cybrarianhopeteam'] = array(
+		'title' => "Cybrarian and Hope Team Volunteers",
+		'page callback' => 'volunteer_cybrarian_hopeteam',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/cybrarianselect'] = array(
+		'title' => "Cybrarian Enrollment",
+		'page callback' => 'volunteer_cybrarian_select',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/cybrarianoptin'] = array(
+		'title' => "Cybrarian and Hope Team Volunteers",
+		'page callback' => 'volunteer_cybrarian_select_save',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/cybrarian'] = array(
+		'title' => "Cybrarian Dashboard",
+		'page callback' => 'volunteer_cybrarian_dashboard',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/cybrarianteam'] = array(
+		'title' => "Cybrarian Team",
+		'page callback' => 'volunteer_cybrarian_Team',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/starttime'] = array(
+		'title' => "Start Time",
+		'page callback' => 'volunteer_starttime',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/positionchange'] = array(
+		'title' => "Position change",
+		'page callback' => 'volunteer_positionchange',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/hourschange'] = array(
+		'title' => "Position change",
+		'page callback' => 'volunteer_hourschange',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/changepositionajax'] = array(
+		'title' => "Position change",
+		'page callback' => 'volunteer_positionchangeajax',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/stoptime'] = array(
+		'title' => "Stop Time",
+		'page callback' => 'volunteer_stoptime',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/kindnessSave'] = array(
+		'title' => "Save Kindness",
+		'page callback' => 'volunteer_kindnesssave',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/CybGetContent'] = array(
+		'title' => "Get Content Kindness",
+		'page callback' => 'volunteer_cybgetcontent',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$aItems['volunteer/administer/deactivate'] = array(
+		'title' => "Deactivate Cybrary Volunteer Account",
+		'page callback' => 'volunteer_deactivate_account',
+		'access arguments' => array('access volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	return $aItems;
+}
+
+function volunteer_deactivate_account(){
+	global $user;
+
+	$iUserId = $user->uid;
+	$sqlDelete1 = "DELETE FROM users_roles WHERE uid = %d AND rid = '19'";
+	$sqlDelete2 = "DELETE FROM cybrarian_optin WHERE uid = '%d'";
+
+	db_query($sqlDelete1, $iUserId);
+	db_query($sqlDelete2, $iUserId);
+
+	// Point System for Volunteer Opt-out
+	userpoints_userpointsapi(array("uid" => $user->uid, "tid" => 199, "description" => "User deactivated his/her Volunteer - Cybrary Volunteer account."));
+
+	header("Location: " . base_path() . "mystudies/getinvolved/cybrarian-hopeteam-volunteers");
+}
+
+function volunteer_cybgetcontent(){
+global $user;
+
+	date_default_timezone_set('Asia/Taipei');
+
+	$sOutput = "";
+	switch($_POST['type']){
+	case 'start':
+	if(load_activity("position") == ""){
+	$sOutput .= 'SHOW';
+	} else{
+	$sOutput .= '<div style="padding-top:12px; padding-left:5px;">You are already logged-in.</div>';
+	}
+	break;
+	case 'getEditValues':
+	$id = $_POST['id'];
+	$status = $_POST['status'];
+
+	$sqlActivity = "SELECT A.cybact_id, A.created, A.ended, if(C.sTitle is null, B.position, C.sTitle) as position, B.school, C.sDesc, if(C.sLocation is null, B.school, C.sLocation) as sLocation
+					FROM cybrarian_activity A
+					LEFT JOIN cybrarian_optin B ON A.uid = B.uid
+					LEFT JOIN cybrarian_kindness C ON C.cybactivity_id = A.cybact_id
+					WHERE A.cybact_id = '{$id}' GROUP BY cybact_id";
+
+			$oActivityResult = db_query($sqlActivity);
+			$oActivity = db_fetch_object($oActivityResult);
+			mysqli_free_result($oActivityResult);
+			$start = date('h:i:s A', $oActivity->created);
+			$end = date('h:i:s A', $oActivity->ended);
+			$elapse = format_interval($oActivity->ended - $oActivity->created);
+			$activityid = $oActivity->cybact_id;
+			$comment = "";
+
+			switch($status){
+			case 'disapproved':
+			case 'approved':
+			case 'pending':
+			$position = ucfirst($oActivity->position);
+			$sDesc = $oActivity->sDesc;
+			$location = $oActivity->sLocation;
+			$sqlComment = "SELECT B.name, A.sComment
+							FROM cybrarian_comment A
+							LEFT JOIN users B ON A.iUserId = B.uid
+							WHERE A.iSubmitId = '{$activityid}' ORDER BY A.iSubmitId DESC";
+
+			$oCommentResult = db_query($sqlComment);
+			$oComment = db_fetch_object($oCommentResult);
+			mysqli_free_result($oCommentResult);
+
+			if($oComment->sComment !== NULL){
+			$comment = '<div style="clear:both;">Comment:<br/>'.$oComment->sComment.'<br/>- <b>'.$oComment->name.'</b><br/></div>
+						<div style="clear:both;">&nbsp;</div>';
+			} else{
+			$comment = "";
+			}
+
+			break;
+			default:
+			$position = ucfirst($oActivity->position);
+			$sDesc = '';
+			$location = $oActivity->sLocation;
+			break;
+			}
+
+			echo json_encode(array("STATUS" => "Success", "START" => $start, "END" => $end, "ELAPSE" => $elapse, "POSITION" => $position, "DESC" => $sDesc, "LOCATION" => $location,"ID" => $id, "COMMENT" => $comment));
+	        exit;
+	break;
+	case 'current':
+		if(load_activity("position") !== ""){
+		$sOutput .= '<div style="clear:both;width:310px;height:30px;border:1px solid black;">
+						<div style="margin:5px;">
+							<div style="float:left;">You have currently logged in as:</div><div style="float:right;"><b>'.load_activity("position").'</b></div>
+						</div>
+					</div>
+					<div>&nbsp;</div>
+					<div style="clear:both;width:250px;height:30px;border:1px solid black;">
+						<div style="margin:5px;">
+							<div style="float:left;">Your start time was:</div><div style="float:right;">'.load_activity("start").'</div>
+						</div>
+					</div>
+					<div>&nbsp;</div>
+					<div style="clear:both;width:250px;height:30px;border:1px solid black;">
+						<div style="margin:5px;">
+							<div style="float:left;">Your elapsed time is:</div><div style="float:right;">'.load_activity("elapse").'</div>
+						</div>
+					</div>';
+		} else{
+		$sOutput .= '<div style="padding-top:12px; padding-left:5px;">You are currently logged-out.</div>';
+		}
+	break;
+	case 'status':
+
+	$aStats = _volunteer_master_admin_offline_stat($user->uid);
+
+			$sOutput .= '<div style="clear:both;">
+						<div style="width:160px;height:50px;border:1px solid black;float:left;">
+							<div style="margin:5px;">
+								'.$aStats['iKindnessHours'].' - Kindness Hours
+							</div>
+						</div>
+						<div style="float:left;">&nbsp;</div>
+						<div style="width:240px;height:50px;border:1px solid black;float:left;">
+							<div style="margin:5px;">
+								'.$aStats['iConvertedHours'].' - Hours Converted to Hope Bucks
+							</div>
+						</div>
+						<div style="float:left;">&nbsp;</div>
+						<div style="width:190px;height:50px;border:1px solid black;float:left;">
+							<div style="margin:5px;">';
+
+			$iKindnessHours =  _volunteer_bank_kindness_get_hours();
+			$iKindnessHours = ($iKindnessHours > 0) ? number_format($iKindnessHours, 2):0;
+			$iTimeHour = intval($iKindnessHours);
+			$iTimeMin = round(($iKindnessHours - floor($iKindnessHours)) * 60);
+
+			$sOutput .= $iTimeHour.' hour(s) '.$iTimeMin.' minute(s) - Kindness Hours Balance
+							</div>
+						</div>
+					</div>
+					<div align="center" style="clear:both;padding-top:5px;padding-left:65px;">
+						<div style="width:240px;height:30px;border:1px solid black;float:left;">
+							<div style="margin:5px;">
+								'.$aStats['iKindnessApproved'].' - Kindness Workz Approved
+							</div>
+						</div>
+						<div style="float:left;">&nbsp;</div>
+						<div style="width:240px;height:30px;border:1px solid black;float:left;">
+							<div style="margin:5px;">
+								'.$aStats['iKindnessDispproved'].' - Kindness Workz Disapproved
+							</div>
+						</div>
+					</div>';
+
+			$oKindness_coordinator = db_result(db_query("SELECT B.name FROM cybrarian_optin as A
+												LEFT JOIN users as B ON B.uid = A.uid
+												WHERE A.uid = '{$user->uid}'"));
+
+			$sOutput .= '<div style="padding-top:10px;clear:both;padding-left:175px;">
+						Your Kindness eAdministrator is: '.ucfirst($oKindness_coordinator).'
+					</div>
+					<div id="list-status">';
+
+					$sqlKindness = "SELECT A.cybact_id, if(C.sTitle is null,B.position,C.sTitle) as position, A.created, A.ended, A.bApproved
+									FROM `drupal`.`cybrarian_activity` A
+									LEFT JOIN cybrarian_optin B ON B.uid = A.uid
+									LEFT JOIN cybrarian_kindness C ON C.cybactivity_id = A.cybact_id
+									WHERE A.uid = '{$user->uid}'
+									AND A.activity = 'stop'
+									GROUP BY A.cybact_id";
+
+					$oKindness_count = db_result(db_query("SELECT DISTINCT count(cybact_id) FROM cybrarian_activity
+									WHERE uid = '{$user->uid}'
+									AND activity = 'stop'"));
+
+					$oKQueryResult = db_query($sqlKindness);
+					$oKDetails = array();
+
+			if($oKindness_count > 0){
+			$sOutput .= '<table style="margin-top:10px;">
+						<tr>
+							<th style="width:120px;">Title</th>
+							<th style="width:120px; text-align:right;  padding-right:10px;">Duration</th>
+							<th style="width:120px;">Date</th>
+							<th style="width:160px;">Status</th>
+						</tr>';
+
+					while ($oKDetails = db_fetch_object($oKQueryResult)){
+
+					$oK_count = db_result(db_query("SELECT DISTINCT count(id) FROM cybrarian_kindness WHERE cybactivity_id = '{$oKDetails->cybact_id}'"));
+					$oAction = '';
+
+					if($oK_count == 0){
+					$oStatus = 'Incomplete';
+					$oAction = '<a href="javascript:void(0);" onclick="editLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'incomplete'.'\')">'.ucfirst($oKDetails->position).'</a>';
+					} else {
+						if($oKDetails->bApproved == 1){
+							$oStatus = 'Approved';
+							$oAction = '<a href="javascript:void(0);" onclick="editLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'approved'.'\')">'.ucfirst($oKDetails->position).'</a>';
+						} else if($oKDetails->bApproved == 2){
+							$oStatus = 'Disapproved';
+							$oAction = '<a href="javascript:void(0);" onclick="editLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'disapproved'.'\')">'.ucfirst($oKDetails->position).'</a>';
+						} else{
+							$oStatus = 'Pending';
+							$oAction = '<a href="javascript:void(0);" onclick="editLinkKindness(\''.$oKDetails->cybact_id.'\',\''.'pending'.'\')">'.ucfirst($oKDetails->position).'</a>';
+						}
+					}
+
+					$sOutput .= '<tr>
+									<td style="padding-top:5px;">'.$oAction.'</td>
+									<td style="text-align:right; padding-right:10px;">'.format_interval($oKDetails->ended - $oKDetails->created).'</td>
+									<td>'.date('d M y',$oKDetails->created).'</td>
+									<td>'.ucfirst($oStatus).'</td>
+									</tr>';
+					}
+					mysqli_free_result($oKQueryResult);
+			$sOutput .= "</table>";
+			} else{
+			$sOutput .= "There are no Kindnez to list yet.";
+			}
+			$sOutput .= '
+					</div>
+					<div style="padding-top:10px;clear:both;">
+						<a href="#">List all Kindness Workz</a> <a href="#">Cybrary Kindness Workz Only</a>
+					</div>';
+	break;
+	case 'stop':
+	if(load_activity("position") !== ""){
+		$sOutput .= 'Activated';
+	} else{
+		$sOutput .= 'Not Activated';
+	}
+	break;
+	case 'schedule':
+			$sOutput .= '
+					<div id="list-schedule">
+					<input type="button" id="respond" name="respond" onclick="calendar_dialog('."'".$user->uid."'".');" value="View my Calendar" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" />
+					<br/><br/>
+					';
+
+					$sqlSched = "SELECT * FROM jqcalendar
+									WHERE uid = '{$user->uid}' AND status != 10 ORDER BY StartTime DESC";
+
+					$oSched_count = db_result(db_query("SELECT count(Id) FROM jqcalendar
+									WHERE uid = '{$user->uid}'"));
+
+					$oKQueryResult = db_query($sqlSched);
+					$oKDetails = array();
+
+			$sOutput .= "<i>Showing duties</i>";
+			if($oSched_count > 0){
+
+			$sOutput .= '<table style="margin-top:10px;width:720">';
+
+			while ($oKDetails = db_fetch_object($oKQueryResult)){
+			$start = strtotime($oKDetails->StartTime);
+			$end = strtotime($oKDetails->EndTime);
+
+			$status = "Pending";
+			if($oKDetails->status == 1){
+			$status = "Accepted";
+			} else if($oKDetails->status == 2){
+			$status = "Declined";
+			}
+			$expdate = date("Y-m-d", strtotime($oKDetails->StartTime));
+			$today = date("Y-m-d");
+			$exp_date = strtotime($expdate);
+			$todays_date = strtotime($today);
+
+			if($exp_date >= $todays_date){
+				if($oKDetails->status == 1 || $oKDetails->status == 2){
+				$button = '<input type="button" id="respond" name="respond" onclick="respond_schedule('."'".$oKDetails->Id."'".');" value="Change" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" />';
+				} else{
+				$button = '<input type="button" id="respond" name="respond" onclick="respond_schedule('."'".$oKDetails->Id."'".');" value="Respond" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" />';
+				}
+			} else{
+				$button = "";
+			}
+
+			$sOutput .= '<tr>
+									<td style="padding-top:10px;padding-bottom:10px;width:8%;color:#1155cc;">'.date('D M j',$start).'</td>
+									<td style="padding-top:10px;padding-bottom:10px;width:12%">'.date('g:i A',$start).' - '.date('g:i A',$end).'</td>
+									<td style="padding-top:10px;padding-bottom:10px;width:15%;color:#cc3333;">'.ucfirst($oKDetails->Subject).'</td>
+									<td style="padding-top:10px;padding-bottom:10px;width:5%;font-size:11px;"><b>'.$status.'</b></td>
+									<td style="padding-top:10px;padding-bottom:10px;width:10%">'.$button.'</td>
+								</tr>
+								<tr>
+									<td colspan="5" style="width:60%;border: 1px solid #cccccc;"></td>
+								</tr>
+								';
+			}
+			mysqli_free_result($oKQueryResult);
+			$sOutput .= "</table>";
+			} else{
+			$sOutput .= "<br/><br/>There are no Schedule to list yet.";
+			}
+
+			$sOutput .= '<div style="padding-top:10px;"><i>Showing duties</i></div>';
+			$sOutput .= '
+					</div>';
+
+	break;
+	case 'schedule-respond':
+	$id = $_POST['id'];
+
+	$sqlSched = db_query("SELECT * FROM jqcalendar
+				WHERE Id = '{$id}'");
+
+	$oSDetails = db_fetch_object($sqlSched);
+	mysqli_free_result($sqlSched);
+	$status = "Pending";
+	if($oSDetails->status == 1){
+	$status = "Accepted";
+	} else if($oSDetails->status == 2){
+	$status = "Declined";
+	}
+
+	if($oSDetails->Location == ""){
+	$loc = "No Location given.";
+	} else{
+	$loc = $oSDetails->Location;
+	}
+
+	if($oSDetails->Description == ""){
+	$desc = "No remark given.";
+	} else{
+	$desc = $oSDetails->Description;
+	}
+	$start = strtotime($oSDetails->StartTime);
+	$end = strtotime($oSDetails->EndTime);
+
+	$sOutput = '<div style="width:100%;">';
+
+	$sOutput .= '<div style="clear:both;">
+					<div style="float:left;">&nbsp;</div>
+					<div style="float:right;">'.date('D M j',$start).' '.date('g:i A',$start).' - '.date('g:i A',$end).'</div>
+				</div>
+				<div style="clear:both;">
+					<div style="float:left;width:20%;height:30px;">Subject:</div>
+					<div style="float:left;width:80%;height:30px;"><span style="color:#cc3333;">'.ucfirst($oSDetails->Subject).'</span></div>
+				</div>
+				<div style="clear:both;">
+					<div style="float:left;width:20%;height:30px;">Location:</div>
+					<div style="float:left;width:80%;height:30px;"><span style="color:#ooo;">'.$loc.'</span></div>
+				</div>
+				<div style="clear:both;">
+					<div style="float:left;width:20%;height:30px;">Remarks:</div>
+					<div style="float:left;width:80%;height:30px;"><span style="color:#ooo;">'.$desc.'</span></div>
+				</div>
+				<div style="clear:both;">
+					<div style="float:left;width:20%;height:30px;">Status:</div>
+					<div style="float:left;width:80%;height:30px;"><span style="color:#ooo;"><b>'.$status.'</b></span></div>
+				</div>';
+
+	if($oSDetails->comment !== NULL){
+	$sOutput .= '<div style="clear:both;">
+					<div style="float:left;width:20%;height:40px;">Your response:</div>
+					<div style="float:left;width:80%;height:30px;"><span style="color:#ooo;"><b>'.$oSDetails->comment.'</b></span></div>
+				</div>';
+	}
+
+	$sOutput .= '<div style="clear:both;">
+					<div style="float:left;width:20%;height:30px;">Response:</div>
+					<div style="float:left;width:80%;height:30px;"><textarea style="width:300px;height:150px;" id="ischedcomment"></textarea></div>
+				</div>
+				';
+
+	$sOutput .= '</div>';
+
+	break;
+
+	case 'schedule-respond-save':
+
+	$id = $_POST["id"];
+	$status = $_POST["status"];
+	$comment = $_POST["comment"];
+
+	$sqlUpdate = "UPDATE jqcalendar
+					SET
+					status = '{$status}',
+					comment = '{$comment}'
+					WHERE Id = '{$id}'";
+
+	if (db_query($sqlUpdate)){
+		$sOutput = "Success";
+    } else{
+		$sOutput = $sqlUpdate;
+	}
+
+	break;
+	case 'forgot-form':
+	$oSQLSchool = db_query("SELECT B.id, B.school_name FROM cybrarian_optin A LEFT JOIN cybrarian_schools B ON B.school_name = A.school WHERE A.uid = '{$user->uid}'");
+	$oSchool = db_fetch_object($oSQLSchool);
+	mysqli_free_result($oSQLSchool);
+	$iCybSchoolID = $oSchool->id;
+	$iCybSchoolName = $oSchool->school_name;
+
+	$sOutput = '<div style="width:100%;">';
+
+	$sOutput .= '<div style="clear:both;width:500px;">
+						<div style="float:left;">*Fill up the kindness form if you forgot to press the start button</div><div style="float:right;">&nbsp;</div>
+						<div style="clear:both;">&nbsp;</div>
+						<div style="margin:5px;">
+							<div style="clear:both;">Title:<br/>';
+
+			$sOutput .= '<select id="forgottitle" name="cybrariantitle">
+								<option value=""></option>';
+
+							$strPosition = db_result(db_query("SELECT position FROM {cybrarian_optin} WHERE uid = '{$user->uid}'"));
+
+							$SQLallPosition = db_query("SELECT cybpos_id, cybpos_name, max_available FROM {cybrarian_positions} WHERE cybschool_id = '".$iCybSchoolID."'");
+							$arr_position = array();
+
+							while($oPosition = db_fetch_object($SQLallPosition)){
+								$intTakenPosition = db_result(db_query("SELECT count(cyb_id) FROM {cybrarian_optin} WHERE position = '".strtolower($oPosition->cybpos_name)."' AND school = '".$iCybSchoolName."'"));
+								if($intTakenPosition < $oPosition->max_available){
+									$arr_position[$oPosition->cybpos_id] = strtolower($oPosition->cybpos_name);
+								} else{
+									$strlowercybpos_name = strtolower($oPosition->cybpos_name);
+									if($strlowercybpos_name == $strPosition){
+									$arr_position[$oPosition->cybpos_id] = strtolower($oPosition->cybpos_name);
+									}
+								}
+							}
+							mysqli_free_result($SQLallPosition);
+
+							foreach($arr_position as $posid => $posname){
+								if($posname == $strPosition){
+									$sOutput .= "<option value='".strtolower($posname)."' selected='selected'>".ucwords($posname)."</option>";
+								} else{
+									$sOutput .= "<option value='".strtolower($posname)."'>".ucwords($posname)."</option>";
+								}
+							}
+
+			$sOutput .= '</select>';
+
+				$sOutput .= '</div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;">Description:</div><div style="float:right;">&nbsp;</div>
+							<div style="clear:both;"><textarea id="forgotdescription" cols="60" rows="7"></textarea></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;">Location:</div><div style="float:right;">&nbsp;</div>
+							<div style="clear:both;"><input type="text" id="forgotlocation" value="'.$iCybSchoolName.'" style="width:250px;"/></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;">Date:</div><div style="float:right;">&nbsp;</div>
+							<div style="clear:both;">';
+
+
+							$arr_month = array("01" => "Jan", "02" => "Feb", "03" => "Mar", "04" => "Apr", "05" => "May", "06" => "Jun", "07" => "Jul", "08" => "Aug", "09" => "Sep", "10" => "Oct", "11" => "Nov", "12" => "Dec");
+							$curr_month = date("m");
+
+				$sOutput .= '<select id="forgotMonth" class="form_selectbox" name="forgotMonth">';
+
+							foreach($arr_month as $int_month => $str_monthh){
+								if($curr_month == $int_month){
+								$sOutput .= '<option value="'.$int_month.'" selected="selected">'.$str_monthh.'</option>';
+								} else{
+								$sOutput .= '<option value="'.$int_month.'">'.$str_monthh.'</option>';
+								}
+							}
+
+				$sOutput .= '</select> ';
+
+				$sOutput .= '<select id="forgotDay" class="form_selectbox" name="forgotDay">';
+
+							$countdays = 1;
+							$curr_day = date("j");
+							while($countdays <= 31){
+								if($curr_day == $countdays){
+									$sOutput .= '<option value="'.$countdays.'" selected="selected">'.$countdays.'</option>';
+								} else{
+									$sOutput .= '<option value="'.$countdays.'">'.$countdays.'</option>';
+								}
+							$countdays++;
+							}
+
+				$sOutput .= '</select> ';
+
+				$sOutput .= '<select id="forgotYear" class="form_selectbox" name="forgotYear">';
+
+							$countyears = 2011;
+							$curr_year = date("Y");
+							while($countyears <= 2020){
+								if($curr_year == $countyears){
+									$sOutput .= '<option value="'.$countyears.'" selected="selected">'.$countyears.'</option>';
+								} else{
+									$sOutput .= '<option value="'.$countyears.'">'.$countyears.'</option>';
+								}
+							$countyears++;
+							}
+
+				$sOutput .= '</select>';
+
+				$sOutput .= '</div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;">Time:</div><div style="float:right;">&nbsp;</div>
+							<div style="clear:both;">
+							Start time <select id="forgotStarttime" class="form_selectbox" name="forgotStarttime">
+							<option value="00:00:00">12:00am</option>
+							<option value="00:30:00">12:30am</option>
+							<option value="01:00:00">1:00am</option>
+							<option value="01:30:00">1:30am</option>
+							<option value="02:00:00">2:00am</option>
+							<option value="02:30:00">2:30am</option>
+							<option value="03:00:00">3:00am</option>
+							<option value="03:30:00">3:30am</option>
+							<option value="04:00:00">4:00am</option>
+							<option value="04:30:00">4:30am</option>
+							<option value="05:00:00">5:00am</option>
+							<option value="05:30:00">5:30am</option>
+							<option value="06:00:00">6:00am</option>
+							<option value="06:30:00">6:30am</option>
+							<option value="07:00:00">7:00am</option>
+							<option value="07:30:00">7:30am</option>
+							<option value="08:00:00">8:00am</option>
+							<option value="08:30:00">8:30am</option>
+							<option value="09:00:00">9:00am</option>
+							<option value="09:30:00">9:30am</option>
+							<option value="10:00:00">10:00am</option>
+							<option value="10:30:00">10:30am</option>
+							<option value="11:00:00">11:00am</option>
+							<option value="11:30:00">11:30am</option>
+							<option value="12:00:00">12:00pm</option>
+							<option value="12:30:00">12:30pm</option>
+							<option value="13:00:00">1:00pm</option>
+							<option value="13:30:00">1:30pm</option>
+							<option value="14:00:00">2:00pm</option>
+							<option value="14:30:00">2:30pm</option>
+							<option value="15:00:00">3:00pm</option>
+							<option value="15:30:00">3:30pm</option>
+							<option value="16:00:00">4:00pm</option>
+							<option value="16:30:00">4:30pm</option>
+							<option value="17:00:00">5:00pm</option>
+							<option value="17:30:00">5:30pm</option>
+							<option value="18:00:00">6:00pm</option>
+							<option value="18:30:00">6:30pm</option>
+							<option value="19:00:00">7:00pm</option>
+							<option value="19:30:00">7:30pm</option>
+							<option value="20:00:00">8:00pm</option>
+							<option value="20:30:00">8:30pm</option>
+							<option value="21:00:00">9:00pm</option>
+							<option value="21:30:00">9:30pm</option>
+							<option value="22:00:00">10:00pm</option>
+							<option value="22:30:00">10:30pm</option>
+							<option value="23:00:00">11:00pm</option>
+							<option value="23:30:00">11:30pm</option>
+							</select>
+
+							End time <select id="forgotEndtime" class="form_selectbox" name="forgotEndtime">
+							<option value="00:00:00">12:00am</option>
+							<option value="00:30:00">12:30am</option>
+							<option value="01:00:00">1:00am</option>
+							<option value="01:30:00">1:30am</option>
+							<option value="02:00:00">2:00am</option>
+							<option value="02:30:00">2:30am</option>
+							<option value="03:00:00">3:00am</option>
+							<option value="03:30:00">3:30am</option>
+							<option value="04:00:00">4:00am</option>
+							<option value="04:30:00">4:30am</option>
+							<option value="05:00:00">5:00am</option>
+							<option value="05:30:00">5:30am</option>
+							<option value="06:00:00">6:00am</option>
+							<option value="06:30:00">6:30am</option>
+							<option value="07:00:00">7:00am</option>
+							<option value="07:30:00">7:30am</option>
+							<option value="08:00:00">8:00am</option>
+							<option value="08:30:00">8:30am</option>
+							<option value="09:00:00">9:00am</option>
+							<option value="09:30:00">9:30am</option>
+							<option value="10:00:00">10:00am</option>
+							<option value="10:30:00">10:30am</option>
+							<option value="11:00:00">11:00am</option>
+							<option value="11:30:00">11:30am</option>
+							<option value="12:00:00">12:00pm</option>
+							<option value="12:30:00">12:30pm</option>
+							<option value="13:00:00">1:00pm</option>
+							<option value="13:30:00">1:30pm</option>
+							<option value="14:00:00">2:00pm</option>
+							<option value="14:30:00">2:30pm</option>
+							<option value="15:00:00">3:00pm</option>
+							<option value="15:30:00">3:30pm</option>
+							<option value="16:00:00">4:00pm</option>
+							<option value="16:30:00">4:30pm</option>
+							<option value="17:00:00">5:00pm</option>
+							<option value="17:30:00">5:30pm</option>
+							<option value="18:00:00">6:00pm</option>
+							<option value="18:30:00">6:30pm</option>
+							<option value="19:00:00">7:00pm</option>
+							<option value="19:30:00">7:30pm</option>
+							<option value="20:00:00">8:00pm</option>
+							<option value="20:30:00">8:30pm</option>
+							<option value="21:00:00">9:00pm</option>
+							<option value="21:30:00">9:30pm</option>
+							<option value="22:00:00">10:00pm</option>
+							<option value="22:30:00">10:30pm</option>
+							<option value="23:00:00">11:00pm</option>
+							<option value="23:30:00">11:30pm</option>
+							</select>
+							</div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;"><input type="checkbox" id="forgotpromised" value="1"/> I promise that all of the information is true.</div>
+						</div>
+					</div>';
+
+	$sOutput .= '</div>';
+
+	break;
+	case 'forgot-form-submit':
+
+	$title = $_POST['title'];
+	$desc = $_POST['desc'];
+	$location = $_POST['location'];
+	$promised = $_POST['promised'];
+	$date = $_POST['date'];
+	$starttime = $_POST['starttime'];
+	$endtime = $_POST['endtime'];
+
+	$start = strtotime($date.' '.$starttime);
+	$end = strtotime($date.' '.$endtime);
+
+	$sqlActivity = "INSERT INTO {cybrarian_activity}
+				VALUES(
+					NULL,
+					".$user->uid.",
+					'".$start."',
+					'".$end."',
+					'stop',
+					0
+				)";
+
+	db_query($sqlActivity);
+
+	$activityid = db_last_insert_id("cybrarian_activity", "cybact_id");
+	$time = time();
+
+	$sqlKindness = "INSERT INTO {cybrarian_kindness}
+				VALUES(
+					NULL,
+					'".$title."',
+					'".$desc."',
+					'".$location."',
+					'".$promised."',
+					'".$user->uid."',
+					'".$start."',
+					'".$activityid."'
+				)";
+
+	if (db_query($sqlKindness)){
+	$sOutput .= "Success";
+	} else{
+	$sOutput .= "ERROR SQL";
+	}
+
+	break;
+	}
+
+	echo json_encode(array("OUTPUT" => $sOutput));
+	exit;
+}
+
+function volunteer_main($var1="", $var2="", $var3="", $var4="", $var5=""){
+	global $user;
+
+	switch($var1){
+	case 'loadtroopteams':
+	$id = $var2;
+	$type = $var3;
+	$count = $var4;
+	volunteer_troop_teams($id, $type, $count);
+	break;
+	case 'viewteam':
+	$kickappsteam_id = $var2;
+	volunteer_view_team($kickappsteam_id);
+	break;
+	case 'chooseteam':
+	volunteer_choose_team();
+	break;
+	case 'changeteambyschool':
+	$schoolid = $var2;
+	volunteer_changeteambyschool_team($schoolid);
+	break;
+	case 'saveteamschool':
+	$teamid = $var2;
+	volunteer_saveteambyschool_team($teamid);
+	break;
+	case 'chooserandomteam':
+	volunteer_chooserandom_team();
+	break;
+	case 'jointeam':
+	$sOutput = 'ID:'.$id.' Type:'.$type.' Count:'.$count;
+	break;
+	case 'autoselectteam':
+	$sOutput = 'ID:'.$id.' Type:'.$type.' Count:'.$count;
+	break;
+	default:
+
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+				);
+
+	$sOutput = '';
+
+	drupal_set_breadcrumb($aTrail);
+
+	return $sOutput;
+	}
+}
+
+function volunteer_optin(){
+	$sqlOptin = "INSERT INTO {volunteer_optin}
+				VALUES(
+					NULL,
+					".$_REQUEST["id"].",
+					'".$_REQUEST["type"]."',
+					'0',
+					'0'
+				)";
+
+	if (!db_query($sqlOptin)){
+		echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlOptin));
+	}else{
+		$iVolunteerId = db_last_insert_id("volunteer_optin", "vid");
+
+		echo json_encode(array("STATUS" => "Success", "RETURN" => $iVolunteerId));
+	}
+
+	exit;
+}
+
+function volunteer_tutoring(){
+	global $user;
+	$iUserId = $user->uid;
+	$query = "SELECT * FROM {volunteer_optin} where uid = %d and type = 'tutor'";
+    $queryResult = db_query($query, $iUserId);
+    $is_member = db_fetch_object($queryResult);
+	mysqli_free_result($queryResult);
+	drupal_add_js(drupal_get_path('module','volunteer') . '/volunteer.js');
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("e-Tutoring Volunteers", "mystudies/getinvolved/etutoring-volunteers")
+	);
+
+	drupal_set_breadcrumb($aTrail);
+
+	$sUserName = ucwords(_volunteer_get_name($iUserId, $user->name));
+	$aVolunteerType = _volunteer_check_type($iUserId);
+
+	//if (in_array("tutor", $aVolunteerType)){
+		$bTutor = _askeet_is_tutor($user->uid);
+
+	$sNotify1 = "";
+	if(_mystudies_check_hopeful($iUserId) == 'notahopeful'){
+		$sNotify1 = '<div id="volunteer_program_optin">
+					<div style="vertical-algin:middle;">To enroll as Instant Tutor. <a href="javascript:void(0);" id="volunteer_bOptTutor" onclick="volunteer_becomeInstantTutor('.$iUserId.');"><img src="' . base_path() . path_to_theme() . '/images/btn_blue_clickhere.gif" border="0" /></a></div>
+					</div>';
+	}
+
+		if ($is_member->vid) $sNotify1 = "";
+		$sNotifySpacer = ($is_member->vid) ? '':'<div class="volunteer_optin_spacer"></div>';
+
+		$nodeids = '1742';
+		$nodearray = instant_getContent($nodeids);
+
+		$sOutput = '<div id="cbrect">
+		<div class="cbb">
+			<div class="left-border">
+				<div class="right-border">
+					<table width="970" border="0" cellspacing="0" cellpadding="2">
+						<tr>
+							<td width="200" align="center" valign="top">
+								<img src="' . base_path() . path_to_theme() . '/images/gi_guide.jpg" border="0" />
+							</td>
+							<td valign="top">
+								<h4>'.$nodearray['1742']['title'].'</h4>
+								'.$nodearray['1742']['title'].'
+								<div>&nbsp;</div>
+								'.$sNotify1.'
+							</td>
+							</tr>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>';
+
+		$sOutput .= ($bTutor) ? drupal_goto($path = 'mystudies/getinvolved/instanttutor/dashboard').'<div style="text-align:center; padding-top:40px;"><button type="button" id="volunteer_proceed_instant_tutor" class="form-submit">Proceed to your Instant Tutoring Dasboard</button></div>':"";
+		$sOutput .= ($is_member->vid) ? '
+		            <script type="text/javascript">
+						volunteer_PopulateCat("volunteer_cat_1", 0);
+					</script>
+				<div class="divider"></div>
+				<div id="instutor_cbtop">
+					<div class="cbb">
+						<div class="left-border">
+							<div class="right-border">
+								<table width="980" border="0" cellpadding="0" cellspacing="0" id="gi_nav">
+									<tr><td height="25" class="bgfix"></td></tr>
+									<tr>
+									  <td valign="top" align="left">
+									  	<div id="gi_internal" style="width:960px">
+											<div class="cbb">
+											    <!-- start here-->
+												<div id="volunteer_type_instant_answer" style="padding-top:30px;">
+													<p>'.$sUserName.', you have chosen to be an Instant Answer tutor. Please select the subjects and sub-categories that you wish to offer Instant Answers for:</p>
+													<div style="padding-left:40px; padding-top:10px;"><!--Double-click your desired categories.--></div>
+													<div style="margin-top:20px; text-align:center;">
+														<div id="volunteer_tutor_categories" style="float:left; text-align:right;">
+															<select id="volunteer_cat_1" style="width:175px; font-size:0.9em;" size="11"></select>
+															<select id="volunteer_cat_2" style="width:175px; font-size:0.9em;" size="11"><optgroup label="No main category selected"></optgroup></select>
+															<select id="volunteer_cat_3" style="width:175px; font-size:0.9em;" size="11"><optgroup label="No sub-category selected"></optgroup></select>
+															<p>&nbsp;</p><p><button type="button" id="volunteer_add_category" class="form-submit">Add Category</button></p>
+														</div>
+														<div style="float:left;padding-left:10px;text-align:left;""><div><b>Selected Categories:</b></div><div id="volunteer_selected_cats"></div></div>
+													</div>
+													<div style="clear:both">&nbsp;</div>
+													<div id="volunteer_type_instant_answer_notification">
+														<div id="volunteer_type_instant_answer_notification_left"><input type="checkbox" id="volunteer_bNotifyInMyCat" value="1" /> Please notify me when a child asks a question from the categories that I selected.</div>
+														<div id="volunteer_type_instant_answer_notification_right"><label for="volunteer_bNotifyInMyCat">&nbsp;</label></div>
+														<div class="volunteer_optin_spacer"></div>
+														<div id="volunteer_type_instant_answer_notification_left"><input type="checkbox" id="volunteer_bNotifyAll" value="1" /> Please notify me when a child asks any question.</div>
+														<div id="volunteer_type_instant_answer_notification_right"><label for="volunteer_bNotifyAll">&nbsp;</label></div>
+													</div>
+													<br /><br />
+													<div style="text-align:right;">
+														<input type="hidden" id="volunteer_bOptInstantAnswer" value="'.$iUserId.'" />
+														<button type="button" id="volunteer_type_instant_answer_cancel" class="form-submit">Cancel</button>&nbsp;&nbsp;
+														<button type="button" id="volunteer_type_instant_answer_proceed" class="form-submit">Proceed</button>
+													</div>
+												</div>
+												 <!-- end here-->
+											</div>
+										</div>
+									  </td>
+								  </tr>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>' : "";
+
+		return $sOutput;
+	/*}else{
+		drupal_access_denied();
+	}*/
+}
+
+
+/**
+ * Reusable functions/callbacks
+ **/
+function _volunteer_get_details($iUserId){
+	$sqlProfile = "SELECT B.uid, A.name, B.value
+					FROM {profile_fields} A INNER JOIN {profile_values} B ON A.fid = B.fid
+					WHERE B.uid = %d";
+
+	$oQueryResult = db_query($sqlProfile, $iUserId);
+	$aDetails = array();
+
+	while ($oDetails = db_fetch_object($oQueryResult)){
+		$aDetails[$oDetails->name] = $oDetails->value;
+	}
+	mysqli_free_result($oQueryResult);
+
+	return $aDetails;
+}
+
+function _volunteer_get_name($iUserId, $sDefaultName){
+	$aProfile = _volunteer_get_details($iUserId);
+	$sUserName = ($aProfile["profile_first_name"] != "") ? $aProfile["profile_first_name"]:$sDefaultName;
+
+	return $sUserName;
+}
+
+function _volunteer_check_type($iUserId){
+	$sqlType = "SELECT uid, type FROM {volunteer_optin} WHERE uid = %d";
+	$oType = db_query($sqlType, $iUserId);
+	$aType = array();
+
+	while ($oThis = db_fetch_object($oType)){
+		$aType[] = $oThis->type;
+	}
+	mysqli_free_result($oType);
+
+	return $aType;
+}
+
+function _volunteer_in_array($sNeedle, $aHaystack){
+	foreach ($aHaystack as $sReference){
+		if (strstr($sReference, "*")){
+			if (stristr($sNeedle, str_replace("*", "", $sReference))) return true;
+		}else{
+			return ($sNeedle == $sReference);
+		}
+	}
+
+	return false;
+}
+
+function volunteer_register() {
+	module_load_include('inc', 'user', 'user.pages');
+	return drupal_get_form('user_register');
+}
+
+function volunteer_form_alter(&$form, &$form_state, $form_id) {
+	$flds["I. Personal Info"] = array(
+									"profile_lives_with"
+								);
+
+	$flds["II. Misc Information"] = array(
+									"profile_reading_ability",
+									"profile_language",
+									"profile_talents",
+									"profile_favorites",
+									"profile_school",
+									"profile_grade",
+									"profile_illness",
+									"profile_disability",
+									"profile_parent",
+									"profile_parent_job",
+									"profile_parent_job_desc",
+									"profile_parent_income",
+									"profile_parent_email",
+								);
+
+	$flds["Admin Information"] = array(
+									"profile_truecafe"
+								);
+
+	if ($_GET["q"] == "volunteer/register" && ($form_id == 'user_register' || $form_id == 'user_profile_form' || $form_id == 'user_edit')) {
+   		foreach ($flds as $categ => $val) {
+			foreach ($val as $fld) {
+				unset($form[$categ][$fld]);
+			}
+		}
+
+		$sJavaScript = '$(document).ready(
+							function(){
+								$("fieldset").find("legend").slice(1,2).parent().hide();
+								$("fieldset").find("legend").slice(3,4).parent().hide();
+							}
+						)';
+
+		drupal_add_js($sJavaScript, 'inline');
+   	}
+}
+function volunteer_tutoring_explain(){
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer")
+				);
+
+	drupal_set_breadcrumb($aTrail);
+
+	return drupal_eval(load_vtemplate('page-instanttutoring'));
+}
+
+function volunteer_cybrarian_hopeteam(){
+	$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer")
+				);
+
+	drupal_set_breadcrumb($aTrail);
+
+	return load_vtemplate('page-cybrarianhopeteam');
+}
+
+function volunteer_cybrarian_select(){
+global $user;
+
+    $checkExist = db_query("SELECT count(uid) as count FROM cybrarian_optin where uid = '{$user->uid}' AND activate = 1");
+	$existActivateCount = db_fetch_object($checkExist);
+	mysqli_free_result($checkExist);
+
+	$checkNTActExist = db_query("SELECT count(uid) as count FROM cybrarian_optin where uid = '{$user->uid}' AND activate = 0");
+	$existNotActivateCount = db_fetch_object($checkNTActExist);
+	mysqli_free_result($checkNTActExist);
+
+	if($existActivateCount->count > 0){
+	 //header('Location: http://visitor.firsthopecorps.org/mystudies/getinvolved/cybrarian') ;
+	 header('Location: ' . base_path() . 'mystudies/getinvolved/cybrarian') ;
+	}
+
+	if($existNotActivateCount->count > 0){
+	// header('Location: http://visitor.firsthopecorps.org/mystudies/getinvolved/cybrarianteam');
+	 header('Location: ' . base_path() . 'mystudies/getinvolved/cybrarianteam');
+	}
+
+	/*
+	drupal_set_breadcrumb(array(l("Home", "<front>"), l("Cybrarian and Hope Team Volunteers", "mystudies/getinvolved/cybrarian-hopeteam-volunteers")));
+    */
+
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "mystudies/getinvolved/volunteer"),
+			l("Cybrarian and Hope Team Volunteers", "mystudies/getinvolved/cybrarian-hopeteam-volunteers")
+		)
+	);
+
+	$sHtml .= '<div id="cbrect">
+					<div class="cb">
+						<div class="bt">
+							<div></div>
+						</div>
+						<div class="i1">
+							<div class="i2">
+								<div class="i3">
+									<div class="left-border">
+										<div class="right-border">
+										<table width="980" border="0" cellspacing="0" cellpadding="2">
+											  <tr>
+												<td width="310" align="center" valign="top">
+													<img class="border_img" src="' . base_path() . path_to_theme() . '/images/gi_ramon.gif" border="0" />
+												</td>
+												<td valign="top">
+													<h4>Volunteering as a Cybrarian</h4><br />
+													This page is under construction.
+												</td>
+											  </tr>
+											</table></div>';
+
+	$sHtml .= '<div style="padding-top:12px;padding-left:12px;">To enroll as a Cybrarian, please choose an elementary school from the dropdown menu below and click the Enroll Now button.';
+
+		$sHtml .= '<div><br/>
+					<form action="" method="post">
+					<select id="schoolselect">
+						<option value=""></option>
+						<option value="Maximo Estrella Elementary School">Maximo Estrella Elementary School</option>
+						<option value="Francisco Benitez Elementary School">Francisco Benitez Elementary School</option>
+						<option value="Jose Magsaysay Elementary School">Jose Magsaysay Elementary School</option>
+					</select> <br/><br/>
+					<input type="submit" name="enrollsubmit" id="enrollsubmit" value="Enroll Now" style="background: none repeat scroll 0 0 #ffffff;border: 1px solid #CCCCCC;color: #161616;margin: 0 0 12px;padding: 4px;"/>
+					</form>
+					</div>
+				</div>';
+
+	$sHtml .= '</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="bb">
+							<div></div>
+						</div>
+					</div>
+				</div>';
+
+	$sJavaScript = '$(document).ready(
+						function(){
+							$("#enrollsubmit").click(
+								function(){
+									var schoolval = $("#schoolselect").val();
+									$("#enrollsubmit").attr("value", "Wait..");
+									$("#enrollsubmit").attr("disabled", true);
+									if(schoolval != ""){
+										$.post(
+											"' . base_path() . 'volunteer/cybrarianoptin/" + schoolval,
+											{ func: "" },
+											function(sReply){
+												var oReturn = sReply.RETURN;
+												if(oReturn == "success"){
+												$("#enrollsubmit").attr("value", "Success! Pls wait for redirection..");
+												$("#enrollsubmit").attr("disabled", true);
+												window.location.replace("' . base_path() . 'mystudies/getinvolved/cybrarianteam");
+												} else{
+												$("#enrollsubmit").attr("value", "Enroll Now");
+												$("#enrollsubmit").attr("disabled", false);
+												alert("An error occured in the database. Please click enroll again");
+												}
+											},
+											"json"
+										);
+									} else{
+										alert("Please select an elementary school");
+									}
+									return false;
+								}
+							);
+						}
+					)';
+
+	drupal_add_js($sJavaScript, 'inline');
+
+	return $sHtml;
+}
+
+function volunteer_cybrarian_Team(){
+global $user;
+/*
+	$checkExist = db_query("SELECT count(uid) as count FROM hope_teamusers where uid = '{$user->uid}'");
+	$existActivateCount = db_fetch_object($checkExist);
+
+	if($existActivateCount->count > 0){
+	 header('Location: http://visitor.firsthopecorps.org/mystudies/getinvolved/cybrarian') ;
+	}*/
+/*
+drupal_set_breadcrumb(array(l("Home", "<front>"), l("Cybrarian and Hope Team Volunteers", "mystudies/getinvolved/cybrarian-hopeteam-volunteers")));
+*/
+$aTrail = array(
+					l("Home", "mystudies/getinvolved/volunteer"),
+					l("Cybrarian and Hope Team Volunteers", "mystudies/getinvolved/cybrarian-hopeteam-volunteers")
+				);
+	drupal_set_breadcrumb($aTrail);
+	$sHtml .= '<div id="cbrect">
+					<div class="cb">
+						<div class="bt">
+							<div></div>
+						</div>
+						<div class="i1">
+							<div class="i2">
+								<div class="i3">
+									<div class="left-border">
+										<div class="right-border">
+										<table width="980" border="0" cellspacing="0" cellpadding="2">
+											  <tr>
+												<td width="210" align="center" valign="top">
+													<img class="border_img" src="' . base_path() . path_to_theme() . '/images/gi_ramon.gif" border="0" />
+												</td>
+												<td valign="top">
+													<div><h4>Volunteering as a Cybrarian</h4><br />
+													<span style="color:blue;font-size:16px;"><b>You have enrolled as a volunteer cybrarian.</b></span><br/><br/>
+													<span style="font-size:14px;">Your next step is to join a volunteer team or we can choose a team for you.</span><br/><br/><br/>
+													<div><b style="color:#000;">Volunteer Unit Organization</b></div>
+													<span style="color:#000;">The Offline Volunteer teams are formed into units that are similar in structure to the hopefuls team organization. The
+													basic building block unit of the Volunteer Corps is the team. The volunteer teams are organized by city and school.
+													Each school has a number of teams dependent upon the size of the school that they need to support.<br/><br/>
+													Each school volunteer team is manned by 12 volunteers. The teams are part of the unit called the "Volunteer Troop."
+													There are up to four teams per troop and they are listed as the Red - Team, Blue - Team, White -  Team, and Gold - Team.
+													If more than 4 teams are required to support a school then an additional troop is created.</span>
+													</div>
+												';
+
+											$sHtml .= _volunteer_cybrarian_heirarchy();
+	$sHtml .= '
+													<div style="height:50px;clear:both;">&nbsp;</div>
+			';
+
+	$sHtml .= '										<div><b style="color:#000;">Volunteer Unit Assignment</b></div>
+													<span style="color:#000;">You may request assignment to the volunteer team of your choice or we will choose the team for you. You may also
+													request reassignmentto another team. We will do our best tot honor your request for team assignment, however we may not
+													be able to assign to you desired team due to reason such as the team already being at maximum capacity, or for other
+													reasons.
+
+													If you have already beed assigned to a team you may click the button below to view your assignment. If you have not
+													yet been assigned to a team you may request assignment by clicking the button below.</span></div>
+			';
+
+	$sHtml .= '
+												<div style="clear:both;width:90%;padding-top:20px;">
+													<div style="float:left;"><input id="choose_team_button" class="ka_button" type="button" value="I want to choose a team" name="choose_team_button" onclick="chooseaTeam();" style="background: none repeat scroll 0 0 #ffffff;border: 1px solid #CCCCCC;color: #161616;margin: 0 0 12px;padding: 4px;"/></div>
+													<div style="float:right;"><input id="choose_team_for_me_button" class="ka_button" type="button" value="Please choose a team for me" name="choose_team_for_me_button" onclick="chooserandomteam();" style="background: none repeat scroll 0 0 #ffffff;border: 1px solid #CCCCCC;color: #161616;margin: 0 0 12px;padding: 4px;"/></div>
+												</div>
+												</td>
+											</tr>
+										  </table></div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="bb">
+							<div></div>
+						</div>
+					</div>
+				</div>';
+
+	return $sHtml;
+}
+
+function _volunteer_cybrarian_heirarchy($aFromcommunity = false){
+	global $user;
+
+	$theme_imgpath = base_path() . path_to_theme() . '/images/';
+
+	//$sql_schoolname = db_result(db_query("SELECT school FROM cybrarian_optin where uid = '{$user->uid}'"));
+	//$sql_schoolwing_id = db_result(db_query("SELECT B.wing_id FROM hope_group A LEFT JOIN hope_wing B ON B.group_id = A.group_id WHERE A.group_name = '{$sql_schoolname}' AND A.div_id = 2"));
+
+	$sHtml = '<div style="padding-top:40px;">';
+
+	/*
+	if($sql_schoolwing_id !== NULL){
+	$pageDisplay = 'true';
+	} else{
+	$pageDisplay = 'false';
+	}*/
+
+	$sHtml .= '<div style="float:left;width:280px;height:60px;background-color:yellow;border:1px solid #b3b3b3;padding-top:5px;padding-left:5px;color:#000;font-size:11px;">
+						Click the city and school in the dropdown box to see the existing volunteer units.<br/>';
+
+	$arr_schools = array("Jose Magsaysay Elementary School","Francisco Benitez Elementary School","Maximo Estrella Elementary School");
+
+	$sHtml .= '<select id="Selectbycityteams" onchange="teamsselectbyschools_volunteer(this.value);" style="font-size:11px;">
+						<option value="">Click City -></option>
+						<option value="">->Makati</option>';
+
+						foreach($arr_schools as $schoolname){
+							if('Maximo Estrella Elementary School' == $schoolname){
+							$selected = 'selected';
+							} else{
+							$selected = '';
+							}
+							$sHtml .= '<option value="'.$schoolname.'" '.$selected.'>--->'.$schoolname.'</option>';
+						}
+	$sHtml .= '</select>';
+
+	$sHtml .= '</div>';
+
+
+	$sHtml .= '<div style="float:left;width:30px;">&nbsp;</div>
+				<div style="text-align:center;float:left;width:250px;height:50px;background-color:#1ef102;color:#000;padding-top:12px;" id="group_name_teams">
+					<b>Maximo Estrella Elementary School</b><br/>
+					Volunteer Organization
+				</div>';
+
+	//if($pageDisplay == 'true'){ // start page display
+
+	$sHtml .= '	<div id="coming_soonmsg" style="clear:both;display:none;height:200px;padding-top:80px;">
+					<center><span style="color:red;"><b>Coming Soon..</b></span></center>
+				</div>
+				<div id="heirarchy_menu">
+				<div style="clear:both;">
+					<div style="float:left;width:300px;">&nbsp;</div>
+					<div>
+						<img src="'.$theme_imgpath.'z_line1.gif" />
+						<img src="'.$theme_imgpath.'z_line2.gif" />
+						<img src="'.$theme_imgpath.'z_line3.png" />
+						<img src="'.$theme_imgpath.'z_line4.gif" />
+			        </div>
+			   </div>';
+
+	$sHtml .= '<div style="clear:both;">
+				<div align="center" style="padding-left:250px;">';
+	$sqlTroop = "SELECT A.troop_id, A.troop_name
+				FROM hope_troop A
+				WHERE A.wing_id = %d";
+
+	$oTroopResult = db_query($sqlTroop, 9);
+	$counttroop = 1;
+
+	while ($oTroop = db_fetch_object($oTroopResult)){
+		$arr_troopname = explode(' ',$oTroop->troop_name);
+		$troopcolor = strtolower($arr_troopname[0]);
+		$troopcolorfont = $troopcolor == 'blue' ? 'white': 'black';
+		$sHtml .= '<div style="border:1px solid #b3b3b3;float:left;width:100px;height:50px;color:'.$troopcolorfont.';background-color:'.$troopcolor.';">
+						<a href="javascript:void(0);" onclick="change_troopteams_volunteer(\''.$oTroop->troop_id.'\',\''.'troop'.'\',\''.$counttroop.'\');" >
+							<b style="color:'.$troopcolorfont.';">'.$oTroop->troop_name.'</b>
+						</a><br/>
+						'.calculateTeam('troop',$oTroop->troop_id).' Member(s)
+					</div>
+					<div style="float:left;width:10px;">
+						&nbsp;
+					</div>';
+		$counttroop++;
+	}
+	mysqli_free_result($oTroopResult);
+	$sHtml .= '</div>';
+
+	if($aFromcommunity == true){
+		$sHtml .= '<div style="clear:both;">
+					<div style="float:left;width:70px;">&nbsp;</div>
+					<div style="padding-left:300px;"><div id="teams_lines"><img src="'.$theme_imgpath.'z_level3line'.'4'.'.gif" /></div></div>
+					<div style="float:left;width: 160px;" align="right"><div><img src="'.$theme_imgpath.'team_info.gif" /></div></div>
+					<div><div style="float:left;width:0px;">&nbsp;</div><div style="padding-left:300px;;"><img src="'.$theme_imgpath.'z_level3line.png" /></div></div>
+				   </div>';
+	}else{
+		$sHtml .= '<div style="clear:both;">
+					<div style="float:left;width:300px;">&nbsp;</div>
+					<div><div id="teams_lines"><img src="'.$theme_imgpath.'z_level3line'.'4'.'.gif" /></div></div>
+					<div style="float:left;width:230px;" align="right"><div><img src="'.$theme_imgpath.'team_info.gif" /></div></div>
+					<div><div style="float:left;width:70px;">&nbsp;</div><img src="'.$theme_imgpath.'z_level3line.png" /></div>
+				   </div>';
+	}
+
+	$sHtml .= '<div id="teams_div"><div align="center" style="padding-left:230px;">';
+
+	$sqlTeam = "SELECT A.kickappsteam_id, A.team_name, A.team_color, A.team_type, A.troop_id
+					FROM hope_team A
+					WHERE troop_id = %d";
+	$oTeamResult = db_query($sqlTeam, 12);
+
+	while ($oTeam = db_fetch_object($oTeamResult)){
+		$arr_teamname = explode(' ',$oTeam->team_name);
+		$teamcolor = strtolower($arr_teamname[0]);
+		$teamcolorfont = $teamcolor == 'blue' ? 'white': 'black';
+				$sHtml .= '<div style="border:1px solid #b3b3b3;float:left;width:100px;height:40px;color:'.$teamcolorfont.';background-color:'.$teamcolor.';">
+							<a href="javascript:void(0);" onclick="open_troopteams(\''.$oTeam->kickappsteam_id.'\');">
+								<b style="color:'.$teamcolorfont.';">'.$oTeam->team_name.'</b>
+							</a><br/>'.calculateTeam('team',$oTeam->kickappsteam_id).' Member(s)
+							</div>
+							<div style="float:left;width:10px;">&nbsp;</div>';
+	}
+	mysqli_free_result($oTeamResult);
+
+	$sHtml .= '</div>';
+	/*
+	} else{ // end page display
+
+		$sHtml .= '<div style="clear:both;height:200px;padding-top:80px;">
+					<center><span style="color:red;"><b>Coming Soon..</b></span></center>
+				   </div>';
+	}*/
+
+	$sHtml .= '</div>
+			</div>
+		 </div> ';
+
+	 $sHtml .= '
+		<div id="view_kickapps_volunteer_Dialog" title="Volunteer Display" style="display:none;">
+			<!--<div id="hc_HopefulProfileContainer" style="display:none;">
+			<div id="hc_HopefulProfileContainerClose" style="text-align:right; cursor:pointer; font-family:verdana; padding:5px 5px 5px 0; color:maroon; font-weight:bold; background-color:#F8F8F8;">[close this]</div>
+			-->
+			<iframe id="hc_HopefulProfile23" src="" width="828" height="451" border="0"></iframe>
+			<!--</div>-->
+		</div>
+		<div id="team_Dialog" title="Volunteer Team" style="display:none;">
+			<div id="team_Dialog_output">&nbsp;</div>
+		</div>
+		<div id="teamchoose_Dialog" title="I want to choose a team" style="display:none;">
+			<div align="center" style="width:80%;">
+			To Choose a Team, please select a school and a team from the drop down menus
+			and click the "Join Now" button
+			</div>
+			<div id="teamchoose_Dialog_output">&nbsp;</div>
+		</div>
+		';
+
+	return $sHtml;
+}
+
+// This function was extracted from the KickApps module.
+function calculateTeam($type, $id){
+	switch($type){
+		case 'team':
+			$sqlSelectedTeamDetails = "SELECT count(A.team_userid) as count
+								FROM hope_teamusers A
+								LEFT JOIN hope_team B ON B.kickappsteam_id = A.team_id
+								LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+								LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+								LEFT JOIN hope_group E ON E.group_id = D.group_id
+								WHERE A.team_id = %d";
+
+			$oSelectedTeamResult = db_query($sqlSelectedTeamDetails, $id);
+			$res = db_fetch_object($oSelectedTeamResult);
+			mysqli_free_result($oSelectedTeamResult);
+
+			break;
+
+		case 'troop':
+			$sqlSelectedTeamDetails = "SELECT count(A.team_userid) as count
+										FROM hope_teamusers A
+										LEFT JOIN hope_team B ON B.kickappsteam_id = A.team_id
+										LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+										WHERE C.troop_id = %d";
+
+			$oSelectedTeamResult = db_query($sqlSelectedTeamDetails, $id);
+			$res = db_fetch_object($oSelectedTeamResult);
+			mysqli_free_result($oSelectedTeamResult);
+
+			break;
+
+		case 'wing':
+			$sqlSelectedTeamDetails = "SELECT count(A.team_userid) as count
+										FROM hope_teamusers A
+										LEFT JOIN hope_team B ON B.kickappsteam_id = A.team_id
+										LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+										LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+										WHERE D.wing_id = %d";
+
+			$oSelectedTeamResult = db_query($sqlSelectedTeamDetails, $id);
+			$res = db_fetch_object($oSelectedTeamResult);
+			mysqli_free_result($oSelectedTeamResult);
+
+			break;
+	}
+
+	return $res->count;
+}
+
+function volunteer_troop_teams($id, $type, $coltroop){
+	global $user;
+
+	$troopid = $id;
+
+	$theme_imgpath = base_path() . path_to_theme() . '/images/';
+
+	$sOutput = '<div align="center" style="padding-left:130px;">';
+	$sqlTeam = "SELECT A.kickappsteam_id, A.team_name, A.team_color, A.team_type, A.troop_id
+					FROM hope_team A
+					WHERE troop_id = %d";
+	$oTeamResult = db_query($sqlTeam, $troopid);
+	$colteam = 0;
+	while ($oTeam = db_fetch_object($oTeamResult)){
+	$arr_teamname = explode(' ',$oTeam->team_name);
+	$teamcolor = strtolower($arr_teamname[0]);
+	$teamcolorfont = $teamcolor == 'blue' ? 'white': 'black';
+	$sOutput .= '<div style="border:1px solid #b3b3b3;float:left;width:100px;height:60px;color:'.$teamcolorfont.';background-color:'.$teamcolor.';"><a href="javascript:void(0);" onclick="open_troopteams(\''.$oTeam->kickappsteam_id.'\');"><b style="color:'.$teamcolorfont.';">'.$oTeam->team_name.'</b></a><br/>'.calculateTeam('team',$oTeam->kickappsteam_id).' Member(s)</div><div style="float:left;width:10px;">&nbsp;</div>';
+	$colteam++;
+	}
+	mysqli_free_result($oTeamResult);
+	$sOutput .= '</div>';
+
+	$sLines = '<div id="teams_lines"><img src="'.$theme_imgpath.'z_level3line'.$coltroop.'.gif" /></div>';
+
+	echo json_encode(array("OUTPUT" => $sOutput, "LINES" => $sLines));
+}
+
+function volunteer_chooserandom_team(){
+global $user;
+
+	$sqlTeam = "SELECT B.kickappsteam_id
+				FROM hope_team B
+				LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+				LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+				LEFT JOIN hope_group E ON E.group_id = D.group_id
+				WHERE E.group_id = '17'
+				ORDER BY RAND() LIMIT 1";
+
+	$oTeamResult = db_query($sqlTeam);
+    $oTeam = db_fetch_object($oTeamResult);
+	mysqli_free_result($oTeamResult);
+	$teamid = $oTeam->kickappsteam_id;
+
+	$sqlInsert = "INSERT INTO {hope_teamusers} VALUES(NULL, '{$teamid}', '{$user->uid}', '0', NULL)";
+	db_query($sqlInsert);
+
+	$sqlUpdate = "UPDATE cybrarian_optin
+					SET
+					activate = 1
+					WHERE uid = %d";
+
+	db_query($sqlUpdate, $user->uid);
+
+echo json_encode(array("STATUS" => 1));
+}
+
+function volunteer_saveteambyschool_team($teamid){
+global $user;
+
+	$sqlCheck= "SELECT count(team_userid)
+				FROM hope_teamusers
+				WHERE uid = %d";
+	$oCheckExist = db_result(db_query($sqlCheck, $user->uid));
+
+	$teamname = '';
+	$schoolname = '';
+	if($oCheckExist !== '1'){
+		$sqlInsert = "INSERT INTO {hope_teamusers} VALUES(NULL, '{$teamid}', '{$user->uid}', '0', NULL)";
+		db_query($sqlInsert);
+
+		$sqlUpdate = "UPDATE cybrarian_optin
+					SET
+					activate = 1
+					WHERE uid = %d";
+
+		db_query($sqlUpdate, $user->uid);
+
+		$sqlSchool = "SELECT B.team_name, E.group_name
+					FROM hope_team B
+					LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+					LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+					LEFT JOIN hope_group E ON E.group_id = D.group_id
+					WHERE B.kickappsteam_id = '{$teamid}'";
+		$oTeamSchoolResult = db_query($sqlSchool);
+		$oSchool = db_fetch_object($oTeamSchoolResult);
+		mysqli_free_result($oTeamSchoolResult);
+		$teamname = $oSchool->team_name;
+		$schoolname = $oSchool->group_name;
+	}
+
+	echo json_encode(array("STATUS" => $oCheckExist, "TEAM" => $teamname, "SCHOOL" => $schoolname));
+}
+
+function volunteer_changeteambyschool_team($groupid){
+
+	$sqlSchool = "SELECT B.kickappsteam_id, B.team_name, C.troop_id, C.troop_name
+					FROM hope_team B
+					LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+					LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+					LEFT JOIN hope_group E ON E.group_id = D.group_id
+					WHERE E.group_id = %d";
+
+	$oTeamSchoolResult = db_query($sqlSchool, $groupid);
+	$sOutput = '';
+
+	while ($oSchool = db_fetch_object($oTeamSchoolResult)){
+    $sOutput .= '<option value='.$oSchool->kickappsteam_id.'>'.$oSchool->troop_name.'->'.$oSchool->team_name.'</option>';
+	}
+	mysqli_free_result($oTeamSchoolResult);
+
+	echo json_encode(array("OUTPUT" => $sOutput));
+}
+
+function volunteer_choose_team(){
+
+	$sOutput = '<div style="padding-top:12px;">
+				<select id="school_choose" onchange="changeTeambySchool(this.value);">
+				<option value="">Select School</option>
+				<option value="18">Jose Magsaysay Elementary School</option>
+				<option value="19">Francisco Benitez Elementary School</option>
+				<option value="17">Maximo Estrella Elementary School</option>
+				</select>
+				</div>
+				<div style="padding-top:12px;">&nbsp;</div>';
+
+	$sOutput .= '<div>
+				<select id="team_choose">
+				<option value="">teams will show here</option>
+				</select>
+				</div>
+				<div style="padding-top:12px;"><span id="statusMessageteam"></span></div>
+				<div style="padding-top:12px;">
+				<input type="button" id="chooseteamjoinnow" name="chooseteamjoinnow" value="Join Now" onClick="chooseteamjoinnow();"/>
+				</div>
+				';
+
+	echo json_encode(array("OUTPUT" => $sOutput));
+}
+
+function volunteer_view_team($kickappsteam_id){
+$theme_imgpath = base_path() . path_to_theme() . '/images/';
+$sOutput = '';
+$sOutput .= '<link rel="stylesheet" type="text/css" href="' . base_path() . path_to_theme() . '/style.css" />';
+
+	$sqlSelectedTeamDetails = "SELECT B.kickappsteam_id, B.team_name, C.troop_id, C.troop_name, D.wing_id, D.wing_name, E.group_id, E.group_name
+					    FROM hope_team B
+						LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+						LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+						LEFT JOIN hope_group E ON E.group_id = D.group_id
+						WHERE B.kickappsteam_id = '{$kickappsteam_id}'";
+
+	$oSelectedTeamResult = db_query($sqlSelectedTeamDetails);
+	$oSelected = db_fetch_object($oSelectedTeamResult);
+	mysqli_free_result($oSelectedTeamResult);
+	$skickappsteam_id = $oSelected->kickappsteam_id;
+	$steam_name = $oSelected->team_name;
+	$arrsteam_name = explode(' ', $steam_name);
+	$strteam_colr = strtolower($arrsteam_name[0]);
+	$strteam_fontcolr = $strteam_colr == 'blue' ? 'white' : 'black';
+	$stroop_id = $oSelected->troop_id;
+	$stroop_name = $oSelected->troop_name;
+	$swing_id = $oSelected->wing_id;
+	$swing_name = $oSelected->wing_name;
+	$sgroup_id = $oSelected->group_id;
+	$sgroup_name = $oSelected->group_name;
+
+	switch($strteam_colr){
+	case 'red': $meetallbutton = 'meet_allredteamvolunteers.gif'; break;
+	case 'blue': $meetallbutton = 'meet_allblueteamvolunteers.gif'; break;
+	case 'white': $meetallbutton = 'meet_allwhiteteamvolunteers.gif'; break;
+	case 'gold': $meetallbutton = 'meet_allgoldteamvolunteers.gif'; break;
+	}
+
+	$sOutput .= '<div style="width:700px;border:1px solid #b3b3b3;"><div style="background-color:#cecece;margin: 0; height:30px;">&nbsp;<b>'.$steam_name.' > '.$stroop_name.' > '.$sgroup_name.' - <b id="incybrary_block_title">Welcome!</b></div>
+															<div class="jboxbody">
+																<div class="jboxcontent">
+																	<table width="100%" border="0" cellspacing="0" cellpadding="0" class="meet_info">
+																		<tr>
+																			<td width="350" valign="top" style="padding-top:5px;">
+																				<div style="float:left;"><div style="border:1px solid #b3b3b3;float:left;width:180px;height:50px;font-size:26px;padding-top:20px;background-color:'.$strteam_colr.';"><center><b style="color:'.$strteam_fontcolr.'">'.$steam_name.'</b></center></div></div>
+																				<div style="float:left;">&nbsp;</div>
+																				<div style="float:left;" style="font-size:12px;"><b>'.$steam_name.'</b><br/><b style="font-size:12px;">Kindness Hours:</b> <label id="kindnesstotaltext" style="font-size:12px;"></label><br/><b style="font-size:12px;">Team Members:</b> <label id="teammemberstotaltext" style="font-size:12px;"></label></div>
+																			</td>
+																			<td style="padding-top:5px;">
+																				<div style="float:left;"><img id="incybrary_avatar" src="" style="cursor:pointer;"/></div>
+																				<div style="float:left;">&nbsp;</div>
+																			    <div style="float:left;">
+																				<div id="incybrary_hopeful_details"></div>
+																				</div>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td colspan="2"><hr style="padding-top:20px; width:100%" class="divider" /></td>
+																		</tr>
+																		<tr>
+																			<td colspan="2">
+																				<table width="100%" border="0" cellspacing="0" cellpadding="2" style="float: left;padding: 5px;text-align: center;">
+																				  <tr>
+																					<td style="width:160px;padding-left:5px;">
+																						<a id="button_children_online" href="javascript:void(0);" onclick="button_children_online();"><img src="'.$theme_imgpath.'meet_inthecybrarynow.gif" border="0" /></a><br />
+																						<a id="button_children_24" href="javascript:void(0);" onclick="button_children_24();"><img src="'.$theme_imgpath.'meet_inthelast24.gif" border="0" /></a><br />
+																						<a id="button_children_all" href="javascript:void(0);" onclick="button_children_all();"><img src="'.$theme_imgpath.$meetallbutton.'" border="0" /></a><br />
+																					</td>
+																					<td align="center">
+																						<div id="incybrary_hopeful_list"></div>
+																					</td>
+																				  </tr>
+																				</table>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td colspan="2"><hr style="width:100%" class="divider" /></td>
+																		</tr>
+																		<tr>
+																			<td colspan="2" align="right" class="pager">
+																				<!--Pages : <a href="#">1</a> | <a href="#">2</a> | <a href="#">3</a> | -->
+																				<div id="incybrary_hopeful_nav"></div>
+																				<input type="hidden" id="teamid" name="teamid" value="'.$kickappsteam_id.'" />
+																				<!--incybrary_hopeful_nav-->
+																			</td>
+																		</tr>
+																	</table>
+																</div>
+															</div>
+														</div>';
+
+
+	echo json_encode(array("OUTPUT" => $sOutput));
+}
+
+function volunteer_cybrarian_select_save($school){
+	global $user;
+
+	$sqlInsert = "INSERT INTO users_roles VALUES('{$user->uid}', 19)";
+	db_query($sqlInsert);
+
+	$sqlInsert = "INSERT INTO cybrarian_optin VALUES(NULL, '{$user->uid}', '{$school}', NULL, NULL, 0, NULL, 0, 0, 0)";
+	db_query($sqlInsert);
+	$last_id = db_last_insert_id('cybrarian_optin', 'cyb_id');
+
+	if($last_id > 0){
+	exit(json_encode(array("RETURN" => 'success')));
+	} else{
+	exit(json_encode(array("RETURN" => 'failed')));
+	}
+}
+
+function _volunteer_cybrarian_total_position_available($iCybSchoolID, $iCybSchoolName){
+	global $user;
+
+	$SQLallPosition = db_query("SELECT cybpos_name, max_available FROM {cybrarian_positions} WHERE cybschool_id = '".$iCybSchoolID."'");
+	$arr_position = array();
+
+	$totalcount = 0;
+	while($oPosition = db_fetch_object($SQLallPosition)){
+	$intTakenPosition = db_result(db_query("SELECT count(cyb_id) FROM {cybrarian_optin} WHERE position = '".strtolower($oPosition->cybpos_name)."' AND school = '".$iCybSchoolName."'"));
+
+	if($intTakenPosition < $oPosition->max_available){
+	$countpos = $oPosition->max_available - $intTakenPosition;
+	} else{
+	$countpos = 0;
+	}
+
+	$totalcount += $countpos;
+	}
+	mysqli_free_result($SQLallPosition);
+
+	return $totalcount;
+}
+
+function volunteer_cybrarian_dashboard(){
+    global $user, $iCybraryPositionCount, $iHopePoints, $iHoursRequest, $iAssignedCoordinators, $iCybSchoolID, $iCybSchoolName, $iHoursperWeekAssigned, $iKindness_Approved, $iKindness_Hours;
+
+	$accountExist = db_result(db_query("SELECT cyb_id FROM cybrarian_optin WHERE uid = '{$user->uid}'"));
+	if(!$accountExist){
+		drupal_goto("user/".$user->uid);
+	}
+
+	$SQLuser_option = "SELECT volunteer_hours, if(coordinator = 0, 0, 1) as coordinator, coordinator as assignedcoordinator, volunteer_hours_assigned FROM cybrarian_optin WHERE uid = '{$user->uid}' GROUP BY coordinator";
+	$oSql_option = db_query($SQLuser_option);
+	$oSelected = db_fetch_object($oSql_option);
+	mysqli_free_result($oSql_option);
+	$iHopePoints = userpoints_get_current_points($user->uid, "all");
+	$iHoursRequest = $oSelected->volunteer_hours;
+	$iAssignedCoordinators = $oSelected->coordinator;
+	$iHoursperWeekAssigned = $oSelected->volunteer_hours_assigned;
+
+	$oSQLSchool = db_query("SELECT B.id, B.school_name FROM cybrarian_optin A LEFT JOIN cybrarian_schools B ON B.school_name = A.school WHERE A.uid = '{$user->uid}'");
+	$oSchool = db_fetch_object($oSQLSchool);
+	mysqli_free_result($oSQLSchool);
+	$iCybSchoolID = $oSchool->id;
+	$iCybSchoolName = $oSchool->school_name;
+	$iCybraryPositionCount = _volunteer_cybrarian_total_position_available($iCybSchoolID, $iCybSchoolName);
+
+	$sqlSchool = "SELECT B.team_name, E.group_name
+					FROM hope_teamusers A
+					LEFT JOIN hope_team B ON B.kickappsteam_id = A.team_id
+					LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+					LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+					LEFT JOIN hope_group E ON E.group_id = D.group_id
+					WHERE A.uid = '{$user->uid}'";
+
+	$oTeamSchoolResult = db_query($sqlSchool);
+	$oSchool = db_fetch_object($oTeamSchoolResult);
+	mysqli_free_result($oTeamSchoolResult);
+	$teamname = $oSchool->team_name;
+
+	$assignedcoordinator = $oSelected->assignedcoordinator;
+	$aStats = _volunteer_master_admin_offline_stat($user->uid);
+	$iKindness_Approved = $aStats['iKindnessApproved'];
+	$iKindness_Hours = $aStats['isKindnessHours'];
+
+	/*
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "<front>"),
+			l("Get Involved", "mystudies/getinvolved"),
+			l("Volunteer", "mystudies/getinvolved/volunteer"),
+			l("Cybrarian Dashboard", "mystudies/getinvolved/cybrarian")
+		)
+	);*/
+
+	drupal_set_breadcrumb(
+		array(
+			l("Home", "mystudies/getinvolved/volunteer"),
+			l("Cybrarian Dashboard", "mystudies/getinvolved/cybrarian")
+		)
+	);
+
+	if($_GET['redirect'] == 1){
+	 header('Location: ' . base_path() . 'mystudies/getinvolved/cybrarian#top');
+	}
+
+	$sqlSchool = "SELECT B.team_name, E.group_name
+					FROM hope_teamusers A
+					LEFT JOIN hope_team B ON B.kickappsteam_id = A.team_id
+					LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+					LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+					LEFT JOIN hope_group E ON E.group_id = D.group_id
+					WHERE A.uid = '{$user->uid}'";
+
+	$oTeamSchoolResult = db_query($sqlSchool);
+	$oSchool = db_fetch_object($oTeamSchoolResult);
+	mysqli_free_result($oTeamSchoolResult);
+	$teamname = $oSchool->team_name;
+	$schoolname = $oSchool->group_name;
+
+	$sOutput .= '<div id="cbrect">
+					<div class="cb">
+						<div class="bt">
+							<div></div>
+						</div>
+						<div class="i1">
+							<div class="i2">
+								<div class="i3">
+									<div class="left-border">
+										<div class="right-border">
+										<table width="980" border="0" cellspacing="0" cellpadding="2">
+											  <tr>
+												<td width="310" align="center" valign="top">
+													<img class="border_img" src="' . base_path() . path_to_theme() . '/images/gi_ramon.gif" border="0" />
+												</td>
+												<td valign="top" style="color:black;">
+													<h4>Volunteeering as a Cybrarian</h4><br />
+													This page is under construction.
+													<br/><br/>
+													<span style="color:black;">You are assigned to the '.$schoolname.' - '.$teamname.'<br/><br/>
+													<b>Reporting days to Cybrary</b></span>
+												</td>
+											  </tr>
+											</table></div>';
+
+
+	$sOutput .= '</div>
+								</div>
+							</div>
+						</div>
+						<div class="bb">
+							<div></div>
+						</div>
+					</div>
+				</div>
+
+				<div id="start_Dialog" title="Start" style="display:none;">
+					<div id="start_Dialog_content"></div>
+					<div id="start_Dialog_content_box" style="display:none;">';
+
+					$int_hours_assigned = db_result(db_query("SELECT volunteer_hours_assigned FROM {cybrarian_optin} WHERE uid = '{$user->uid}'"));
+
+					if($int_hours_assigned !== "0"){
+
+			$sOutput .= '<div id="startStatus" style="display:none;margin:5px;"></div>
+							Choose your role today from the dropdown box below:<br/><br/>
+							<select id="cybrariantitle" name="cybrariantitle">
+								<option value=""></option>';
+
+							$strPosition = db_result(db_query("SELECT position FROM {cybrarian_optin} WHERE uid = '{$user->uid}'"));
+
+							$SQLallPosition = db_query("SELECT cybpos_id, cybpos_name, max_available FROM {cybrarian_positions} WHERE cybschool_id = '".$iCybSchoolID."'");
+							$arr_position = array();
+
+							while($oPosition = db_fetch_object($SQLallPosition)){
+								$intTakenPosition = db_result(db_query("SELECT count(cyb_id) FROM {cybrarian_optin} WHERE position = '".strtolower($oPosition->cybpos_name)."' AND school = '".$iCybSchoolName."'"));
+								if($intTakenPosition < $oPosition->max_available){
+									$arr_position[$oPosition->cybpos_id] = strtolower($oPosition->cybpos_name);
+								} else{
+									$strlowercybpos_name = strtolower($oPosition->cybpos_name);
+									if($strlowercybpos_name == $strPosition){
+									$arr_position[$oPosition->cybpos_id] = strtolower($oPosition->cybpos_name);
+									}
+								}
+							}
+							mysqli_free_result($SQLallPosition);
+
+							foreach($arr_position as $posid => $posname){
+								if($posname == $strPosition){
+									$sOutput .= "<option value='".strtolower($posname)."' selected='selected'>".ucwords($posname)."</option>";
+								} else{
+									$sOutput .= "<option value='".strtolower($posname)."'>".ucwords($posname)."</option>";
+								}
+							}
+
+			$sOutput .= '</select>
+							<br/><br/>
+							Your chosen role today is below if that is correct then click the "SET" button if not then change your role in the dropdown box above.<br/><br/>
+							<input type="image" align="middle" id="change_position_ajax" name="change_position_ajax" src="' . base_path() . path_to_theme() . '/images/btn_blue_set.png" border="0" />
+							<span id="change_position_ajax_loader" style="display:none;"><img src="/misc/button-loader.gif"></span>';
+					} else{
+					$sOutput .= '<div style="padding-top:12px; padding-left:5px;">
+									Please wait while the admin assign hours for you.
+								</div>';
+					}
+	$sOutput .= '
+					</div>
+				</div>
+
+				<div id="stop_Dialog" title="Stop" style="display:none;">';
+
+				$sOutput .= '
+						<div id="stop_Dialog_content_indicator"></div>
+						<div id="stopTime_notactivated" style="padding-top:12px; padding-left:5px;display:none;">
+							You are currently logged-out.
+						</div>
+						<div id="stopTime_confirmation" style="margin:5px;display:none;">
+							<center>Are you sure you want to stop your time?</center><br/>
+							<center><button class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" type="button" role="button" aria-disabled="false" id="stopTimeAgree" />
+							<span class="ui-button-text">Yes</span>
+							</button>
+							&nbsp;&nbsp;&nbsp;&nbsp;
+							<button class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" type="button" role="button" aria-disabled="false" id="stopTimeDisagree" />
+							<span class="ui-button-text">No</span>
+							</button>
+						</div>
+						<div id="stopTime_dialog" style="display:none;">
+							You have stopped your current volunteering session.<br/><br/>
+							<div style="clear:both;width:250px;height:30px;border:1px solid black;">
+								<div style="margin:5px;">
+									<div style="float:left;">Your start time was:</div><div style="float:right;"><label id="final_starttime"></label></div>
+								</div>
+							</div>
+							<div>&nbsp;</div>
+							<div style="clear:both;width:250px;height:30px;border:1px solid black;">
+								<div style="margin:5px;">
+									<div style="float:left;">Your stop time was:</div><div style="float:right;"><label id="final_endtime"></label></div>
+								</div>
+							</div>
+							<div>&nbsp;</div>
+							<div style="clear:both;width:250px;height:30px;border:1px solid black;">
+								<div style="margin:5px;">
+									<div style="float:left;">Your elapsed time is:</div><div style="float:right;"><label id="final_elapsetime"></label></div>
+								</div>
+							</div>
+							<div>&nbsp;</div>
+							<div style="clear:both;width:250px;height:30px;border:1px solid black;">
+								<div style="margin:5px;">
+									<div style="float:left;">Your role was:</div><div style="float:right;"><label id="final_position"></label></div>
+								</div>
+							</div>
+							<div>&nbsp;</div>
+							<div style="clear:both;width:250px;border:1px solid black;"><div style="margin:5px;">Please fill out your Kindness Report by clicking the button below:</div></div>
+							<br/><input type="image" id="cybrarian_kindness_report" src="' . base_path() . path_to_theme() . '/images/btn_kindness_report.gif" border="0" /></div>
+						</div>';
+
+			$sOutput .= '</div>
+				<div id="kindnessreport_Dialog" title="Kindness Report" style="display:none;">
+					<div style="clear:both;width:500px;">
+						<div style="margin:5px;">
+							<input type="hidden" id="activityid" name="activityid" value="'.load_activity("id").'" />
+							<div style="float:left;vertical-align:bottom;">&nbsp;</div><div style="float:right;">
+							Start Time: <label id="fstart"></label><br/>
+							Stop Time: <label id="fstop"></label><br/>
+							Elapsed Time: <label id="felapse"></label>
+							</div>
+							<div style="clear:both;">Title:<br/><input type="text" id="kindnesstitle" value=""/></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;">Description:</div><div style="float:right;">&nbsp;</div>
+							<div style="clear:both;"><textarea id="kindnessdescription" cols="60" rows="7"></textarea></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;">Location:</div><div style="float:right;">&nbsp;</div>
+							<div style="clear:both;"><input type="text" id="kindnesslocation" value="'.$schoolname.'"/></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;"><input type="checkbox" id="kindnesspromised" value="1"/> I promise that all of the information is true.</div>
+							<div style="float:right;"><input type="button" id="kindnesssubmit" value="Submit" style="background: none repeat scroll 0 0 #ffffff;border: 1px solid #CCCCCC;color: #161616;margin: 0 0 12px;padding: 4px;cursor:pointer;"/></div>
+						</div>
+					</div>
+				</div>
+				<div id="kindnessreport_Dialog_edit" title="Edit Kindness Report" style="display:none;">
+					<div style="clear:both;width:500px;">
+						<div style="margin:5px;">
+							<input type="hidden" id="activityid_edit" name="activityid_edit" value="" />
+							<div style="float:left;vertical-align:bottom;">&nbsp;</div><div style="float:right;">
+							Start Time: <label id="fstart_edit"></label><br/>
+							Stop Time: <label id="fstop_edit"></label><br/>
+							Elapsed Time: <label id="felapse_edit"></label>
+							</div>
+							<div style="clear:both;">Title:<br/><input type="hidden" id="kindnesstitle_edit" value=""/><label id="kindnesstitle_edit_label"></label></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;">Description:</div><div style="float:right;">&nbsp;</div>
+							<div style="clear:both;"><textarea id="kindnessdescription_edit" cols="60" rows="7"></textarea><span id="kindnessdescription_edit_span"></span></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="float:left;">Location:</div><div style="float:right;">&nbsp;</div>
+							<div style="clear:both;"><input type="hidden" id="kindnesslocation_edit" value=""/><label id="kindnesslocation_edit_label"></label></div>
+							<div style="clear:both;">&nbsp;</div>
+							<div style="clear:both;display:none;" id="iComment">&nbsp;</div>
+							<div style="float:left;" id="promise_edit"><input type="checkbox" id="kindnesspromised_edit" value="1"/> I promise that all of the information is true.</div>
+							<div style="float:right;"><input type="button" id="kindnesssubmit_edit" value="Update" style="background: none repeat scroll 0 0 #ffffff;border: 1px solid #CCCCCC;color: #161616;margin: 0 0 12px;padding: 4px;cursor:pointer;"/></div>
+						</div>
+					</div>
+				</div>
+				<div id="current_Dialog" title="Current" style="display:none;">
+					<div id="current_Dialog_content"></div>
+				</div>
+				<div id="status_Dialog" title="Kindness Status" style="display:none;">
+					<div id="status_Dialog_content"></div>
+				</div>
+				<div id="convert_Dialog" title="Convert" style="display:none;">';
+
+			$sOutput .= '<input type="hidden" name="iKindnessBalance" id="iKindnessBalance" value="" />
+			        <div id="bank_bucks_notice"></div>
+					<div id="bank_deposit_notice"></div>
+			   <div>&nbsp;</div>
+						<table>
+							<tr>
+								<td style="vertical-align:top;">
+									<div style="width:120px; height: 20px; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:#000; font-weight:bold; padding-left:5px">
+										Kindness Hours:<span style="font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#e5f031; font-weight:bold">*</span>
+									</div>
+									<div style="clear:both; padding:10px 0 10px 10px">
+										<input style="background-color:#fff; border:#ccc solid 1px; width:80px; height: 15px; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#000; margin-bottom: 17px;" id="iTimeToConvert" name="iTimeToConvert" type="text" />
+									</div>
+									<div style="width:200px;padding-left:5px;"><span style="color:#000;font-size:10px;"><b>Amount of Kindness Workz Hours to be converted.
+										Example correct entries: 1. 1.5, 0.25 etc.</b></span></div>
+									<!--<div style="clear:both; padding-left:5px; padding-top:5px">
+										<input id="btnBankDeposit" name="btnBankDeposit" type="button" value="Convert To Valiants" style="cursor:pointer; border:#ccc solid 1px; width:150px; height: 30px; font-family:Arial, Helvetica, sans-serif; font-size:11px; color:#000"/>
+									</div>-->
+									<div id="bank_deposit_status" class="bank-account-content06"></div>
+								</td>
+							</tr>
+						</table>
+				</div>
+				<div id="schedule_Dialog" title="Schedule" style="display:none;">
+					<div id="schedule_Dialog_content"></div>
+				</div>
+				<div id="schedule_respond_Dialog" title="Schedule" style="display:none;">
+					<div id="schedule_respond_Dialog_content"></div>
+				</div>
+				<div id="duties_Dialog" title="Duties" style="display:none;">
+					Coming Soon..
+				</div>
+				<div id="positionDetails_Dialog" title="Cybrary Positions" style="display:none;">';
+	$sOutput .= '<b>Position Details for '.ucwords($iCybSchoolName).':</b><br/><br/>';
+
+				$SQLallPosition = db_query("SELECT cybpos_name, max_available FROM {cybrarian_positions} WHERE cybschool_id = '".$iCybSchoolID."'");
+
+				$totalcount = 0;
+				while($oPosition = db_fetch_object($SQLallPosition)){
+				$intTakenPosition = db_result(db_query("SELECT count(cyb_id) FROM {cybrarian_optin} WHERE position = '".strtolower($oPosition->cybpos_name)."' AND school = '".$iCybSchoolName."'"));
+				$availablepos = $oPosition->max_available - $intTakenPosition;
+
+	$sOutput .= 'Position: '.$oPosition->cybpos_name.'<br/>';
+	$sOutput .= 'Maximum: '.$oPosition->max_available.'<br/>';
+	$sOutput .= 'Available: '.$availablepos.'<br/>';
+    $sOutput .= 'Taken: '.$intTakenPosition.'<br/><br/>';
+
+				}
+				mysqli_free_result($SQLallPosition);
+
+	$assignedcoordinatorname = db_result(db_query("Select name from users where uid = '{$assignedcoordinator}'"));
+	$assignedcoordinatorname = $assignedcoordinatorname == "" ? "You are not assigned, yet." : $assignedcoordinatorname;
+	$sOutput .= '</div>
+				<div id="deactivate_Dialog" title="Deactivate Account" style="display:none;">
+					<div class="jboxhead"><h2></h2></div>
+						<div class="jboxbody">
+							<div class="jboxcontent" style="text-align:center;">
+								Click to <div style="color:red; font-weight:bold;">Deactivate Account</div>
+							</div>
+						</div>
+					<div class="jboxfoot"><p></p></div>
+				</div>
+				<div id="assignedCoordinator_Dialog" title="Assigned eAdministrators" style="display:none;">
+					Assigned eAdministrator: <b>'.ucfirst($assignedcoordinatorname).'</b><br/>
+					School: <b>'.$iCybSchoolName.'</b><br/>
+					Team: <b>'.$teamname.'</b>
+				</div>
+				';
+
+	$sOutput .= drupal_eval(load_voltemplate("page-volunteer-dash"));
+
+	return $sOutput;
+}
+
+function load_activity($type){
+global $user;
+
+	date_default_timezone_set('Asia/Taipei');
+
+	$sqlActivity = "SELECT *
+					FROM cybrarian_activity
+					WHERE uid = '{$user->uid}' and activity = 'start'";
+
+	$oActivityResult = db_query($sqlActivity);
+	$oActivity = db_fetch_object($oActivityResult);
+	mysqli_free_result($oActivityResult);
+    $created = $oActivity->created;
+
+    if($created == NULL){
+	return '';
+	} else{
+		switch($type){
+		case 'elapse':
+		return format_interval(time() - $created);
+		break;
+		case 'start':
+		return date('h:i:s A',$created);
+		break;
+		case 'end':
+		return date('h:i:s A',time());
+		break;
+		case 'position':
+		$db_title = db_result(db_query("SELECT position FROM cybrarian_optin WHERE uid = '{$user->uid}'"));
+
+		return ucfirst($db_title);
+		break;
+		case 'startfull':
+		return date('h:i:s A - j M y', $created);
+		break;
+		case 'endfull':
+		$ended = $oActivity->ended;
+		return date('h:i:s A - j M y', $ended);
+		break;
+		case 'id':
+		return $oActivity->cybact_id;
+		break;
+		}
+	}
+}
+
+function volunteer_kindnesssave(){
+global $user;
+		$kindnesstitle = $_POST['vkindnesstitle'];
+		$kindnessdescription = $_POST['vkindnessdescription'];
+		$kindnesslocation = $_POST['vkindnesslocation'];
+		$kindnesspromised = $_POST['vkindnesspromised'];
+		$activityid = $_POST['vactivityid'];
+
+	    date_default_timezone_set('Asia/Taipei');
+		$time = time();
+
+		$sqlUpdate = "UPDATE cybrarian_activity
+						SET
+						bApproved = '0',
+						activity = 'stop'
+						WHERE
+						cybact_id = '{$activityid}'";
+		db_query($sqlUpdate);
+
+		$intcountSelect = db_result(db_query("SELECT count(id) FROM cybrarian_kindness where cybactivity_id = '{$activityid}'"));
+
+		if($intcountSelect == 0){
+		$sqlOptin = "INSERT INTO {cybrarian_kindness}
+				VALUES(
+					NULL,
+					'".$kindnesstitle."',
+					'".$kindnessdescription."',
+					'".$kindnesslocation."',
+					'".$kindnesspromised."',
+					'".$user->uid."',
+					'".$time."',
+					'".$activityid."'
+				)";
+
+		if (!db_query($sqlOptin)){
+			echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlOptin));
+		}else{
+			echo json_encode(array("STATUS" => "Success"));
+		}
+		exit;
+		} else{
+		$sqlUpdate = "UPDATE cybrarian_kindness
+						SET
+						sTitle = '".$kindnesstitle."',
+						sDesc = '".$kindnessdescription."',
+						sLocation = '".$kindnesslocation."',
+						bPromised = '".$kindnesspromised."'
+						WHERE
+						cybactivity_id = '{$activityid}'";
+		db_query($sqlUpdate);
+
+		echo json_encode(array("STATUS" => "Success"));
+		exit;
+		}
+}
+
+function volunteer_stoptime(){
+global $user;
+
+	date_default_timezone_set('Asia/Taipei');
+
+	$iUserId = $user->uid;
+	$member_online = db_result(db_query("SELECT count(cybact_id) FROM {cybrarian_activity} where uid = '{$iUserId}' and activity = 'start'"));
+
+	if($member_online == 1){
+		$ended = time();
+		$sqlUpdate = "UPDATE cybrarian_activity
+						SET
+						ended = '{$ended}',
+						activity = 'stop'
+						WHERE uid = '{$iUserId}'
+						AND activity = 'start'";
+
+
+		if (!db_query($sqlUpdate)){
+			echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlUpdate));
+		}else{
+
+			$sqlActivity = "SELECT A.cybact_id, A.created, A.ended, B.position
+					FROM cybrarian_activity A
+					LEFT JOIN cybrarian_optin B ON A.uid = B.uid
+					WHERE A.ended = '{$ended}'";
+
+			$oActivityResult = db_query($sqlActivity);
+			$oActivity = db_fetch_object($oActivityResult);
+			mysqli_free_result($oActivityResult);
+			$start = date('h:i:s A', $oActivity->created);
+			$end = date('h:i:s A', $oActivity->ended);
+			$elapse = format_interval($oActivity->ended - $oActivity->created);
+			$position = ucfirst($oActivity->position);
+			$location = $oActivity->position;
+			$activityid = $oActivity->cybact_id;
+
+			echo json_encode(array("STATUS" => "Success", "START" => $start, "END" => $end, "ELAPSE" => $elapse, "POSITION" => $position, "ID" => $activityid));
+		}
+		exit;
+	} else{
+		echo json_encode(array("STATUS" => "NOAVAILABLE"));
+	}
+}
+
+function volunteer_positionchangeajax($val){
+	global $user;
+
+	$sqlUpdate = "UPDATE cybrarian_optin
+					SET
+					position = '{$val}'
+					WHERE uid = '{$user->uid}'";
+
+
+	if (!db_query($sqlUpdate)){
+		echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlUpdate));
+	}else{
+		echo json_encode(array("STATUS" => "Success"));
+	}
+	exit;
+}
+
+function volunteer_positionchange(){
+global $user;
+
+	$position = $_POST['cybrarian_volunteer_count'];
+
+	$sqlUpdate = "UPDATE cybrarian_optin
+				  SET
+				  position = '{$position}'
+				  WHERE uid = '{$user->uid}'";
+
+	if (db_query($sqlUpdate)){
+		drupal_goto("/mystudies/getinvolved/cybrarian");
+    }
+}
+
+function volunteer_hourschange(){
+global $user;
+
+	$hours = $_POST['cybrarian_volunteer_hours_count'];
+
+	$sqlUpdate = "UPDATE cybrarian_optin
+					SET
+					volunteer_hours = '{$hours}'
+					WHERE uid = '{$user->uid}'";
+
+	if (db_query($sqlUpdate)){
+		drupal_goto("/mystudies/getinvolved/cybrarian");
+    }
+
+}
+
+function volunteer_starttime($title){
+global $user;
+
+	$iUserId = $user->uid;
+	$member_online = db_result(db_query("SELECT count(cybact_id) FROM {cybrarian_activity} where uid = '{$iUserId}' and activity = 'start'"));
+
+	if($member_online == 0){
+
+		date_default_timezone_set('Asia/Taipei');
+		$time = time();
+
+		$sqlOptin = "INSERT INTO {cybrarian_activity}
+				VALUES(
+					NULL,
+					".$iUserId.",
+					'".$time."',
+					NULL,
+					'start',
+					0
+				)";
+
+		if (!db_query($sqlOptin)){
+			echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlOptin));
+		}else{
+			$iCybId = db_last_insert_id("cybrarian_activity", "cybact_id");
+
+			echo json_encode(array("STATUS" => "Success", "RETURN" => $iCybId));
+		}
+		exit;
+	} else{
+	echo json_encode(array("STATUS" => "No Activity"));
+	exit;
+	}
+}
+
+function load_vtemplate($sPage) {
+	ob_start();
+	include path_to_theme() . '/' . $sPage . '.tpl.php';
+	$sOutput = ob_get_contents();
+	ob_end_clean();
+	return $sOutput;
+}
+
+function load_voltemplate($sPage) {
+	ob_start();
+	include drupal_get_path('module', 'volunteer') . '/templates/' . $sPage . '.tpl.php';
+	$sOutput = ob_get_contents();
+	ob_end_clean();
+	return $sOutput;
+}
+
+
+

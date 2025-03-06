@@ -1,0 +1,130 @@
+<?php
+/* Author: Rick@opensourceshoppe.com */
+  
+  function hope_user_fbreg_menu(){
+
+    $items['fbreg/welcome'] = array(
+      'title' => 'Welcome',
+      'page callback' => 'hope_welcome_new_fb_user_page',
+      'access arguments' => array('access content'),
+      'type' => MENU_NORMAL_ITEM,
+    );
+
+    $items['admin/settings/fbreg'] = array(
+      'title' => 'Administer Hope FB Reg',
+      'description' => 'Administer Hope FB Reg',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('hope_user_fbreg_admin_settings_form'),
+      'access arguments' => array('administer hope fbreg settings'),
+      'type' => MENU_NORMAL_ITEM,
+    );
+
+    return $items;
+
+  }
+
+  function hope_user_fbreg_admin_settings_form(){
+
+    $form = array();
+
+    $form['welcome_message'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Welcome Message'),
+      '#description' => t("Set welcome message for first time fb users."),
+      '#required' => TRUE,
+      '#default_value' => variable_get('fbreg_welcome_message',''),
+    );
+
+    $form['#submit'][] = 'hope_user_fbreg_admin_settings_form_submit';
+
+    return system_settings_form($form);
+
+  }
+
+  function hope_user_fbreg_admin_settings_form_submit($form, &$form_state){
+
+    variable_set('fbreg_welcome_message',$form_state['values']['welcome_message']);
+
+  }
+
+  function hope_user_fbreg_user($op, &$edit, &$account, $category = NULL){
+
+  	global $user;
+
+	  if ($op == 'login' && $user->uid > 1){
+        $bFbUser = false;
+		
+		if (isset($edit['facebook_user'])) $bFbUser = $edit['facebook_user'];
+
+	    $fbid = hope_user_fbid_load($user->uid);
+
+	    if ($fbid > 0 && !$bFbUser){
+
+ 		   drupal_goto('user/'.$user->uid.'/edit/I. Personal Info');
+	    
+	    }
+
+	  }
+
+	  return; 	
+
+  }
+
+  function hope_user_fbreg_form_alter(&$form, $form_state, $form_id) {
+
+    switch ($form_id) {
+
+      case 'user_profile_form':
+
+        global $user;
+    
+        $fbid = hope_user_fbid_load($user->uid);
+
+        if($fbid > 0 && $user->login == 0){
+
+          $form['#redirect'] = 'fbreg/welcome';
+        }
+
+        break;
+
+      case 'user_admin_account':
+
+        foreach($form as $key => $value){
+
+          if($key == 'status'){
+
+            foreach($value as $key_uid => $status_value){
+
+              $fbid_user = hope_user_fbid_load($key_uid);
+
+                if($fbid_user > 0){
+
+                  if($form['status'][$key_uid]['#value'] != 'Facebook Pending'){
+                    
+                    $form['status'][$key_uid]['#value'] = $form['status'][$key_uid]['#value'] . ': FB Registered';
+
+                  }
+
+                }
+            }
+          }
+        }
+    }
+  }
+
+  function hope_welcome_new_fb_user_page(){
+
+    $html = variable_get('fbreg_welcome_message');
+    return $html;
+
+  }
+
+
+  /* Taken from fboauth_fbid_load */
+  function hope_user_fbid_load($uid = NULL) {
+    $uid = isset($uid) ? $uid : $GLOBALS['user']->uid;
+    $result = db_query("SELECT fbid FROM {fboauth_users} WHERE uid = %d", $uid);
+    $fbid = db_result($result);
+    return $fbid ? (int) $fbid : FALSE;
+  }
+

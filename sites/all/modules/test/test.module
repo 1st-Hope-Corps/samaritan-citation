@@ -1,0 +1,185 @@
+<?php
+// $Id$
+
+/**
+* Display help and module information
+* @param sPath		- which path of the site we're displaying help
+* @param arg array	- holds the current path as would be returned from arg() function
+* @return help		- text for the path
+*/
+function test_help($sPath, $arg) {
+	$sOutput = '';
+
+	switch ($sPath) {
+		case "admin/help#test":
+			$sOutput = '<p>'.  t("Displays links to nodes that was recently created.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+* Valid permissions for this module
+* @return array	- An array of valid permissions for the test module
+*/
+
+function test_perm() {
+	return array('access test content', 'administer test');
+}
+
+/**
+* Generate HTML for the Recent Items block
+* @param sOperation		- the operation from the URL
+* @param delta			- offset
+* @return aBlock array	- HTML
+*/
+function test_block($sOperation='list', $delta=0) {
+	// listing of blocks, such as on the admin/block page
+	if ($sOperation == "list") {
+		$aBlock[0]["info"] = t('Test Module');
+		return $aBlock;
+	}else if ($sOperation == 'view') {
+		$oToday = getdate();
+		$iStartTime = mktime(0, 0, 0,
+							$oToday['mon'], $oToday['mday'], $oToday['year']);
+		
+		// we want items that occur only on the day in question, so calculate 1 day
+		// 60 * 60 * 24 = 86400 seconds in a day
+		$iEndTime = $iStartTime + 86400; 
+		
+		$iMaxLink = variable_get('test_maxlink', 10);
+		
+		$sQuery = "SELECT nid, title, created " .
+					"FROM {node} " .
+					"WHERE created >= '%d' " .
+					" AND created <= '%d' " .
+					"ORDER BY created DESC";
+		
+		$oQueryResult =  db_query_range($sQuery, $iStartTime, $iEndTime, 0, $iMaxLink);
+		
+		// content variable that will be returned for display   
+		$sBlockContent = '';
+		
+		while ($oLinks = db_fetch_object($oQueryResult)) {
+			$sBlockContent .=  '<li class="leaf">' .
+								l($oLinks->title, 'node/'. $oLinks->nid) .
+								'</li>';
+		}
+		
+		// check to see if there was any content before setting up the block 
+		if ($sBlockContent == '') {   
+			// No content. If we return nothing, the block won't show.
+			return;
+		}
+		
+		$sBlockContent = '<ul class="menu">' . $sBlockContent . '</ul>';
+		
+		// Add a more link to our page that displays all the links
+		$aOptions = array( "attributes" => array("title" => t("More events on this day.") ) );
+		$sLink = l( t("more"), "recent_items", $aOptions);
+		$sBlockContent .= "<div class=\"more-link\">" . $sLink . "</div>";
+		
+		$aBlock['subject'] = 'Recent Items'; 
+		$aBlock['content'] = $sBlockContent;
+		
+		return $aBlock;
+	}
+}
+
+/**
+* Creates the elements for the form
+**/
+function test_admin() {
+	$aForm['test_maxlink'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Maximum number of links'),
+		'#default_value' => variable_get('test_maxlink', 10),
+		'#size' => 2,
+		'#maxlength' => 2,
+		'#description' => t("The maximum number of links to display in the block."),
+		'#required' => TRUE,
+	);
+
+	return system_settings_form($aForm);
+}
+
+/**
+* Validates the form after sumbmission
+**/
+function test_admin_validate($oForm, &$aFormState) {
+	$iMaxLink = $aFormState['values']['test_maxlink'];
+
+	if (!is_numeric($iMaxLink)) {
+		form_set_error('test_maxlink', t('You must select a number for the maximum number of links.'));
+	}else if ($iMaxLink <= 0) {
+		form_set_error('test_maxlink', t('Maximum number of links must be greater than zero.'));
+	}
+}
+
+function test_menu() {
+	$items = array();
+	
+	$items['admin/settings/test'] = array(
+		'title' => 'Recent Items Settings',
+		'description' => "Controls the maximum links that will be displayed in it's block.",
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('test_admin'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	// this is added for this current tutorial.
+	$items['recent_items'] = array(
+		'title' => 'Recent Items',
+		'page callback' => 'test_all',
+		'access arguments' => array('access test content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	return $items;
+}
+
+/**
+* Generate HTML for the Recent Items content/page
+* @return sPageContent	- HTML
+*/
+function test_all(){
+	// our block content
+	// Get today's date
+	$oToday = getdate();
+
+	// calculate midnight one week ago
+	$iStartTime = mktime(0, 0, 0,
+						$oToday['mon'], $oToday['mday'], $oToday['year']);
+
+	// we want items that occur only on the day in question, so calculate 1 day
+	// 60 * 60 * 24 = 86400 seconds in a day
+	$iEndTime = $iStartTime + 86400; 
+
+	$sQuery = "SELECT nid, title, created " .
+				"FROM {node} " .
+				"WHERE created >= '%d' " .
+				" AND created <= '%d' " .
+				"ORDER BY created DESC";
+
+	$oQueryResult =  db_query($sQuery, $iStartTime, $iEndTime);
+
+	// content variable that will be returned for display   
+	$sPageContent = '';
+
+	while ($oLinks = db_fetch_object($oQueryResult)) {
+		$sPageContent .=  l($oLinks->title, 'node/'. $oLinks->nid) . ' <em>(' . 
+							date('Y-m-d H:i:s', $oLinks->created) . 
+							')</em><br />';
+	}
+
+	// check to see if there was any content before setting up the block 
+	if ($sPageContent == '') {   
+		$sPageContent = "No events occurred on this site on this date in history.";
+	}else{
+		$sPageContent = '<ul class="menu">' . $sPageContent . '</ul>';
+	}
+	
+	return $sPageContent;
+}

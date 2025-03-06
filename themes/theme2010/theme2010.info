@@ -1,0 +1,32 @@
+; $Id: theme198.info,v 1.4 Astra Exp $
+name = theme2010
+description = Latest template for Hope Cybrary.
+version = 6.10
+core = 6.x
+engine = phptemplate
+
+version = "6.10"
+project = "drupal"
+datestamp = "1202913006"
+
+php = DRUPAL_MINIMUM_PHP
+
+regions[left] = Left sidebar
+regions[right] = Right sidebar
+regions[content] = content
+regions[footer] = Footer
+regions[custom] = Custom
+
+; Add the default theme style sheet
+stylesheets[all][] = style.css
+
+; Add a style sheet for customizing layouts from the Views module
+stylesheets[all][] = css/module-views.css
+stylesheets[all][] = css/module-instant.css
+
+; Add a style sheet for Facebook Apps
+stylesheets[all][] =   css/fb-apps.css
+
+
+;scripts[] = jquery/jquery.js
+scripts[] = jquery/jquery-ui.min.js

@@ -1,0 +1,3 @@
+name = KickApps Single Sign-On
+description = "This module will allow you to connect your Drupal installation to your KickApps Community"
+core = 6.x

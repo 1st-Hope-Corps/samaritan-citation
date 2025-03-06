@@ -1,0 +1,6 @@
+; $Id$
+name = Coordinator Module
+description = A module that tracks offline volunteers's hours and kindness workz.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x

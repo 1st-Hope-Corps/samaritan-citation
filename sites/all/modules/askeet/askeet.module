@@ -1,0 +1,4183 @@
+<?php
+// $Id$
+
+define("ASKEET_REC_PER_PAGE", 25);
+
+/**
+ * Display help and module information
+ * @param $sPath		- which path of the site we're displaying help
+ * @param $aArg array	- holds the current path as would be returned from arg() function
+ * @return help			- text for the path
+ **/
+function askeet_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#askeet":
+			$sOutput = '<p>'. t("Askeet module integration.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+/**
+ * Valid permissions for this module
+ * @return array	- An array of valid permissions for this module
+ **/
+function askeet_perm(){
+	return array('access askeet content', 'access askeet volunteer content');
+}
+
+function askeet_init(){
+	if (_askeet_in_array($_REQUEST["q"], array("askeet*", "node/198", "node/198/*"))){
+		global $user;
+		
+		if ($user->uid > 0){
+			drupal_add_css(drupal_get_path("module", "askeet")."/askeet.css");
+			
+			drupal_add_js('var askeet_sBasePath = "'.base_path().'";', "inline");
+			//drupal_add_js(drupal_get_path("module", "askeet")."/askeet.js");
+		}else{
+			$aTrail = array(
+							l("Home", "<front>"),
+							l("Children's Portal", "node/20"),
+							l("Get Help", "node/196"),
+							l("Tutoring", "node/197"),
+							l("Instant Question", "askeet")
+						);
+			
+			drupal_set_breadcrumb($aTrail);
+			
+			drupal_access_denied();
+		}
+	}
+}
+
+/**
+ * Generate HTML for Askeet Block
+ * @param $sOperation		- the operation from the URL
+ * @param $iDelta			- offset
+ * @return $aBlock array	- HTML
+ **/
+function askeet_block($sOperation='list', $iDelta=0, $aEdit = array()){
+	if ($sOperation == "list") {
+		$aBlock[0]["info"] = t("Askeet Popular Tags");
+		$aBlock[0]['cache'] = BLOCK_NO_CACHE;//BLOCK_CACHE_PER_ROLE
+		
+		$aBlock[1]["info"] = t("Askeet Find It");
+		$aBlock[1]['cache'] = BLOCK_NO_CACHE;
+		
+		$aBlock[2]["info"] = t("Browse Askeet");
+		$aBlock[2]['cache'] = BLOCK_NO_CACHE;
+		
+		return $aBlock;
+	}elseif ($sOperation == "view"){
+		switch ($iDelta){
+			case 0:
+				$oPopularTags = _askeet_popular_tags();
+				$aPopularTags = array();
+				$iMaxPopularity = 0;
+				
+				while ($oTag = db_fetch_object($oPopularTags)){
+					if ($iMaxPopularity == 0) $iMaxPopularity = $oTag->iTagCount;
+					
+					$aPopularTags[$oTag->sTag] = floor(($oTag->iTagCount / $iMaxPopularity * 3) + 1);
+				}
+				
+				ksort($aPopularTags);
+				
+				$sSubject = "Popular Tags";
+				$sOutput = '<ul id="askeet_tag_cloud">';
+				
+				foreach ($aPopularTags as $sTag => $iPopularity){
+					$sOutput .= '<li class="askeet_tag_popularity_'.$iPopularity.'"><a href="#askeet_scroll_here" style="color:#087C01;" onclick="askeet_QuestionTag(\''.$sTag.'\');">'.$sTag.'</a></li>';
+				}
+				
+				$sOutput .= '</ul>';
+				
+				break;
+			
+			case 1:
+				$sSubject = "Find It";
+				$sOutput = '<form action="/frontend_dev.php/search" method="post">
+								<input type="text" style="width: 150px;" value="" id="askeet_search" name="askeet_search"/> 
+								<input type="submit" value="search it" name="askeet_commit"/>
+								<input type="checkbox" value="1" id="askeet_search_all" name="askeet_search_all"/> <label for="askeet_search_all">search with all words</label>
+							</form>';
+				
+				break;
+			
+			case 2:
+				$sSubject = "Browse Askeet";
+				$sOutput = '<ul class="menu">
+								<li class="leaf first"><a id="askeet_feature" href="#askeet_scroll_here">Featured Questions</a></li>
+								<li class="leaf"><a id="askeet_popular" href="#askeet_scroll_here">Popular Questions</a></li>
+								<li class="leaf"><a id="askeet_latest" href="#askeet_scroll_here">Latest Questions</a></li>
+								<li class="leaf last"><a id="askeet_latest_answers" href="#askeet_scroll_here">Latest Answer</a></li>
+							</ul>';
+				
+				break;
+		}
+		
+		$aBlock["subject"] = $sSubject;
+		$aBlock["content"] = $sOutput;
+		
+		return $aBlock;
+	}
+}
+
+function askeet_menu(){
+	$aItems['admin/settings/askeet'] = array(
+		'title' => 'Askeet Integration Settings',
+		'description' => "Sets the Askeet configuration.",
+		'page callback' => 'drupal_get_form',
+		'page arguments' => array('askeet_admin'),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['admin/content/askeet'] = array(
+		'title' => 'Delete Questions',
+		'description' => "Deletes the questions posted in Instant Tutoring.",
+		'page callback' => 'askeet_question_delete',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['admin/content/askeet/delete'] = array(
+		'title' => 'Delete Questions',
+		'page callback' => 'askeet_question_delete_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet'] = array(
+		'title' => 'Ask An Instant Question',
+		'page callback' => 'askeet_child_dashboard',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['askeet/enroll'] = array(
+		'title' => '',
+		'page callback' => 'askeet_enroll',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/enroll/check'] = array(
+		'title' => '',
+		'page callback' => 'askeet_enroll_check',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/enroll/form'] = array(
+		'title' => '',
+		'page callback' => 'askeet_enroll_postform',
+		'access arguments' => array('access askeet content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/enroll/form/process'] = array(
+		'title' => '',
+		'page callback' => 'askeet_enroll_postform_process',
+		'access arguments' => array('access askeet content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/%'] = array(
+		'title' => '',
+		'page callback' => 'askeet_questions',
+		'page arguments' => array(1),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/latest/answers'] = array(
+		'title' => '',
+		'page callback' => 'askeet_latest_answers',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/tag/%'] = array(
+		'title' => '',
+		'page callback' => 'askeet_questions',
+		'page arguments' => array('tag', 2),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/open/%'] = array(
+		'title' => '',
+		'page callback' => 'askeet_questions',
+		'page arguments' => array('open', 2),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/tutor/%/%/answers'] = array(
+		'title' => '',
+		'page callback' => 'askeet_questions',
+		'page arguments' => array("answer", 2, 3),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/tutor/%/%/questions'] = array(
+		'title' => '',
+		'page callback' => 'askeet_questions',
+		'page arguments' => array("question", 2, 3),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/question/%'] = array(
+		'title' => 'Question and Answers',
+		'page callback' => 'askeet_question_view',
+		'page arguments' => array(2),
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['admin/content/askeet/question/%'] = array(
+		'title' => 'Question and Answers',
+		'page callback' => 'askeet_question_view',
+		'page arguments' => array(4, true),
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['askeet/answer/process'] = array(
+		'title' => '',
+		'page callback' => 'askeet_post_answer_process',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/answer/rating'] = array(
+		'title' => '',
+		'page callback' => 'askeet_answer_process_rating',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/tutor/optin'] = array(
+		'title' => '',
+		'page callback' => 'askeet_tutor_optin',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/tutor'] = array(
+		'title' => 'Instant Tutoring Dashboard',
+		'page callback' => 'askeet_tutor_dashboard',
+		'access arguments' => array('access askeet volunteer content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aItems['askeet/question/cat'] = array(
+		'title' => '',
+		'page callback' => 'askeet_question_cat',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/question/cats'] = array(
+		'title' => '',
+		'page callback' => 'askeet_question_cats',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/question/close'] = array(
+		'title' => '',
+		'page callback' => 'askeet_question_close',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/stat/%'] = array(
+		'page callback' => 'askeet_callback_stat',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/tutors'] = array(
+		'page callback' => 'askeet_callback_tutors',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/question/%'] = array(
+		'page callback' => 'askeet_callback_questions',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/question/del/%'] = array(
+		'page callback' => 'askeet_callback_question_delete',
+		'page arguments' => array(5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/answer/del/%'] = array(
+		'page callback' => 'askeet_callback_answer_delete',
+		'page arguments' => array(5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/tag/question/%'] = array(
+		'page callback' => 'askeet_callback_questions',
+		'page arguments' => array("tag", 5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/open/question/%'] = array(
+		'page callback' => 'askeet_callback_questions',
+		'page arguments' => array("open", 5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/filter/subj/%'] = array(
+		'page callback' => 'askeet_callback_questions',
+		'page arguments' => array("filter", 5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/tutor/%/%/%'] = array(
+		'page callback' => 'askeet_callback_questions',
+		'page arguments' => array(6, 4, 5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/tag/popular'] = array(
+		'page callback' => 'askeet_callback_popular_tags',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/details'] = array(
+		'page callback' => 'askeet_callback_details',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['askeet/hud/callback/question/view/%'] = array(
+		'page callback' => 'askeet_callback_question_view',
+		'page arguments' => array(5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/askeet/treasurehunt'] = array(
+		'page callback' => 'askeet_admin_treasurehunt',
+		'page arguments' => array(5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aItems['admin/askeet/treasure/managefolder'] = array(
+		'page callback' => 'askeet_admin_add_folder_treasurehunt',
+		'page arguments' => array(4, 5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/askeet/treasure/editfolder'] = array(
+		'page callback' => 'askeet_admin_edit_folder_treasurehunt',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/askeet/treasure/updatefolder'] = array(
+		'page callback' => 'askeet_admin_edit_folder_treasurehunt_process',
+		'page arguments' => array(4,5,6),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/askeet/treasure/deletefolder'] = array(
+		'page callback' => 'askeet_admin_delete_folder_treasurehunt_process',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/askeet/treasure/managefile'] = array(
+		'page callback' => 'askeet_admin_add_file_treasurehunt',
+		'page arguments' => array(4,5,6),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/askeet/treasure/editfile'] = array(
+		'page callback' => 'askeet_admin_edit_file_treasurehunt',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/askeet/treasure/updatefile'] = array(
+		'page callback' => 'askeet_admin_edit_file_treasurehunt_process',
+		'page arguments' => array(4,5,6),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aItems['admin/askeet/treasure/deletefile'] = array(
+		'page callback' => 'askeet_admin_delete_file_treasurehunt_process',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	return $aItems;
+}
+
+/* start folder */
+
+function askeet_admin_delete_folder_treasurehunt_process($id){
+
+	$sqlDelete = "DELETE FROM treasurehunt_folders WHERE tfolder_id = %d";
+	db_query($sqlDelete, $id);
+
+echo json_encode(array("STATUS" => 'Success'));
+}
+
+function askeet_admin_edit_folder_treasurehunt($folderid){
+
+	$sqlFolders = db_query("SELECT *
+					FROM treasurehunt_folders
+					WHERE tfolder_id = '".$folderid."'");
+	
+	$sFolders = db_fetch_object($sqlFolders);
+	$sfolderid = $sFolders->tfolder_id;
+	$sfoldername = $sFolders->tfolder_name;
+	$sfolderpassword = $sFolders->tfolder_password;
+	
+	
+	$sOutput = '<div id="addfolder_Dialog" title="Add New Folder">
+					<div><span id="statusMsg">&nbsp;</span></div>
+					<div>
+						<div style="clear:both;">
+							<div style="float:left;width:30%;">
+							Folder Name: 
+							</div>
+							<div style="float:left;width:60%;">
+							<input type="text" id="vFolderName" name="vFolderName" value="'.$sfoldername.'" />
+							</div>
+						</div>
+						<div style="clear:both;">&nbsp;</div>
+						<div style="clear:both;">
+							<div style="float:left;width:30%;">
+							Password:
+							</div>
+							<div style="float:left;width:60%;">
+							<input type="text" id="vFolderPass" name="vFolderPass" value="'.$sfolderpassword.'" />
+							<input type="hidden" id="vFolderID" name="vFolderID" value="'.$sfolderid.'" />
+							</div>
+						</div>
+						<div style="clear:both;">&nbsp;</div>	
+						<div style="clear:both;">
+							<input type="button" value="Update folder" onclick="editFolderDivProcess(\''.$sfolderid.'\');" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only">
+						</div>		
+					</div>
+				</div>';		
+				
+	echo json_encode(array("STATUS" => 'Success', "OUTPUT" => $sOutput, "SQL" => $querysql));
+}
+
+
+function askeet_admin_edit_folder_treasurehunt_process($folderid, $foldername, $folderpass){
+
+	$sqlUpdate = "UPDATE treasurehunt_folders
+					SET 
+					tfolder_name = '".$foldername."',
+					tfolder_password = '".$folderpass."'
+					WHERE tfolder_id = '".$folderid."'";
+	db_query($sqlUpdate);
+
+	echo json_encode(array("STATUS" => 'Success', "SQL" => $sqlUpdate));
+}
+
+function askeet_admin_add_folder_treasurehunt($foldername, $folderpass){
+	
+	$sqlInsert = "INSERT INTO {treasurehunt_folders} VALUES(NULL, '{$foldername}', '{$folderpass}')";
+	db_query($sqlInsert);
+	
+	echo json_encode(array("STATUS" => 'Success'));
+}
+/* eof folder */
+
+/* start file */
+function askeet_admin_delete_file_treasurehunt_process($id){
+
+	$sqlDelete = "DELETE FROM treasurehunt_files WHERE tfiles_id = %d";
+	db_query($sqlDelete, $id);
+
+echo json_encode(array("STATUS" => 'Success'));
+}
+
+function askeet_admin_edit_file_treasurehunt($fileid){
+
+	$sqlFiles = db_query("SELECT *
+					FROM treasurehunt_files
+					WHERE tfiles_id = '".$fileid."'");
+	
+	$sFiles = db_fetch_object($sqlFiles);
+	$sfileid = $sFiles->tfiles_id;
+	$sfilename = $sFiles->tfiles_name;
+	$sfilecontent = stripslashes($sFiles->tfiles_content);
+	$sfolderid = $sFiles->tfolder_id;
+
+	$sOutput = '<div id="addfile_Dialog" title="Add New File">
+					<div><span id="statusMsg">&nbsp;</span></div>
+					<div>
+						<div style="clear:both;">
+							<div style="float:left;width:20%;">
+							File Name: 
+							</div>
+							<div style="float:left;width:70%;">
+							<input type="text" id="vFileName" name="vFileName" value="'.$sfilename.'" />
+							</div>
+						</div>
+						<div style="clear:both;">&nbsp;</div>
+						<div style="clear:both;">
+						<div style="float:left;width:20%;">
+						Folder Name: 
+						</div>
+						<div style="float:left;width:70%;">
+						<select id="vflderid" name="vflderid">
+						<option value="">Select a Folder</option>
+						';
+						
+						$sqlFldr = "SELECT tfolder_id, tfolder_name
+						FROM treasurehunt_folders
+						ORDER BY tfolder_id";
+			
+						$oFldr = db_query($sqlFldr);
+						
+						while ($oThisF = db_fetch_object($oFldr)){
+							if($sfolderid == $oThisF->tfolder_id){
+							$sOutput .= '<option value="'.$oThisF->tfolder_id.'" selected>'.$oThisF->tfolder_name.'</option>';
+							} else{
+							$sOutput .= '<option value="'.$oThisF->tfolder_id.'">'.$oThisF->tfolder_name.'</option>';
+							}
+						}
+						
+				$sOutput .= '</select>
+						</div>
+					</div>
+					<div style="clear:both;">&nbsp;</div>
+						<div style="clear:both;">
+							<div style="float:left;width:20%;">
+							Content:
+							</div>
+							<div style="float:left;width:70%;">
+							<textarea id="vFileContent" name="vFileContent" rows="20" cols="60">'.$sfilecontent.'</textarea>
+							</div>
+						</div>
+						<div style="clear:both;">&nbsp;</div>	
+						<div style="clear:both;">
+							<input type="button" value="Update file" onclick="editFileDivProcess(\''.$sfileid.'\');" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only">
+						</div>		
+					</div>
+				</div>';		
+				
+	echo json_encode(array("STATUS" => 'Success', "OUTPUT" => $sOutput));
+}
+
+
+function askeet_admin_edit_file_treasurehunt_process($fileid, $filename, $aflderid){
+	$aFileContent2 = urldecode($_POST["content"]);
+	$sqlUpdate = "UPDATE treasurehunt_files
+					SET 
+					tfiles_name = '".$filename."',
+					tfiles_content = '".addslashes($aFileContent2)."',
+					tfolder_id= '".$aflderid."'
+					WHERE tfiles_id = '".$fileid."'";
+	db_query($sqlUpdate);
+    $sql = $fileid.', '.$filename.', '.$aflderid.', '.$aFileContent2;	
+	echo json_encode(array("STATUS" => 'Success', "TEST" => $sql));
+}
+
+function askeet_admin_add_file_treasurehunt($filename, $aflderid, $aFileContent = ''){
+	$aFileContent2 = addslashes(urldecode($_POST["content"]));
+	$sqlInsert = "INSERT INTO {treasurehunt_files} VALUES(NULL, '{$filename}', '{$aFileContent2}', '{$aflderid}')";
+	db_query($sqlInsert);
+
+	$sql = $filename.', '.$aflderid.', '.$aFileContent2;	
+	echo json_encode(array("STATUS" => 'Success', "TEST" => $sql));
+}
+/* eof file */
+
+function askeet_admin_treasurehunt(){
+
+if($_GET['file']){
+	$sJavaScript = '$(document).ready(
+								function(){
+									$("#userKickappstabs").tabs("select", "2");
+								}
+							)';
+			
+	drupal_add_js($sJavaScript, "inline");
+}
+	
+$sHtml = '
+<link type="text/css" rel="stylesheet" media="all" href="http://jqueryui.com/themes/base/jquery.ui.all.css" />
+<script type="text/javascript" src="http://jqueryui.com/ui/jquery.ui.core.js"></script>
+<script type="text/javascript" src="http://jqueryui.com/ui/jquery.ui.widget.js"></script>
+<script type="text/javascript" src="http://jqueryui.com/ui/jquery.ui.tabs.js"></script>
+<link type="text/css" rel="stylesheet" media="all" href="http://jquery.bassistance.de/treeview/jquery.treeview.css" />
+<link type="text/css" rel="stylesheet" media="all" href="http://jqueryui.com/demos/demos.css" />';
+
+
+drupal_add_js(drupal_get_path("module", "mystudies")."/jquery-ui.js");
+drupal_add_js(drupal_get_path("module", "mystudies")."/jquery.treeview.async.js");
+drupal_add_js(drupal_get_path("module", "mystudies")."/jquery.treeview.js");
+drupal_add_js(drupal_get_path("module", "askeet")."/treasurehunt.admin.js");
+
+drupal_add_css(drupal_get_path("module", "mystudies")."/jquery-ui-custom.css");
+	
+$sHtml .= '
+<div class="demo">
+<h3>Treasure Hunt Explorer</h3>
+<div id="userKickappstabs">
+    <ul>
+		<li><a href="#tabs-1">Folders</a></li>
+
+		<li><a href="#tabs-2">Files</a></li>
+		
+	</ul>
+	<div id="tabs-1">';
+	$sHtml .= '<h3>Folders</h3><br/>';
+	
+	$sHtml .= '
+	<input type="button" id="adddivision" name="adddivision" value="add new folder" onclick="addFolderDialog();" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" /> <input type="button" id="refreshpage" name="refreshpage" value="refresh" onclick="window.location='."'http://www.hopecybrary.org'/admin/askeet/treasurehunt';".'" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" />
+	<br/><br/>';
+	
+	$sqlFolders = "SELECT *
+					FROM treasurehunt_folders
+					ORDER BY tfolder_id DESC";
+					
+	$sqlCount = "SELECT COUNT(tfolder_name)
+					FROM treasurehunt_folders";
+
+
+	$sTableContent .= '<table style="width:650px;"><tr style="font-size:0.8em;">
+								<th class="select-all" style="width:5%;"><!--<input type="checkbox" id="kindness_master_admin_bCheckAll" name="kindness_master_admin_bCheckAll" title="Select all rows in this table" />-->&nbsp;</th>
+								<th style="width:5%;">Folder ID</th>
+								<th style="width:10%;">Folder Name</th>
+								<th style="width:10%;">Password</th>
+								<th style="width:10%;">Command</th>
+							</tr>';
+							
+	$sqlFolders = sprintf($sqlFolders);
+	$sqlCount = sprintf($sqlCount);
+	$iMaxRec = 25;
+	$oFoldersResult = pager_query($sqlFolders, $iMaxRec, 0, $sqlCount);
+	$bg_colors = array(0 => '#f0f0f0', 1 => '#d0d0d0');
+	$c = 0;
+	$Count = 1;
+	while ($oFolders = db_fetch_object($oFoldersResult)){
+		$iFolderId = $oFolders->tfolder_id;
+		$sName = $oFolders->tfolder_name;	
+		$sPassword = $oFolders->tfolder_password;	
+		
+		$sTableContent .= '<tr style="background-color:'.$bg_colors[$c].'" style="font-size:0.8em;">
+								<td style="padding-top:3px; vertical-align:top;text-align:center;"><!--<input type="checkbox" />-->&nbsp;</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;">'.$iFolderId.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;">'.$sName.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;">'.$sPassword.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;"><a href="javascript:void(0);" onclick="editFolderContents(\''.$iFolderId.'\');" style="text-decoration:none;"><b>edit</b></a> | <a href="javascript:void(0);" onclick="deleteFolderContents(\''.$iFolderId.'\');" style="text-decoration:none;"><b>delete</b></a></td>
+							</tr>';
+		if($c == 0){
+		$c = 1;
+		}else{
+		$c = 0;
+		}
+	$Count++;
+	$iCount++;
+	}
+	$sTableContent .= '</table>';
+
+	if($Count == 1){
+	$sTableContent .= 'No folder created.';
+	}
+	
+	$sPagerHTML = '<br/><br/>'.theme("pager", null, $iMaxRec);
+	
+	$sHtml .= $sTableContent.$sPagerHTML;	
+	
+	$sHtml .= '</div>
+	<div id="tabs-2">
+		<h3>Files</h3><br/>';
+	
+	$sHtml .= '
+	<input type="button" id="adddivision" name="adddivision" value="add new file" onclick="addFileDialog();" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" /> <input type="button" id="refreshpage" name="refreshpage" value="refresh" onclick="window.location='."'http://www.hopecybrary.org/admin/askeet/treasurehunt?file=1';".'" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" />
+	<br/><br/>';
+	
+	$sqlFiles = "SELECT *
+					FROM treasurehunt_files
+					ORDER BY tfiles_id DESC";
+					
+	$sqlFCount = "SELECT COUNT(tfiles_name)
+					FROM treasurehunt_files";
+
+
+	$sFTableContent .= '<table style="width:650px;"><tr style="font-size:0.8em;">
+								<th class="select-all" style="width:5%;"><!--<input type="checkbox" id="kindness_master_admin_bCheckAll" name="kindness_master_admin_bCheckAll" title="Select all rows in this table" />-->&nbsp;</th>
+								<th style="width:5%;">File ID</th>
+								<th style="width:10%;">File Name</th>
+								<th style="width:10%;">Content</th>
+								<th style="width:10%;">Command</th>
+							</tr>';
+							
+	$sqlFiles = sprintf($sqlFiles);
+	$sqlFCount = sprintf($sqlFCount);
+	$iFMaxRec = 25;
+	$oFilesResult = pager_query($sqlFiles, $iFMaxRec, 0, $sqlFCount);
+	$bgF_colors = array(0 => '#f0f0f0', 1 => '#d0d0d0');
+	$cF = 0;
+	$FCount = 1;
+	while ($oFiles = db_fetch_object($oFilesResult)){
+		$sFfileId = $oFiles->tfiles_id;
+		$sFName = $oFiles->tfiles_name;	 echo substr($string, 0,15); 
+		$sFContent = substr($oFiles->tfiles_content, 0,15);	
+		
+		$sFTableContent .= '<tr style="background-color:'.$bgF_colors[$cF].'" style="font-size:0.8em;">
+								<td style="padding-top:3px; vertical-align:top;text-align:center;"><!--<input type="checkbox" />-->&nbsp;</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;">'.$sFfileId.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;">'.$sFName.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;">'.stripslashes($sFContent).'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;"><a href="javascript:void(0);" onclick="editFileContents(\''.$sFfileId.'\');" style="text-decoration:none;"><b>edit</b></a> | <a href="javascript:void(0);" onclick="deleteFileContents(\''.$sFfileId.'\');" style="text-decoration:none;"><b>delete</b></a></td>
+							</tr>';
+		if($cF == 0){
+		$cF = 1;
+		}else{
+		$cF = 0;
+		}
+	$FCount++;
+	$iFCount++;
+	}
+	$sFTableContent .= '</table>';
+
+	if($FCount == 1){
+	$sFTableContent .= 'No file created.';
+	}
+	
+	$sFPagerHTML = '<br/><br/>'.theme("pager", null, $iFMaxRec);
+	
+	$sHtml .= $sFTableContent.$sFPagerHTML;	
+	
+	$sHtml .= '</div>
+</div>
+	<div id="manageFolder_Dialog" title="Manage Folders" style="display:none;">
+		<div id="manageFolderContent">&nbsp;</div>
+	</div>
+	<div id="addfolder_Dialog" title="Add New Folder" style="display:none;">
+		<div><span id="statusMsg">&nbsp;</span></div>
+		<div>
+			<div style="clear:both;">
+				<div style="float:left;width:30%;">
+				Folder Name: 
+				</div>
+				<div style="float:left;width:60%;">
+				<input type="text" id="aFolderName" name="aFolderName" value=""/>
+				</div>
+			</div>
+			<div style="clear:both;">&nbsp;</div>
+			<div style="clear:both;">
+				<div style="float:left;width:30%;">
+				Password:
+				</div>
+				<div style="float:left;width:60%;">
+				<input type="text" id="aFolderPass" name="aFolderPass" value=""/>
+				</div>
+            </div>
+			<div style="clear:both;">&nbsp;</div>	
+			<div style="clear:both;">
+				<input type="button" value="add new folder" onclick="addNewFolderDiv();" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only">
+			</div>		
+		</div>
+	</div>
+	<div id="manageFile_Dialog" title="Manage Files" style="display:none;">
+		<div id="manageFileContent">&nbsp;</div>
+	</div>
+	<div id="addfile_Dialog" title="Add New File" style="display:none;">
+		<div><span id="statusMsg">&nbsp;</span></div>
+		<div>
+			<div style="clear:both;">
+				<div style="float:left;width:20%;">
+				File Name: 
+				</div>
+				<div style="float:left;width:70%;">
+				<input type="text" id="aFileName" name="aFileName" value=""/>
+				</div>
+			</div>
+			<div style="clear:both;">&nbsp;</div>
+			<div style="clear:both;">
+				<div style="float:left;width:20%;">
+				Folder Name: 
+				</div>
+				<div style="float:left;width:70%;">
+				<select id="aflderid" name="aflderid">
+				<option value="">Select a Folder</option>
+				';
+				
+				$sqlFldr = "SELECT tfolder_id, tfolder_name
+				FROM treasurehunt_folders
+				ORDER BY tfolder_id";
+	
+				$oFldr = db_query($sqlFldr);
+				
+				while ($oThisF = db_fetch_object($oFldr)){
+				$sHtml .= '<option value="'.$oThisF->tfolder_id.'">'.$oThisF->tfolder_name.'</option>';
+				}
+				
+		$sHtml .= '</select>
+			    </div>
+			</div>
+			<div style="clear:both;">&nbsp;</div>
+			<div style="clear:both;">
+				<div style="float:left;width:20%;">
+				Content:
+				</div>
+				<div style="float:left;width:70%;">
+				<textarea id="aFileContent" name="aFileContent" rows="20" cols="60"></textarea>
+				</div>
+            </div>
+			<div style="clear:both;">&nbsp;</div>	
+			<div style="clear:both;">
+				<input type="button" value="add new file" onclick="addNewFileDiv();" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only">
+			</div>		
+		</div>
+	</div>
+	<div><br/><a href="/folder.php" target="new">Link to treasure hunt folder(s)</a></div>
+	';
+ 
+ return $sHtml;
+}
+
+function askeet_callback_stat($sWhichType){
+	$aReply = array();
+	
+	$aReply["QUESTION_COST"] = variable_get("askeet_question_cost", "0.25");
+	$aReply["QUESTION_PRIORITY_COST"] = variable_get("askeet_question_priority_cost", "0.40");
+	$aReply["CHILDREN_WITH_QUESTIONS"] = _askeet_get_children_with_question_count();
+	$aReply["CHILDREN_WITH_QUESTIONS_ALL_QUESTIONS"] = _askeet_get_question_count();
+	$aReply["CHILDREN_OPEN_QUESTIONS_CAT"] = _askeet_get_open_question_stat();
+	
+	if ($sWhichType == "child"){
+		$iAskeetId = _askeet_get_id();
+		
+		$aReply["CHILD_ID"] = $iAskeetId;
+		$aReply["CHILD_QUESTIONS"] = _askeet_get_question_count($iAskeetId, "open");
+		$aReply["CHILD_OPEN_QUESTIONS_CAT"] = _askeet_get_open_question_stat($iAskeetId);
+		
+		$iQuestionNormal = _askeet_get_question_count($iAskeetId, null, "normal");
+		$iQuestionHigh = _askeet_get_question_count($iAskeetId, null, "high");
+		
+		$mNormalCost = $iQuestionNormal * $aReply["QUESTION_COST"];
+		$mHighCost = $iQuestionHigh * 0.40;
+		
+		$aReply["CHILD_MONEY_SPENT"] = number_format($mNormalCost + $mHighCost, 2);
+		
+		//$aReply["TUTORS_WHO_ANSWERED"] = _askeet_list_tutor_child();
+		$aReply["TUTORS_WHO_ANSWERED"] = _askeet_list_tutor_who_answered();
+	}
+	
+	echo json_encode($aReply);
+	
+	exit;
+}
+
+function askeet_callback_tutors(){
+	$countsqlTutor = "SELECT count(tid) as tutorcount
+				FROM askeet_tutor";
+	$cTutors = db_query($countsqlTutor);	
+	$countTutor = db_fetch_object($cTutors);
+	$cTotalTutors = $countTutor->tutorcount;
+	
+	$sqlTutor = "SELECT B.uid, B.name, A.cat
+				FROM askeet_tutor A
+				INNER JOIN users B ON B.uid = A.uid";
+	$oTutors = db_query($sqlTutor);
+	$aCatId = array();
+	
+	while ($oTutor = db_fetch_object($oTutors)){
+		$aCatId = array_merge($aCatId, unserialize($oTutor->cat));
+	}
+	
+	$aCatWithTutorCount = array_count_values($aCatId);
+	ksort($aCatWithTutorCount);
+	$aCatNameWithTutorCount = array();
+	$iTotalTutors = 0;
+	$currcount = '';
+	$currparentid = '';
+	foreach ($aCatWithTutorCount as $iCatId => $iTutorCount){
+		$iMainGroupCat = 1000;
+		$iTotalTutors += $iTutorCount;
+		
+		while ($iMainGroupCat > 0){
+			$sqlGroup = "SELECT id, group_level, title
+						FROM {mystudyrecord}
+						WHERE id = %d";
+			
+			$oGroup = db_query($sqlGroup, $iCatId);
+			$oThisGroup = db_fetch_object($oGroup);
+			
+			$iParentId = $oThisGroup->id;
+			$iCatId = $oThisGroup->group_level;
+			$sCatTitle = $oThisGroup->title;
+			$iMainGroupCat = $oThisGroup->group_level;
+		}
+		/*
+		if (isset($aCatNameWithTutorCount[$sCatTitle])){
+			$aCatNameWithTutorCount[$sCatTitle] += $iTutorCount;
+		}else{
+			$aCatNameWithTutorCount[$sCatTitle] = $iTutorCount;
+		}*/
+		
+		if($currparentid == $iParentId){
+			$currparentid = $iParentId;
+			if($iTutorCount > $currcount){
+			 $aCatNameWithTutorCount[$sCatTitle] = $iTutorCount;
+			}
+			$currcount = $iTutorCount;
+		} else{
+			$currparentid = $iParentId;
+			$currcount = $iTutorCount;
+			$aCatNameWithTutorCount[$sCatTitle] = $iTutorCount;
+		}
+	}
+	
+	ksort($aCatNameWithTutorCount);
+	
+	echo json_encode(array("TOTAL_TUTORS" => $cTotalTutors, "CAT_STATS" => $aCatNameWithTutorCount));
+	
+	exit;
+}
+
+function askeet_callback_popular_tags(){
+	$oPopularTags = _askeet_popular_tags();
+	$aPopularTags = array();
+	$iMaxPopularity = 0;
+	
+	while ($oTag = db_fetch_object($oPopularTags)){
+		if ($iMaxPopularity == 0) $iMaxPopularity = $oTag->iTagCount;
+		
+		$aPopularTags[$oTag->sTag] = floor(($oTag->iTagCount / $iMaxPopularity * 3) + 1);
+	}
+	
+	ksort($aPopularTags);
+	
+	echo json_encode($aPopularTags);
+	
+	exit;
+}
+
+function askeet_callback_details(){
+	$iPostCountToday = _askeet_get_post_count_today();
+	$iMaxPostToday = (int)variable_get('askeet_question_limit_daily', '3');
+	$mQuestionCost = (float)variable_get("askeet_question_cost", "0.25");
+	$iPostLeft = $iMaxPostToday - $iPostCountToday;
+	$iPostLeft = ($iPostLeft < 0) ? 0:$iPostLeft;
+	
+	$sOutput = array(
+					"ID" => _askeet_get_id(),
+					"POST_TODAY" => $iPostCountToday,
+					"POST_PER_DAY" => $iMaxPostToday,
+					"POST_COST" => $mQuestionCost,
+					"POST_LEFT_TODAY" => $iPostLeft
+				);
+	
+	echo json_encode($sOutput);
+	
+	exit;
+}
+
+function askeet_child_dashboard(){
+	$aTrail = array(
+					l("Home", "<front>"),
+					l("Children's Portal", "node/20"),
+					l("Get Help", "node/196"),
+					l("Tutoring", "node/197"),
+					l("Instant Question", "askeet")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	$iAskeetId = _askeet_get_id();
+	$iQuestionCount = _askeet_get_question_count($iAskeetId);
+	$iChildWithQuestion = _askeet_get_children_with_question_count();
+	$sChildChildren = ($iChildWithQuestion > 1) ? "children":"child";
+	$iAllQuestionCount = _askeet_get_question_count();
+	$mQuestionCost = variable_get("askeet_question_cost", "0.25");
+	$mMoneySpent = number_format($iQuestionCount*$mQuestionCost, 2);
+	$iOpenQuestionCount = _askeet_get_question_count($iAskeetId, "open");
+	$aOpenQuestionStat = _askeet_get_open_question_stat($iAskeetId);
+	$aTutorsWhoAnswered = _askeet_list_tutor_child();
+	
+	if (count($aOpenQuestionStat) > 0){
+		$sOpenQuestionStatHTML = '<div id="askeet_cat_stat_container">
+									<h1>Open Questions Categories</h1>
+									<div style="padding-bottom:10px;">You have '.$iOpenQuestionCount.' open question(s) in the following categories:</div>
+									<div id="askeet_cat_stat">';
+		
+		foreach ($aOpenQuestionStat as $sCat => $iQuestinCount){
+			$sOpenQuestionStatHTML .= '<div><a href="#askeet_scroll_here" onclick="askeet_SubjectQuestion(\''.$sCat.'\')">'.$sCat.'</a> ('.$iQuestinCount.')</div>';
+		}
+		
+		$sOpenQuestionStatHTML .= '</div></div>';
+	}else{
+		$sOpenQuestionStatHTML = '';
+	}
+	
+	if (count($aTutorsWhoAnswered) > 0){
+		$sTutorsWhoAnswered = '<div id="askeet_tutor_stat_container">
+									<h3>The following tutors have answered your question(s):</h3>
+									<div id="askeet_tutor_stat">';
+		
+		for ($i=0; $i<count($aTutorsWhoAnswered); $i++){
+			$aThisTutor = $aTutorsWhoAnswered[$i];
+			$sTutor = $aThisTutor["USER"];
+			
+			$sTutorsWhoAnswered .= '<div><a href="#askeet_scroll_here" onclick="askeet_GetAnsweredQuestionByTutor(\''.$sTutor.'\', '.$aThisTutor["ID"].')">'.$sTutor.'</a> ('.$aThisTutor["COUNT"].')</div>';
+		}
+		
+		$sTutorsWhoAnswered .= '</div></div>';
+	}else{
+		$sTutorsWhoAnswered = '';
+	}
+	
+	return '<table id="askeet_page">
+				<tr>
+					<td style="padding-right:10px; width:270px;">
+						<div id="AskeetOptIn" onclick="" style="text-align:center; padding:5px; width:270px; background-color:#FFFFFF; border-style:solid; border-color:#087C01; border-width:10px;" onmouseover="this.style.cursor=\'pointer\';" onmouseout="this.style.cursor=\'default\';">
+							<div id="AskeetOptInText">Please enroll me in</div>
+							<h1>Instant Question</h1>
+						</div>
+						
+						<div id="askeet_enrol_notice">
+							Before you can ask an Instant Question, you must enroll first. To enroll, just click on the 
+							button above and follow the instructions.
+						</div>
+					</td>
+					<td>
+						Through the Cybrary tutoring program, you can ask an Instant Question and have it answered 
+						by anyone of our volunteer tutors.
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="height:10px;"></td>
+				</tr>
+				<tr>
+					<td>You have asked a total of <b>'.$iQuestionCount.'</b> question(s).'.(($iQuestionCount > 0) ? ' Click <a href="#askeet_scroll_here" id ="askeet_open_question">here</a> to see all those question(s).':'').'</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td colspan="2" style="height:10px;"></td>
+				</tr>
+				<tr>
+					<td>You have spent <b>$ '.$mMoneySpent.'</b> on Instant Questions.</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td colspan="2" style="height:10px;"></td>
+				</tr>
+				<tr>
+					<td style="color:#087C01;">'.$iChildWithQuestion.' '.$sChildChildren.' have asked '.$iAllQuestionCount.' question(s) already.</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td colspan="2" style="height:10px;"></td>
+				</tr>
+				<tr>
+					<td>'.$sOpenQuestionStatHTML.'</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<a name="askeet_scroll_here"></a>
+						<div id="askeet_questions"></div>
+						'.$sTutorsWhoAnswered.'
+					</td>
+				</tr>
+			</table>
+			<div id="askeet_form" style="display:none;"></div>';
+}
+
+function askeet_enroll(){
+	global $user;
+	$iDrupalId = $user->uid;
+	
+	if ($iDrupalId == 0){
+		echo json_encode(array("STATUS" => "Error", "ERRMSG" => "You cannot enroll if you're not a member or not logged in."));
+	}else{
+		if (!_askeet_is_enrolled($iDrupalId)){
+			$sqlEnroll = "INSERT INTO {askeet_enrollee} VALUES(NULL, ".$iDrupalId.")";
+			db_query($sqlEnroll);
+		}
+		
+		echo json_encode(array("STATUS" => "Success"));
+	}
+	
+	exit;
+}
+
+function askeet_enroll_check(){
+	global $user;
+	$iDrupalId = $user->uid;
+	
+	if ($iDrupalId == 0){
+		echo json_encode(array("STATUS" => "Error", "ERRMSG" => "You cannot enroll if you're not a member or not logged in."));
+	}else{
+		$iStatusCode = _askeet_is_enrolled($iDrupalId) ? 1:0;
+		echo json_encode(array("STATUS" => $iStatusCode));
+	}
+	
+	exit;
+}
+
+function askeet_enroll_postform(){
+	$iPostCountToday = _askeet_get_post_count_today();
+	$iMaxPostToday = (int)variable_get('askeet_question_limit_daily', '3');
+	$mPostCost = (float)variable_get("askeet_question_cost", "0.25");
+	$iPostLeft = $iMaxPostToday - $iPostCountToday;
+	$iPostLeft = ($iPostLeft < 0) ? 0:$iPostLeft;
+	
+	$oDetails = _bank_account();
+	$aBalances = _bank_post("balance", array("key" => $oDetails->account_number, "pass" => $oDetails->account_pass));
+	$mBankBalance = number_format($aBalances["RETURN"]["BALANCE"], 2);
+	
+	if ($iPostLeft > 0){
+		if ($mBankBalance >= $mPostCost){
+			echo '<table id="askeet_enroll_postform" style="width:100%;" cellpadding="3">
+						<tr>
+							<td colspan="2"><h1 class="askeet_title" style="padding-bottom:10px;">ask a question</h1></td>
+						</tr>
+						<tr>
+							<td class="askeet_post_question_title"></td>
+							<td>
+								<p>Have you looked for a similar question? Check if a related question already exist. 
+								The more interesting a question is, the more people will be willing to answer it.</p>
+								
+								<p>Be accurate as you can when giving a title to your question. 
+								Keep it short and put the details in the question body.</p>
+							</td>
+						</tr>
+						<tr>
+							<td class="askeet_post_question_title">Question:</td>
+							<td style="padding-bottom:5px;"><input id="askeet_post_question" name="askeet_post_question" /></td>
+						</tr>
+						<tr>
+							<td class="askeet_post_question_title">Describe it:</td>
+							<td style="padding-bottom:5px;"><textarea id="askeet_post_question_desc" name="askeet_post_question_desc" rows="8"></textarea></td>
+						</tr>
+						<tr>
+							<td class="askeet_post_question_title">Tags</td>
+							<td style="padding-bottom:5px;"><input id="askeet_post_question_tags" name="askeet_post_question_tags" /></td>
+						</tr>
+						<tr>
+							<td class="askeet_post_question_title">Category:</td>
+							<td>
+								<select id="askeet_cat_1" style="width:170px; font-size:0.9em;" size="11"></select>
+								<select id="askeet_cat_2" style="width:170px; font-size:0.9em;" size="11"><optgroup label="No main category selected"></optgroup></select>
+								<select id="askeet_cat_3" style="width:170px; font-size:0.9em;" size="11"><optgroup label="No sub-category selected"></optgroup></select>
+							</td>
+						</tr>
+						<!--<tr>
+							<td class="askeet_post_question_title">Notification:</td>
+							<td style="padding-bottom:10px;"><input type="checkbox" id="askeet_post_question_alert" name="askeet_post_question_alert" value="1" />&nbsp;<label for="askeet_post_question_alert">Email me when I receive an answer</label></td>
+						</tr> -->
+						<tr>
+							<td></td>
+							<td style="padding-top:10px;">
+								<input type="button" id="askeet_post_question_preview_button" name="askeet_post_question_preview_button" value="Preview Question" onclick="askeet_PreviewThis();" class="form-submit" />
+								<input type="button" id="askeet_post_question_cancel_button" name="askeet_post_question_cancel_button" value="Cancel" onclick="askeet_ShowPage();" class="form-submit" />
+							</td>
+						</tr>
+					</table>
+					
+					<div id="askeet_post_question_preview" class="askeet_question_container" style="display:none;">
+						<div id="askeet_post_question_preview_cat"></div>
+						<div id="askeet_post_question_preview_question"></div>
+						<div id="askeet_post_question_preview_question_body"></div>
+						<div id="askeet_post_question_preview_notice">Asking cost $ '.$mPostCost.'. You can ask '.$iPostLeft.' questions today.</div>
+						
+						<div id="askeet_post_question_preview_buttons">
+							<input type="button" id="askeet_post_question_post_button" value="Ask It" onclick="askeet_PostQuestion();" class="form-submit" />
+							<input type="button" id="askeet_post_question_cancel_preview_button" value="Edit" onclick="askeet_CancelPreview();" class="form-submit" />
+						</div>
+					</div>
+					
+					<div id="askeet_post_question_post_status" style="display:none;">
+						<div>Your question have been posted successfully.</div>
+						<br /><br />
+						<input type="button" id="askeet_post_question_cancel_button" value="Continue" onclick="askeet_ShowPage();" class="form-submit" />
+					</div>';
+		}else{
+			echo '<table id="askeet_enroll_postform" style="width:100%;" cellpadding="3">
+						<tr>
+							<td style="padding-top:10px; text-align:center;">
+								Your current balance is $ '.$mBankBalance.'. You do not have enough Valiants to post an Instant Question.<br />
+								To post an Instant Question, you should have, at least, $ '.$mPostCost.' in your bank account.
+								<br /><br />
+								<input type="button" id="askeet_post_question_cancel_button" value="Continue" onclick="askeet_ShowPage();" class="form-submit" />
+							</td>
+						</tr>
+					</table>';
+		}
+	}else{
+		echo '<table id="askeet_enroll_postform" style="width:100%;" cellpadding="3">
+						<tr>
+							<td style="padding-top:10px; text-align:center;">
+								You already posted '.$iMaxPostToday.' Instant Questions, which is the maximum, for the day.<br />
+								Try to post your question(s) tomorrow.
+								<br /><br />
+								<input type="button" id="askeet_post_question_cancel_button" value="Continue" onclick="askeet_ShowPage();" class="form-submit" />
+							</td>
+						</tr>
+					</table>';
+	}
+	
+	exit;
+}
+
+function askeet_enroll_postform_process(){
+	require_once drupal_get_path("module", "askeet")."/askeet_porter_stemmer.php";
+	
+	$iAskeetId = _askeet_get_id();
+		
+	if (isset($_REQUEST["c"]) && $_REQUEST["c"] != ""){
+		$mPostCost = (float)$_REQUEST["c"];
+	}else{
+		$mPostCost = (float)variable_get("askeet_question_cost", "0.25");
+	}
+	
+	$bPriority = ($mPostCost == 0.25) ? "0":"1";
+	$dDateCreated = date("Y-m-d H:i:s");
+	$sQuestion = ucfirst(trim($_REQUEST["q"]));
+	$sQuestionStripped = strtolower(str_replace(" ", "-", _askeet_normalized($sQuestion)));
+	$sBody = trim($_REQUEST["b"]);
+	$sBodyStripped = addslashes(strip_tags($sBody));
+	$sTags = trim($_REQUEST["t"]);
+	$iCatId = $_REQUEST["i"];
+	
+	$sqlQuestion = "INSERT INTO {ask_question} 
+						VALUES(
+							NULL,
+							".$iAskeetId.",
+							'".addslashes(ucfirst($sQuestion))."',
+							'".$sQuestionStripped."',
+							'".$sBodyStripped."',
+							'".addslashes($sBody)."',
+							1,
+							0,
+							'".$dDateCreated."',
+							NULL,
+							'0',
+							".$iCatId.",
+							'".$bPriority."',
+							'0'
+						)";
+	
+	db_set_active('askeet');
+	
+	db_query($sqlQuestion);
+	$iQuestionId = db_last_insert_id("ask_question", "id");
+	
+	if ($sTags != ""){
+		$sqlTags = "INSERT INTO {ask_question_tag} VALUES";
+		$aTags = str_word_count(strtolower($sTags), 1);
+		
+		for ($x=0; $x<count($aTags); $x++){
+			$sRawTag = trim($aTags[$x]);
+			$sStrippedTag = _askeet_normalized($sRawTag);
+			
+			$sValueClause = "(".$iQuestionId.", ".$iAskeetId.", '".$dDateCreated."', '".addslashes($sRawTag)."', '".$sStrippedTag."')";
+			
+			db_query($sqlTags.$sValueClause);
+		}
+	}
+	
+	// --BEGIN Process the Question and Tags for the Search Index
+	$aWords = _askeet_get_words($sQuestion, $sBodyStripped, $sTags, $iQuestionId);
+	$sqlSearchIndex = "INSERT INTO {ask_search_index} VALUES";
+	
+	db_set_active('askeet');
+	
+	foreach ($aWords as $sThisWord => $sThisWeight){
+		$sValueClause = "(".$iQuestionId.", '".$sThisWord."', ".$sThisWeight.")";
+		
+		db_query($sqlSearchIndex.$sValueClause);
+	}
+	
+	$sqlSearchIndex .= $sValueClause;
+	// --END Process the Question and Tags for the Search Index
+	
+	db_set_active('default');
+	
+	// Send notification
+	//_askeet_notify_tutors($iCatId);
+	
+	// ---BEGIN Deduct Valiants from the child's account
+	$oDetails = _bank_account();
+	$aReqParam = array(
+						"key" => $oDetails->account_number, 
+						"pass" => $oDetails->account_pass,
+						"amount" => $mPostCost,
+						"recipient" => "P85L-1235534669",
+						"description" => "Payment for posting an Instant Question"
+					);
+	
+	$aBankReply = _bank_post("pay", $aReqParam);
+	// ---END Deduct Valiants from the child's account
+	
+	echo json_encode(array("STATUS" => $aBankReply["STATUS"], "RETURN" => $aBankReply["RETURN"]));
+	
+	exit;
+}
+
+function askeet_callback_questions($aQuestionType, $sTag="", $iUserId=NULL){
+	global $user;
+	
+	$sThisTitle = $aQuestionType.' questions';
+	$sqlQuestion = "SELECT A.id AS question_id, A.user_id, A.title, A.stripped_title, A.body, 
+						A.html_body, A.interested_users, A.reports, DATE_FORMAT(A.created_at, '%M %e, %Y %H:%i') AS created_at, 
+						A.updated_at, A.is_closed, B.id, B.nickname, B.first_name, B.last_name, B.email, 
+						B.sha1_password, B.salt, B.has_paypal, B.want_to_be_moderator, B.is_moderator, 
+						B.is_administrator, B.deletions, B.created_at AS user_created_at";
+	$sqlLimit = " LIMIT 10";
+	
+	switch ($aQuestionType){
+		case "all":
+		case "latest":
+		case "popular":
+			$sqlFromWhere = " FROM ask_question A, ask_user B 
+							WHERE A.user_id = B.id AND A.cat_id IS NOT NULL AND A.is_deleted = '0'";
+			$sqlPopularOrder = " ORDER BY A.interested_users DESC, A.created_at DESC";
+			$sqlLatestOrder = " ORDER BY A.created_at DESC";
+			
+			$sqlQuestion .= $sqlFromWhere;
+			$sqlQuestion .= ($aQuestionType == "popular") ? $sqlPopularOrder:$sqlLatestOrder;
+			
+			if ($aQuestionType == "all") $sqlLimit = "";
+			
+			break;
+		
+		case "tag":
+			$sqlTag = " FROM ask_question A 
+						INNER JOIN ask_user B ON A.user_id = B.id 
+						LEFT JOIN ask_question_tag C ON A.id = C.question_id 
+						WHERE C.normalized_tag = '".$sTag."'
+							AND A.cat_id IS NOT NULL
+							 AND A.is_deleted = '0'
+						ORDER BY A.interested_users DESC";
+			
+			$sqlQuestion .= $sqlTag;
+			$sThisTitle = 'popular questions for tag "'.$sTag.'"';
+			
+			break;
+		
+		case "open":
+			if (_askeet_is_tutor()){
+				$aChildren = _askeet_get_children();
+				$sClause = " AND B.nickname IN ('".implode("','", $aChildren)."')";
+				
+				if ($sTag != "") $sThisTitle = 'open question(s) under main subject "'.$sTag.'"';
+			}else{
+				$sClause = " AND A.user_id = "._askeet_get_id();
+				$sThisTitle = ($sTag != "") ? 'my open question(s) under main subject "'.$sTag.'"':'my open question(s)';
+			}
+			
+			$sqlOpen = ", A.cat_id
+						FROM ask_question A
+						INNER JOIN ask_user B ON B.id = A.user_id
+						WHERE A.is_closed = '0'
+							AND A.is_deleted = '0'
+							AND A.cat_id IS NOT NULL" .
+							$sClause .
+						" ORDER BY A.created_at DESC";
+			
+			$sqlQuestion .= $sqlOpen;
+			
+			break;
+		
+		case "filter":
+			$sThisTitle = 'filtered questions';
+			$iSubjId = (int)$sTag;
+			$aSubjAndContent = _mystudies_recurse_subj($iSubjId);
+			$aSubjId = array_merge($aSubjAndContent["aSubjectId"], $aSubjAndContent["aContentId"]);
+			
+			if (_askeet_is_tutor()){
+				$aChildren = _askeet_get_children();
+				$sClause = " AND B.nickname IN ('".implode("','", $aChildren)."')";
+			}
+			
+			$sqlFilter = ", A.cat_id
+						FROM ask_question A
+						INNER JOIN ask_user B ON B.id = A.user_id
+						WHERE A.is_closed = '0'
+							AND A.cat_id IN (".implode(",", $aSubjId).")
+							AND A.is_deleted = '0'".$sClause."
+						ORDER BY A.created_at DESC";
+			
+			$sqlQuestion .= $sqlFilter;
+			
+			break;
+		
+		case "answer":
+			$bTutor = _askeet_is_tutor();
+			//$sWhereClause = ($bTutor) ? "A.cat_id IS NOT NULL":"A.user_id = "._askeet_get_id();
+			$sWhereClause = "A.user_id = '"._askeet_get_id()."'";
+			
+			$sqlAnswer = ", A.cat_id
+							FROM ask_question A
+							INNER JOIN ask_user B ON B.id = A.user_id
+							INNER JOIN ask_answer C ON C.question_id = A.id
+							WHERE A.is_closed = '0'
+								AND A.is_deleted = '0'
+								AND C.user_id = '".$iUserId."'
+								AND A.cat_id IS NOT NULL
+								AND ".$sWhereClause;
+			
+			$sqlQuestion .= $sqlAnswer;
+			$sThisTitle = ($bTutor) ? 'question(s) that you have answered under "'.$sTag.'"':'my question(s) that tutor '.$sTag.' answered';
+			
+			break;
+		
+		case "question":
+			$sChildren = _askeet_get_children();
+			$sqlQuestions = " FROM ask_question A 
+							INNER JOIN ask_user B ON B.id = A.user_id 
+							INNER JOIN ask_answer C ON C.question_id = A.id 
+							WHERE B.id = ".$iUserId."
+								AND A.cat_id IS NOT NULL
+								AND A.is_deleted = '0'
+								AND C.user_id = "._askeet_get_id();
+			
+			$sqlQuestion .= $sqlQuestions;
+			$sThisTitle = 'question(s) that you have answered for '.$sTag;
+			
+			break;
+		
+		// Featured Questions
+		default:
+			$dDateNow = date("Y-m-d H:i:s");
+			$iDaysAgo = strtotime("-14 day", strtotime($dDateNow));
+			
+			$sqlFeatured = ", COUNT(C.user_id) AS interest_count 
+							FROM ask_question A, ask_user B, ask_interest C 
+							WHERE C.created_at > '".date("Y-m-d H:i:s", $iDaysAgo)."' 
+								AND C.question_id = A.id 
+								AND A.user_id = B.id
+								AND A.cat_id IS NOT NULL
+								AND A.is_deleted = '0'
+							GROUP BY C.question_id 
+							ORDER BY interest_count DESC, A.created_at DESC";
+			
+			$sqlQuestion .= $sqlFeatured;
+			
+			break;
+	}
+	
+	db_set_active('askeet');
+	$oFeatured = db_query($sqlQuestion);
+	$iQuestionCount = 0;
+	$aQuestions = array();
+	$aReturn = $sqlQuestion;
+	while ($oThis = db_fetch_object($oFeatured)){
+		$bContinue = true;
+		/*
+		if (($aQuestionType == "open" || ($aQuestionType == "answer" && $bTutor)) && $sTag != ""){
+			$iCatId = $oThis->cat_id;
+			$iMainGroupCat = 1000;
+			
+			while ($iMainGroupCat > 0){
+				$sqlGroup = "SELECT id, group_level, title
+							FROM {mystudyrecord}
+							WHERE id = %d";
+				
+				db_set_active('default');
+				
+				$oGroup = db_query($sqlGroup, $iCatId);
+				$oThisGroup = db_fetch_object($oGroup);
+				
+				$iCatId = $oThisGroup->group_level;
+				$sCatTitle = $oThisGroup->title;
+				$iMainGroupCat = $oThisGroup->group_level;
+			}
+
+			if ($sCatTitle != $sTag) $bContinue = false;
+		}*/
+		
+		if (($aQuestionType == "open") && $sTag != ""){
+			$iCatId = $oThis->cat_id;
+			$iMainGroupCat = 1000;
+			
+			while ($iMainGroupCat > 0){
+				$sqlGroup = "SELECT id, group_level, title
+							FROM {mystudyrecord}
+							WHERE id = %d";
+				
+				db_set_active('default');
+				
+				$oGroup = db_query($sqlGroup, $iCatId);
+				$oThisGroup = db_fetch_object($oGroup);
+				
+				$iCatId = $oThisGroup->group_level;
+				$sCatTitle = $oThisGroup->title;
+				$iMainGroupCat = $oThisGroup->group_level;
+			}
+
+			if ($sCatTitle != $sTag) $bContinue = false;
+		}
+		
+		if (($aQuestionType == "answer" && $bTutor) && $sTag != ""){
+			$iCatId = $oThis->cat_id;
+			$iMainGroupCat = 1000;
+			
+			while ($iMainGroupCat > 0){
+				$sqlGroup = "SELECT id, group_level, title
+							FROM {mystudyrecord}
+							WHERE id = %d";
+				
+				db_set_active('default');
+				
+				$oGroup = db_query($sqlGroup, $iCatId);
+				$oThisGroup = db_fetch_object($oGroup);
+				
+				$iCatId = $oThisGroup->group_level;
+				$sCatTitle = $oThisGroup->title;
+				$iMainGroupCat = $oThisGroup->group_level;
+			}
+			//if($oThis->user_id != $iUserId) $bContinue = false;
+			//if ($sCatTitle != $sTag) $bContinue = false;
+		}
+		
+		if ($bContinue){
+			$iQuestionId = $oThis->question_id;
+			$aQuestions[] = array(
+								"HEADER" => $sThisTitle,
+								"QUESTION" => array(
+												"ID" => $iQuestionId,
+												"TITLE" => ucfirst($oThis->title),
+												"URL" => base_path().'askeet/question/'.$oThis->stripped_title,
+												"TITLE_STRIPPED" => $oThis->stripped_title
+											),
+								"BODY" => $oThis->body,
+								"ASKED_BY" => $oThis->nickname,
+								"DATE_ASKED" => $oThis->created_at,
+								"ANSWER_COUNT" => _askeet_get_answer_count($iQuestionId),
+								"TAGS" => _askeet_get_tags($iQuestionId, false),
+								"OWNER" => ($oThis->nickname == $user->name),
+								"CLOSED" => ($oThis->is_closed == 1)
+							);
+		}
+	}
+	
+	db_set_active('default');
+	
+	echo json_encode(array("RETURN" => $aQuestions, "aReturn" => $aReturn));
+	
+	exit;
+}
+
+function askeet_questions($aQuestionType, $sTag="", $iUserId=NULL){
+	global $user;
+	
+	if($aQuestionType == 'deactivate'){
+	$iUserId = $user->uid;
+	$sqlDelete = "DELETE FROM askeet_tutor WHERE uid = %d";
+	db_query($sqlDelete, $iUserId);
+	$sqlDelete = "DELETE FROM volunteer_optin WHERE uid = %d";
+	db_query($sqlDelete, $iUserId);
+	userpoints_userpointsapi(array("uid" => $iUserId, "tid" => 199, "description" => "User deactivated his/her Instant tutor account."));
+	
+	drupal_goto($path = 'mystudies/getinvolved/instanttutor');
+	}
+
+	$sThisTitle = $aQuestionType.' questions';
+	$sqlQuestion = "SELECT A.id AS question_id, A.user_id, A.title, A.stripped_title, A.body, 
+						A.html_body, A.interested_users, A.reports, DATE_FORMAT(A.created_at, '%M %e, %Y %H:%i') AS created_at, 
+						A.updated_at, B.id, B.nickname, B.first_name, B.last_name, B.email, 
+						B.sha1_password, B.salt, B.has_paypal, B.want_to_be_moderator, B.is_moderator, 
+						B.is_administrator, B.deletions, B.created_at AS user_created_at";
+	$sqlLimit = " LIMIT 10";
+	
+	switch ($aQuestionType){
+		case "latest":
+		case "popular":
+			$sqlFromWhere = " FROM ask_question A, ask_user B 
+							WHERE A.user_id = B.id AND A.cat_id IS NOT NULL AND A.is_deleted = '0'";
+			$sqlPopularOrder = " ORDER BY A.interested_users DESC, A.created_at DESC";
+			$sqlLatestOrder = " ORDER BY A.created_at DESC";
+			
+			$sqlQuestion .= $sqlFromWhere;
+			$sqlQuestion .= ($aQuestionType == "popular") ? $sqlPopularOrder:$sqlLatestOrder;
+			
+			break;
+		
+		case "tag":
+			$sqlTag = " FROM ask_question A 
+						INNER JOIN ask_user B ON A.user_id = B.id 
+						LEFT JOIN ask_question_tag C ON A.id = C.question_id 
+						WHERE C.normalized_tag = '".$sTag."' 
+							AND A.cat_id IS NOT NULL
+							AND A.is_deleted = '0'
+						ORDER BY A.interested_users DESC";
+			
+			$sqlQuestion .= $sqlTag;
+			$sThisTitle = 'popular questions for tag "'.$sTag.'"';
+			
+			break;
+		
+		case "open":
+			if (_askeet_is_tutor()){
+				$aChildren = _askeet_get_children();
+				$sClause = " AND B.nickname IN ('".implode("','", $aChildren)."')";
+				
+				if ($sTag != "") $sThisTitle = 'open question(s) under main subject "'.$sTag.'"';
+			}else{
+				$sClause = " AND A.user_id = "._askeet_get_id();
+				$sThisTitle = ($sTag != "") ? 'my open question(s) under main subject "'.$sTag.'"':'my open question(s)';
+			}
+			
+			$sqlOpen = ", A.cat_id
+						FROM ask_question A
+						INNER JOIN ask_user B ON B.id = A.user_id
+						WHERE A.is_closed = '0'
+							AND A.is_deleted = '0'
+							AND A.cat_id IS NOT NULL" .
+							$sClause .
+							" ORDER BY A.created_at DESC";
+			
+			$sqlQuestion .= $sqlOpen;
+			
+			break;
+		case "selectedsubject":
+		$testjedjed = $sTag;
+			$aTags = explode(',,,', $sTag);
+			$sTag = $aTags[0];
+			$sId = $aTags[1];
+			if (_askeet_is_tutor()){
+				$aChildren = _askeet_get_children();
+				$sClause = " AND B.nickname IN ('".implode("','", $aChildren)."')";
+				$sClause .= " AND A.cat_id = '".$sId."'";
+				if ($sTag != "") $sThisTitle = 'selected subcategory question(s) under main subject "'.$sTag.'"';
+			}else{
+				$sClause = " AND A.user_id = "._askeet_get_id();
+				$sThisTitle = ($sTag != "") ? 'my selected category question(s) under main subject "'.$sTag.'"':'my open question(s)';
+			}
+			
+			$sqlOpen = ", A.cat_id
+						FROM ask_question A
+						INNER JOIN ask_user B ON B.id = A.user_id
+						WHERE A.is_closed = '0'
+							AND A.is_deleted = '0'
+							AND A.cat_id IS NOT NULL" .
+							$sClause .
+							" ORDER BY A.created_at DESC";
+			
+			$sqlQuestion .= $sqlOpen;
+			break;
+		case "answer":
+			$bTutor = _askeet_is_tutor();
+			$sWhereClause = ($bTutor) ? "A.cat_id IS NOT NULL":"A.user_id = "._askeet_get_id();
+			$sqlAnswer = ", A.cat_id
+							FROM ask_question A
+							INNER JOIN ask_user B ON B.id = A.user_id
+							INNER JOIN ask_answer C ON C.question_id = A.id
+							WHERE A.is_closed = '0'
+								AND A.is_deleted = '0'
+								AND C.user_id = ".$iUserId."
+								AND A.cat_id IS NOT NULL
+								AND ".$sWhereClause;
+			
+			$sqlQuestion .= $sqlAnswer;
+			$sThisTitle = ($bTutor) ? 'question(s) that you have answered under "'.$sTag.'"':'my question(s) that tutor '.$sTag.' answered';
+			
+			break;
+		
+		case "question":
+			$sChildren = _askeet_get_children();
+			$sqlQuestions = " FROM ask_question A 
+							INNER JOIN ask_user B ON B.id = A.user_id 
+							INNER JOIN ask_answer C ON C.question_id = A.id 
+							WHERE B.id = ".$iUserId."
+								AND A.cat_id IS NOT NULL
+								AND A.is_deleted = '0'
+								AND C.user_id = "._askeet_get_id();
+			
+			$sqlQuestion .= $sqlQuestions;
+			$sThisTitle = 'question(s) that you have answered for '.$sTag;
+			
+			break;
+		
+		// Featured Questions
+		default:
+			$dDateNow = date("Y-m-d H:i:s");
+			$iDaysAgo = strtotime("-14 day", strtotime($dDateNow));
+			
+			$sqlFeatured = ", COUNT(C.user_id) AS interest_count 
+							FROM ask_question A, ask_user B, ask_interest C 
+							WHERE C.created_at > '".date("Y-m-d H:i:s", $iDaysAgo)."' 
+								AND C.question_id = A.id 
+								AND A.user_id = B.id
+								AND A.cat_id IS NOT NULL
+								AND A.is_deleted = '0'
+							GROUP BY C.question_id 
+							ORDER BY interest_count DESC, A.created_at DESC";
+			
+			$sqlQuestion .= $sqlFeatured;
+			
+			break;
+	}
+	
+	$sTableHeader = '<table style="width:100%;" cellpadding="3"><tr><td colspan="2"><h1 class="askeet_title">'.$sThisTitle.'</h1></td></tr>';
+	$sTableContent = '';
+	$sTableFooter = '</table>';
+	
+	db_set_active('askeet');
+	
+	$oFeatured = db_query($sqlQuestion);
+	$iQuestionCount = 0;
+	
+	while ($oThis = db_fetch_object($oFeatured)){
+		$bContinue = true;
+		
+		if (($aQuestionType == "open" || ($aQuestionType == "answer" && $bTutor)) && $sTag != ""){
+			$iCatId = $oThis->cat_id;
+			$iMainGroupCat = 1000;
+			
+			while ($iMainGroupCat > 0){
+				$sqlGroup = "SELECT id, group_level, title
+							FROM {mystudyrecord}
+							WHERE id = %d";
+				
+				db_set_active('default');
+				
+				$oGroup = db_query($sqlGroup, $iCatId);
+				$oThisGroup = db_fetch_object($oGroup);
+				
+				$iCatId = $oThisGroup->group_level;
+				$sCatTitle = $oThisGroup->title;
+				$iMainGroupCat = $oThisGroup->group_level;
+			}
+			
+			if ($sCatTitle != $sTag) $bContinue = false;
+		}
+		
+		if ($bContinue){
+			$iQuestionCount++;
+			$iQuestionId = $oThis->question_id;
+			$sQuestionURL = base_path().'askeet/question/'.$oThis->stripped_title;
+			$iAnswerCount = _askeet_get_answer_count($iQuestionId);
+			$sAnswerLink = ($iAnswerCount > 0) ? '<u><a href="'.$sQuestionURL.'">'.$iAnswerCount.' answer(s)</a></u>':'<u>'.$iAnswerCount.' answer(s)</u>';
+			
+			$sTableContent .= ($iQuestionCount > 1) ? '<tr><td colspan="2" class="askeet_spacing"></td></tr>':'';
+			$sTableContent .= '<tr>
+									<td class="askeet_interest_bullet"><!--<h1 class="askeet_interest"><b>'.$oThis->interested_users.'</b></h1>--></td>
+									<td style="padding-left:10px;">
+										<div class="askeet_question_container">
+											<a style="color:#9C4797; font-size:1.6em; line-height:20px;" href="'.$sQuestionURL.'">'.ucfirst($oThis->title).'</a><br />
+											asked by <b><u>'.$oThis->nickname.'</u></b> on '.$oThis->created_at.'
+										</div>
+										'.$oThis->body.'
+										<div class="askeet_question_sub">
+											'.$sAnswerLink.'  -  tags: '._askeet_get_tags($iQuestionId).'<br />
+										</div>
+									</td>
+								</tr>';
+		}
+	}
+	
+	db_set_active('default');
+	
+	$sTableContent .= ($iQuestionCount == 0) ? '<tr><td>No questions to list for now.</td></tr>':'';
+	
+	echo $sTableHeader.$sTableContent.$sTableFooter;
+	exit;
+}
+
+function askeet_callback_question_delete($iQuestionId){
+	if ($iQuestionId != ""){
+		$sqlQuestion = "UPDATE ask_question SET is_deleted = '1' WHERE id = %d";
+		$sqlAnswer = "UPDATE ask_answer SET is_deleted = '1' WHERE question_id = %d";
+		
+		db_set_active('askeet');
+		db_query($sqlQuestion, $iQuestionId);
+		db_query($sqlAnswer, $iQuestionId);
+		db_set_active('default');
+		
+		exit(json_encode(array("STATUS" => "Success")));
+	}
+	
+	exit(json_encode(array("STATUS" => "Failed")));
+}
+
+function askeet_callback_answer_delete($iAnswerId){
+	if ($iAnswerId != ""){
+		$sqlAnswer = "UPDATE ask_answer SET is_deleted = '1' WHERE id = %d";
+		
+		db_set_active('askeet');
+		db_query($sqlAnswer, $iAnswerId);
+		db_set_active('default');
+		
+		exit(json_encode(array("STATUS" => "Success")));
+	}
+	
+	exit(json_encode(array("STATUS" => "Failed")));
+}
+
+function askeet_callback_question_view($sStrippedTitle){
+	global $user;
+	
+	$iAskeetId = _askeet_get_id();
+	$sqlQuestion = "SELECT A.id AS question_id, A.user_id, A.title, A.stripped_title, A.body, 
+						A.html_body, A.interested_users, A.reports, DATE_FORMAT(A.created_at, '%M %e, %Y %H:%i') AS created_at, 
+						A.updated_at, B.id, B.nickname, B.first_name, B.last_name, B.email, 
+						B.sha1_password, B.salt, B.has_paypal, B.want_to_be_moderator, B.is_moderator, 
+						B.is_administrator, B.deletions, B.created_at AS user_created_at, A.is_closed
+					FROM ask_question A, ask_user B 
+					WHERE A.stripped_title = '".$sStrippedTitle."' 
+						AND A.user_id = B.id";
+	$sqlAnswers = "SELECT IF(ISNULL(B.nickname), 'Anonymous', B.nickname) AS nickname, A.id, A.question_id, A.user_id, A.body, A.html_body,
+						A.relevancy_up, A.relevancy_down, A.reports, DATE_FORMAT(A.created_at, '%M %e, %Y %H:%i') AS created_at,
+						ROUND(((A.relevancy_up / (A.relevancy_up + A.relevancy_down)) * 100)) AS relevancy_up,
+						ROUND(((A.relevancy_down / (A.relevancy_up + A.relevancy_down)) * 100)) AS relevancy_down,
+						C.user_id AS voted_user_id
+					FROM ask_answer A
+					LEFT JOIN ask_user B ON A.user_id = B.id
+					LEFT JOIN ask_relevancy C ON A.id = C.answer_id AND C.user_id = ".$iAskeetId."
+					WHERE question_id = %d
+						AND A.is_deleted = '0'
+					ORDER BY A.created_at";
+	
+	$sTableHeader = '<table style="width:100%;" cellpadding="3">';
+	$sTableContent = '';
+	$sTableFooter = '</table>';
+	
+	$bQuestionOwner = _askeet_is_question_owner($sStrippedTitle);
+	
+	db_set_active('askeet');
+	
+	$oQuestion = db_query($sqlQuestion);
+	$oThisQ = db_fetch_object($oQuestion);
+	$iQuestionId = $oThisQ->question_id;
+	$sQuestion = ucfirst($oThisQ->title);
+	$bQuestionClosed = ($oThisQ->is_closed == 1) ? true:false;
+	$sOption = "";
+	
+	$sOption .= $sCloseQuestion = ($bQuestionOwner) ? '<span style="color:red; font-size:1.2em;" id="askeet_close_question">[close this question]</span>':'';
+	$sDeleteQuestion = ($bQuestionOwner) ? '<span style="color:red;  font-size:1.2em; cursor:pointer;" id="tutor_delete_link_'.$iQuestionId.'" onclick=\'Tutor_DeleteQuestion('.$iQuestionId.', "'.$sQuestion.'")\'>[delete question]</span>':'';
+		
+	if ($sOption != "") $sOption .= " &nbsp; ".$sDeleteQuestion;
+	
+	if ($bQuestionClosed) $sOption = '<div>[this question is already closed]</div>';
+	
+	$aOutput["QUESTION_ID"] = $iQuestionId;
+	$aOutput["QUESTION_CLOSED"] = $bQuestionClosed;
+	$aOutput["QUESTION"] = '<div class="report_right_text_area_4_3" id="tutor_question_'.$iQuestionId.'">
+								<div class="report_left_txt_top_4_3" style="font-size:1.6em; background:none; padding:0;">'.$sQuestion.'</div>
+								<div>asked by <b><u>'.$oThisQ->nickname.'</u></b> on '.$oThisQ->created_at.'</div>
+								'.$sOption.'
+								<div style="padding-top:5px;">'.$oThisQ->body.'</div>
+								<div id="askeet_questions" style="margin:15px 0 5px 0; border-top-style:dotted;"></div>
+							</div>';
+	
+	$oAnswers = db_query($sqlAnswers, $iQuestionId);
+	$iAnswerCount = _askeet_get_answer_count($iQuestionId);
+	$aAnswers = array();
+	
+	while ($oThisA = db_fetch_object($oAnswers)){
+		$bAlreadyVoted = ($oThisA->voted_user_id == $iAskeetId) ? true:false;
+		$iAnswerId = $oThisA->id;
+		$sUpId = ($bAlreadyVoted) ? "":"askeet_answer_rating_up_".$iAnswerId;
+		$sDownId = ($bAlreadyVoted) ? "":"askeet_answer_rating_down_".$iAnswerId;
+		$sUpImgSrc = ($bAlreadyVoted) ? "thumbs_up_voted.gif":"thumbs_up.gif";
+		$sDownImgSrc = ($bAlreadyVoted) ? "thumbs_down_voted.gif":"thumbs_down.gif";
+		$sUponClick = ($bAlreadyVoted) ? "":'onclick="hud_askeet_Rating('."'".'up'."'".', '."'".$iAnswerId."'".');"';
+		$sDownonClick = ($bAlreadyVoted) ? "":'onclick="hud_askeet_Rating('."'".'down'."'".', '."'".$iAnswerId."'".');"';
+		$sCssPointer =  ($bAlreadyVoted) ? "":"cursor:pointer;";
+		$sAnswerOption = ($oThisA->nickname == $user->name) ? '<spans style="margin-left:5px; color:red; cursor:pointer;" onclick=\'Tutor_DeleteAnswer('.$iAnswerId.', "'.$sStrippedTitle.'")\'>[delete]</span>':'';
+		
+		$aAnswers[] = '<div style="clear:both;" width="100%">
+						<div style="float:left" width="30%">
+							<div id="askeet_answer_rating">
+								<div id="'.$sUpId.'" '.$sUponClick.' style="display:inline; float:left; font-size:10px; '.$sCssPointer.' text-align:center; width:35px;">
+								<img id="askeet_rating_up_'.$oThisA->id.'" src="'.base_path().'misc/'.$sUpImgSrc.'" />
+								</div>
+								<div id="'.$sDownId.'" '.$sDownonClick.' style="display:inline; float:left; font-size:10px; '.$sCssPointer.' text-align:center;width:35px;">
+								<img id="askeet_rating_down_'.$oThisA->id.'" src="'.base_path().'misc/'.$sDownImgSrc.'" />
+								</div>
+								<br style="clear:left;" />
+								<div id="askeet_answer_rating_up" style="float:left;"><span id="askeet_answer_rating_up_value_'.$oThisA->id.'">'.((!is_null($oThisA->relevancy_up) && $oThisA->relevancy_up > 0) ? $oThisA->relevancy_up:0).'</span>%</div>
+								<div id="askeet_answer_rating_down" style="float:right;"><span id="askeet_answer_rating_down_value_'.$oThisA->id.'">'.((!is_null($oThisA->relevancy_down) && $oThisA->relevancy_down > 0) ? $oThisA->relevancy_down:0).'</span>%</div>
+							</div>
+						</div>
+						<div style="float:left" width="70%">	
+							<div id="tutor_answer_'.$iAnswerId.'" class="report_right_text_area_4_3">
+								<div class="report_left_txt_top_4_3">
+									<div style="color:#55ED1A;">'.$oThisA->html_body.'</div>
+									answered by <b><u>'.$oThisA->nickname.'</u></b> on '.$oThisA->created_at.$sAnswerOption.'
+								</div>
+							</div>
+						</div>
+					   </div>';
+	}
+	
+	$aOutput["ANSWERS"] = $aAnswers;
+	db_set_active('default');
+	
+	$sPostAnswer = '<form id="askeet_PostAnswer" onsubmit="return askeet_PostAnswer();">
+						<input type="hidden" id="askeet_question_id" value="'.$iQuestionId.'" />
+						<table style="margin-top:20px;">
+							<tr>
+								<td class="askeet_post_question_title">Your Answer:</td>
+								<td style="padding-bottom:5px;"><textarea id="askeet_post_answer" rows="8"></textarea></td>
+							</tr>
+							<tr>
+								<td></td>
+								<td>
+									<input type="submit" id="askeet_post_answer_button" value="Answer It" class="form-submit" />
+								</td>
+							</tr>
+						</table>
+					</form>';
+	
+	echo json_encode($aOutput);
+	
+	exit;
+}
+
+function askeet_question_view($sStrippedTitle, $bAdmin=false){
+	//drupal_add_js('/sites/all/modules/gtrans/gtranslate_files/treeview.async.js');
+	//drupal_add_js('/sites/all/modules/gtrans/gtranslate_files/treeview.js');
+	if (!$bAdmin){
+		/*if (isset($_SESSION["bVolunteer"]) && $_SESSION["bVolunteer"]){
+			$aTrail = array(
+						l("Home", "<front>"),
+						l("Volunteer's Portal", "volunteer"),
+						l("Tutoring", "volunteer/tutor"),
+						l("Dashboard", "askeet/tutor"),
+						l("Question and Answers", $_REQUEST["q"]),
+					);*/
+					
+			$aTrail = array(
+					l("Home", "<front>"),
+					l("Get Involved", "mystudies/getinvolved"),
+					l("Instant Tutor Dashboard", "mystudies/getinvolved/instanttutor/dashboard"),
+					l("Question and Answers", $_REQUEST["q"])
+				);
+		/*}else{
+			$aTrail = array(
+						l("Home", "<front>"),
+						l("Children's Portal", "node/20"),
+						l("Get Help", "node/196"),
+						l("Tutoring", "node/197"),
+						l("Instant Question", "askeet"),
+						l("Question and Answers", $_REQUEST["q"]),
+					);
+		}*/
+		
+		drupal_set_breadcrumb($aTrail);
+	}
+	$aOpenQuestionStat = _askeet_get_open_question_stat();
+	if (count($aOpenQuestionStat) > 0){
+			$sOpenQuestionStatHTML = '<div id="askeet_cat_stat_container">
+										<div style="padding-bottom:10px;">Click on a category below to view the question(s):</div>
+										<div id="askeet_cat_stat">';
+			
+			foreach ($aOpenQuestionStat as $sCat => $iQuestinCount){
+				$sOpenQuestionStatHTML .= '<div style="text-align:left;"><a href="#askeet_scroll_here" onclick="askeet_SubjectQuestion(\''.$sCat.'\')">'.$sCat.'</a> ('.$iQuestinCount.')</div>';
+			}
+			
+			$sOpenQuestionStatHTML .= '</div></div>';
+	}else{
+			$sOpenQuestionStatHTML = '';
+	}
+		
+	$iAskeetId = _askeet_get_id();
+	
+	$sqlQuestion = "SELECT A.id AS question_id, A.user_id, A.title, A.stripped_title, A.body, 
+						A.html_body, A.interested_users, A.reports, DATE_FORMAT(A.created_at, '%M %e, %Y %H:%i') AS created_at, 
+						A.updated_at, B.id, B.nickname, B.first_name, B.last_name, B.email, 
+						B.sha1_password, B.salt, B.has_paypal, B.want_to_be_moderator, B.is_moderator, 
+						B.is_administrator, B.deletions, B.created_at AS user_created_at, A.is_closed, A.cat_id
+					FROM ask_question A, ask_user B 
+					WHERE A.stripped_title = '".$sStrippedTitle."' 
+						AND A.user_id = B.id";
+	
+	$sqlAnswers = "SELECT IF(ISNULL(B.nickname), 'Anonymous', B.nickname) AS nickname, A.id, A.question_id, A.user_id, A.body, A.html_body,
+						A.relevancy_up, A.relevancy_down, A.reports, DATE_FORMAT(A.created_at, '%M %e, %Y %H:%i') AS created_at,
+						ROUND(((A.relevancy_up / (A.relevancy_up + A.relevancy_down)) * 100)) AS relevancy_up,
+						ROUND(((A.relevancy_down / (A.relevancy_up + A.relevancy_down)) * 100)) AS relevancy_down,
+						C.user_id AS voted_user_id
+					FROM ask_answer A
+					LEFT JOIN ask_user B ON A.user_id = B.id
+					LEFT JOIN ask_relevancy C ON A.id = C.answer_id AND C.user_id = ".$iAskeetId."
+					WHERE question_id = %d
+					ORDER BY A.created_at";
+	
+	
+	$bQuestionOwner = _askeet_is_question_owner($sStrippedTitle);
+	$sCloseQuestion = ($bQuestionOwner) ? '<div id="askeet_close_question">[close this question]</div>':'';
+	
+	db_set_active('askeet');
+	
+	$oQuestion = db_query($sqlQuestion);
+	$oThisQ = db_fetch_object($oQuestion);
+	$iQuestionId = $oThisQ->question_id;
+	$iCatId = $oThisQ->cat_id;
+	$bQuestionClosed = ($oThisQ->is_closed == 1) ? true:false;
+	$sSubject = $sStrippedTitle.',,,'.$iCatId;
+	$sTableHeader = '
+	<div class="divider"></div>
+				<div id="ins_qanda_cbtop">
+					<div class="cbb">
+						<div class="left-border">
+							<div class="right-border">
+								<table width="980" border="0" cellpadding="0" cellspacing="0" id="gi_nav">
+									<tr><td height="25" class="bgfix"></td></tr>
+									<tr>
+									  <td valign="top" align="left">
+									  	<div id="gi_internal" style="width:960px">
+											<div class="cbb" style="text-align:center">
+												<table style="margin-top:10px;" width="100%" border="0" cellpadding="0" cellspacing="0">
+													<tr>
+														<td width="370" align="left">
+															<div class="jbox">
+																<div class="jboxhead"><h2></h2></div>
+																<div class="jboxbody">
+																	<div class="jboxcontent" style="text-align:center">
+																		<div class="jbox">
+																			<div class="jboxhead"><h2></h2></div>
+																			<div class="jboxbody">
+																				<div class="jboxcontent" style="font-size:16px;font-weight:bold;text-align:center">
+																					Open Questions Categories
+																				</div>
+																			</div>
+																			<div class="jboxfoot"><p></p></div>
+																		</div>
+																	
+																		<!--<table cellpadding="0" cellspacing="0" border="0">
+																			<tr>
+																				<td valign="top">'.$sOpenQuestionStatHTML.'</td>
+																				<td valign="top" rowspan="5" valign="top">&nbsp;</td>
+																			</tr>
+																		</table>-->
+																		<ul id="askeet_VolunteerCatList"></ul>
+																		
+																		<!--<div id="mystudies_NoFeatureDialog" title="Administrator Notice">
+																			<p>You cannot administer any contents, yet. Please wait for, at least, an Editor to be assigned to you first.</p>
+																		</div>-->
+																	</div>
+																</div>
+																<div class="jboxfoot"><p></p></div>
+																<div>&nbsp;</div>
+																<div class="jbox">
+																<div class="jboxhead"><h2></h2></div>
+																<div class="jboxbody">
+																	<div class="jboxcontent" style="text-align:center">
+																		<table cellpadding="0" cellspacing="0" border="0">
+																			<tr>
+																				<td valign="top">
+																				<div id="askeet_open_questions">
+																					<div id="askeet_child_and_question">
+																					Click <a id="askeet_open_question" href="#askeet_scroll_here">here</a> to see all open question(s).
+																					</div>
+																				</div>
+																				<a name="askeet_scroll_here" style="text-align:left;"></a>
+																				<div id="askeet_selected_questions" style="text-align:left;"></div>
+																				<div id="askeet_questions" style="border-top-style:dashed; border-top-width:1px; padding-top:10px;text-align:left;"></div>
+																				<script type="text/javascript">
+																				var sSubject = '."'".$sSubject."'".';
+																				var askeet_sBasePath = "/";
+																				$("#askeet_selected_questions").load(askeet_sBasePath+"askeet/selectedsubject/"+escape(sSubject));
+																				</script>
+																				</td>
+																				<td valign="top" rowspan="5" valign="top">&nbsp;</td>
+																			</tr>
+																		</table>
+																	</div>
+																</div>
+																<div class="jboxfoot"><p></p></div>
+																
+															</div>
+														</td>
+														<td width="1" class="dividerv"></td>
+														<td align="right">
+															<div class="jbox">
+																<div class="jboxhead"><h2></h2></div>
+																<div class="jboxbody">
+																	<div class="jboxcontent">
+																	<table width="100%" cellpadding="0" cellspacing="0" border="0" id="gi_editor_stats">';
+	$sTableContent = '';
+	$sTableFooter = '												</table>
+																	</div>
+																</div>
+																<div class="jboxfoot"><p></p></div>
+															</div>
+														</td>
+														</tr>
+												</table>
+											</div>		
+										</div>	
+									  </td>
+								  </tr>
+								</table>
+							</div>
+						</div>					
+					</div>
+				</div>';
+				
+	if ($bQuestionClosed) $sCloseQuestion = '<div>[this question is already closed]</div>';
+	
+	$sTableContent .= '<tr>
+							<td style="padding-bottom:20px;">
+								<div class="askeet_question_container">
+									<div style="font-size:1.6em;">'.ucfirst($oThisQ->title).'</div>
+									asked by <b><u>'.$oThisQ->nickname.'</u></b> on '.$oThisQ->created_at.'
+									'.$sCloseQuestion.'
+								</div>
+								'.$oThisQ->body.'
+							</td>
+						</tr>';
+	
+	$oAnswers = db_query($sqlAnswers, $iQuestionId);
+	$iAnswerCount = _askeet_get_answer_count($iQuestionId);
+	$sTableContent .= ($iAnswerCount > 0) ? '<tr><td><h1 class="askeet_title">Answers</h1></td></tr>':'';
+	
+	while ($oThisA = db_fetch_object($oAnswers)){
+		$bAlreadyVoted = ($oThisA->voted_user_id == $iAskeetId) ? true:false;
+		
+		if (!$bAdmin){
+			$sUpId = ($bAlreadyVoted) ? "":"askeet_answer_rating_up_".$oThisA->id;
+			$sDownId = ($bAlreadyVoted) ? "":"askeet_answer_rating_down_".$oThisA->id;
+		}else{
+			$sUpId = "";
+			$sDownId = "";
+		}
+		
+		$sUpImgSrc = ($bAlreadyVoted) ? "thumbs_up_voted.gif":"thumbs_up.gif";
+		$sDownImgSrc = ($bAlreadyVoted) ? "thumbs_down_voted.gif":"thumbs_down.gif";
+		
+		$sTableContent .= '<tr>
+								<td style="border-top-style:dashed; border-top-width:1px; padding-top:10px;">
+									<table>
+										<tr>
+											<td>
+												<div id="askeet_answer_rating">
+													<div id="'.$sUpId.'" style="display:inline; float:left; font-size:10px; text-align:center; width:35px;">
+														<img id="askeet_rating_up_'.$oThisA->id.'" src="'.base_path().'misc/'.$sUpImgSrc.'" />
+													</div>
+													<div id="'.$sDownId.'" style="display:inline; float:left; font-size:10px; text-align:center;width:35px;">
+														<img id="askeet_rating_down_'.$oThisA->id.'" src="'.base_path().'misc/'.$sDownImgSrc.'" />
+													</div>
+													<br style="clear:left;" />
+													<div id="askeet_answer_rating_up"><span id="askeet_answer_rating_up_value_'.$oThisA->id.'">'.((!is_null($oThisA->relevancy_up) && $oThisA->relevancy_up > 0) ? $oThisA->relevancy_up:0).'</span>%</div>
+													<div id="askeet_answer_rating_down"><span id="askeet_answer_rating_down_value_'.$oThisA->id.'">'.((!is_null($oThisA->relevancy_down) && $oThisA->relevancy_down > 0) ? $oThisA->relevancy_down:0).'</span>%</div>
+												</div>
+											</td>
+											<td>
+												'.$oThisA->html_body.'
+												<div class="askeet_question_container">
+													answered by <b><u>'.$oThisA->nickname.'</u></b> on '.$oThisA->created_at.'
+												</div>
+											</td>
+										</tr>
+									</table>
+								</td>
+							</tr>';
+	}
+	
+	db_set_active('default');
+	
+	$sPostAnswer = '<tr>
+						<td>
+						<form id="askeet_PostAnswer" onsubmit="return askeet_PostAnswer();">
+							<input type="hidden" id="askeet_question_id" value="'.$iQuestionId.'" />
+							<table style="margin-top:20px;">
+								<tr>
+									<td colspan="2" style="text-align:left;" class="askeet_post_question_title">Your Answer:</td>
+								</tr>
+								<tr>
+									<td colspan="2" style="padding-bottom:5px;"><textarea id="askeet_post_answer" cols="10" rows="8"></textarea></td>
+								</tr>
+								<tr>
+									<td></td>
+									<td>
+										<input type="submit" id="askeet_post_answer_button" value="Answer It" class="form-submit" />
+									</td>
+								</tr>
+							</table>
+						</form>
+						</td>
+					</tr>';
+	
+	if ($bQuestionClosed) $sPostAnswer = "";
+	if ($bAdmin) $sPostAnswer = "";
+	
+	$sExtraHTML = '<br />
+					<a name="askeet_scroll_here"></a>
+					<div id="askeet_questions" style="display:none; border-top-style:dotted;"></div>';
+					
+	return drupal_eval(load_vtemplate('page-instruction')).$sTableHeader.$sTableContent.$sPostAnswer.$sTableFooter.$sExtraHTML;
+}
+
+function askeet_question_delete(){
+	$sBasePath = base_path();
+	$sOutput = "";
+	$iQuestionCount = 0;
+	$sTableHeader = '<form action="'.$sBasePath.'admin/content/askeet/delete" method="post" onsubmit="return askeet_DeleteQuestion();">
+					<table style="margin-top:10px; width:100%;">
+						<tr>
+							<th style="width:15px;"></th>
+							<th style="padding:5px;">Question</th>
+						</tr>';
+	$sTableFooter = '<tr>
+						<td colspan="2"><button type="submit" name="askeet_btnDelete" class="form-submit">Delete</button></td>
+					</tr>
+					</table></form>';
+	
+	$sqlBody = " FROM ask_question A, ask_user B 
+				WHERE A.user_id = B.id AND A.cat_id IS NOT NULL
+				ORDER BY A.created_at DESC";
+	$sqlQuestion = "SELECT A.id AS question_id, A.cat_id, A.user_id, A.title, A.stripped_title, A.body, 
+						A.html_body, A.interested_users, A.reports, DATE_FORMAT(A.created_at, '%M %e, %Y %H:%i') AS created_at, 
+						A.updated_at, B.id, B.nickname, B.first_name, B.last_name, B.email, 
+						B.sha1_password, B.salt, B.has_paypal, B.want_to_be_moderator, B.is_moderator, 
+						B.is_administrator, B.deletions, B.created_at AS user_created_at".$sqlBody;
+	$sqlCount = "SELECT COUNT(A.id) ".$sqlBody;
+	
+	db_set_active('askeet');
+	
+	$oQuestionResult = pager_query($sqlQuestion, ASKEET_REC_PER_PAGE, 0, $sqlCount);
+	
+	db_set_active('default');
+	
+	while ($oQuestion = db_fetch_object($oQuestionResult)){
+		$iQuestionCount++;
+		$sOutput .= '<tr>
+						<td style="padding-top:5px;"><input type="checkbox" id="iQuestionId" name="aQuestionId[]" value="'.$oQuestion->question_id.'" /></td>
+						<td style="padding:5px;">
+							<a href="'.$sBasePath.'admin/content/askeet/question/'.$oQuestion->stripped_title.'">'.ucfirst($oQuestion->title).'</a><br/>
+							<div>'._mystudies_get_full_cat($oQuestion->cat_id).'</div>
+							<div style="color:#173102; padding-bottom:5px;">Submitted on '.$oQuestion->created_at.' by '.$oQuestion->nickname.'</div>
+							'.$oQuestion->body.'
+						</td>
+					</tr>';
+	}
+	
+	if ($iQuestionCount > 0){
+		$sPagerHTML = theme("pager", null, TIME_REC_PER_PAGE);
+		$sOutput = $sTableHeader.$sOutput.$sTableFooter.$sPagerHTML;
+	}else{
+		$sOutput = '<div style="margin-top:10px;">No history to display, yet.</div>';
+	}
+	
+	return $sOutput;
+}
+
+function askeet_question_delete_process(){
+	foreach ($_REQUEST as $sKey => $sData) {
+		${$sKey} = $sData;
+	}
+	
+	$sQuestionId = implode(",", $aQuestionId);
+	$sqlQuestions = "DELETE FROM ask_question WHERE id IN (".$sQuestionId.")";
+	$sqlAnswers = "DELETE FROM ask_answer WHERE question_id IN (".$sQuestionId.")";
+	
+	db_set_active('askeet');
+	
+	db_query($sqlQuestions);
+	db_query($sqlAnswers);
+	
+	db_set_active('default');
+	
+	drupal_add_js('setTimeout("location=\''.base_path().'admin/content/askeet\'", 5000)', "inline");
+	drupal_set_message("Selected question(s) and it's answer(s) have been successfully deleted.");
+	
+	return "";
+}
+
+function askeet_question_cat(){
+	$sqlCat = "SELECT id, title, leaf
+				FROM mystudyrecord
+				WHERE group_level = %d
+				ORDER BY id";
+	
+	$oCat = db_query($sqlCat, $_REQUEST["id"]);
+	$aOutput = array();
+	
+	while ($oThis = db_fetch_object($oCat)){
+		$aOutput[] = array("ID" => (int)$oThis->id, "TITLE" => ucwords(strtolower($oThis->title)), "LEAF" => (int)$oThis->leaf);
+	}
+	
+	echo json_encode($aOutput);
+	exit;
+}
+
+function askeet_question_cats(){
+	global $aCategs;
+	
+	switch($_GET['q']){
+		case 'askeet/question/cats/instanttutor':
+			//color
+			//$aClass = array("instantcateg_red","instantcateg_yellow","instantcateg_green");
+			$result = db_query("SELECT id,group_level,leaf FROM mystudyrecord");
+			while($row = db_fetch_object($result)) {
+				$aCategs[$row->id] = array(
+										'group' => $row->group_level,
+										'children' => array(),
+										'leaf' => $row->leaf,
+										'site' => 0,
+										'animation' => 0,
+										'doc' => 0,
+										'image' => 0,
+										'video' => 0,
+										'color' => 0,
+									);
+			}
+			
+			foreach ($aCategs as $id => $aCateg) {
+				if ($aCateg["leaf"] == "1")
+					traverseParents($aCateg["group"],$id);
+			}
+			//eof color
+			
+			$iParentId = ($_REQUEST["root"] == "source") ? 0:$_REQUEST["root"];
+			
+			$sqlCat = "SELECT id, title, leaf
+						FROM mystudyrecord
+						WHERE group_level = %d
+						ORDER BY id";
+			
+			$oCat = db_query($sqlCat, $iParentId);
+			$aOutput = array();
+			
+			while ($oThis = db_fetch_object($oCat)){
+				$sCleantitle = preg_replace('/[^a-zA-Z0-9_ -]/s', '', $oThis->title);
+				$sSubject = $sCleantitle.',,,'.$oThis->id;
+				$sClick = ($oThis->leaf == 1 ? 'onclick="askeet_SelectedSubjectQuestion(\''. $sSubject . '\');"' : '');	
+				$aOpenQuestionCat = _askeet_get_open_question_individual_stat();
+
+				$sCatCount = 0;
+				foreach ($aOpenQuestionCat as $sCat => $iQuestinCount){
+					if($sCat == $oThis->id){
+						$sCatCount = $iQuestinCount;
+					}
+				}
+				
+				$sValCount = '('.$sCatCount. ')';
+				$aClass = $sCatCount > 0 ? 'instantcateg_yellow': 'instantcateg_red';
+				$sHref = ($oThis->leaf == 1 ? '#askeet_scroll_here' : 'javascript:void(0);');	
+				$aOutput[] = array(
+								"text" => '<a href="'.$sHref.'" ' . $sClick . ' class="' . $aClass . '">'.ucwords(strtolower($oThis->title)) .$sValCount. '</a>',
+								"id" => (int)$oThis->id,
+								"hasChildren" => (($oThis->leaf == 1) ? false:true)
+							);
+			}
+			
+			if (count($aOutput) == 0) $aOutput[] = array("text" => "No subjects/categories, yet.");
+			
+			echo json_encode($aOutput);
+			exit;
+	
+		case 'askeet/question/cats/entertain': // start of entertainment portal
+			
+			$aClass = array("categ_red","categ_yellow","categ_green");
+			$result = db_query("SELECT id,group_level,leaf FROM mystudyrecord");
+			while($row = db_fetch_object($result)) {
+			
+				$aCategs[$row->id] = array(
+										'group' => $row->group_level,
+										'children' => array(),
+										'leaf' => $row->leaf,
+										'site' => 0,
+										'animation' => 0,
+										'doc' => 0,
+										'image' => 0,
+										'video' => 0,
+										'color' => 0,
+										'content' => 0,
+									);
+			}
+			
+			foreach ($aCategs as $id => $aCateg) {
+					if ($aCateg["leaf"] == "1")
+						traverseParents($aCateg["group"],$id);
+			}
+
+			$result = db_query("SELECT 'S' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_site UNION
+								SELECT 'F' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_file UNION
+								SELECT 'SS' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_suggested_site WHERE promoted = 1 UNION
+								SELECT 'SF' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_suggested_file WHERE IFNULL(iAdminId,0) <> 0");
+			
+			while($row = db_fetch_object($result)) {
+				$type = $row->type;
+				if (in_array($row->type,array("doc_embed","doc_ext")))
+					$type = "doc";
+				else if (in_array($row->type,array("image_embed","image_ext")))
+					$type = "image";
+				else if (in_array($row->type,array("video_embed","video_ext","video_youtube")))
+					$type = "video";
+				else if (in_array($row->type,array("content_embed","content_ext","content_youtube")))
+					$type = "content";
+				
+				populateCateg($type,$row->group_level);
+			}
+				
+			$iParentId = ($_REQUEST["root"] == "source") ? 6:$_REQUEST["root"];
+
+			$sqlCat = "SELECT id, title, leaf
+						FROM mystudyrecord
+						WHERE group_level = %d 
+						and id not in (1,2,3,4,5,7,8,9,10,11)
+						ORDER BY id";
+			
+			$oCat = db_query($sqlCat, $iParentId);
+			$aOutput = array();
+			
+			while ($oThis = db_fetch_object($oCat)){
+				$sCounts = $aCategs[$oThis->id]["site"] . "," . $aCategs[$oThis->id]["animation"] . "," . $aCategs[$oThis->id]["doc"] . "," . $aCategs[$oThis->id]["image"] . "," . $aCategs[$oThis->id]["video"] . "," . $aCategs[$oThis->id]["content"];
+				
+				$sClick = ($oThis->leaf == 1 ? 'onclick="setContentCounts(\''. $sCounts . '\');"' : '');
+		 
+				$aOutput[] = array(
+								"text" => '<span ' . $sClick . ' class="' . $aClass[$aCategs[$oThis->id]["color"]] . '" style="color:black;">'.ucwords(strtolower($oThis->title)) . '</span>',
+								"id" => (int)$oThis->id,
+								"hasChildren" => (($oThis->leaf == 1) ? false:true)
+							);
+			}
+			
+			if (count($aOutput) == 0) $aOutput[] = array("text" => "<span style='color:black;'>No subjects/categories, yet.</span>");
+			
+			echo json_encode($aOutput);
+			exit;
+			
+			break; // end of entertainment portal
+		case 'askeet/question/cats/entertainadmin': // start of entertainment portal
+			
+			$aClass = array("categ_red","categ_yellow","categ_green");
+			$result = db_query("SELECT id,group_level,leaf FROM mystudyrecord");
+			while($row = db_fetch_object($result)) {
+			
+				$aCategs[$row->id] = array(
+										'group' => $row->group_level,
+										'children' => array(),
+										'leaf' => $row->leaf,
+										'site' => 0,
+										'animation' => 0,
+										'doc' => 0,
+										'image' => 0,
+										'video' => 0,
+										'color' => 0,
+										'content' => 0,
+									);
+			}
+			
+			foreach ($aCategs as $id => $aCateg) {
+					if ($aCateg["leaf"] == "1")
+						traverseParents($aCateg["group"],$id);
+			}
+
+			$result = db_query("SELECT 'S' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_site UNION
+								SELECT 'F' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_file UNION
+								SELECT 'SS' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_suggested_site WHERE promoted = 1 UNION
+								SELECT 'SF' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_suggested_file WHERE IFNULL(iAdminId,0) <> 0");
+			
+			while($row = db_fetch_object($result)) {
+				$type = $row->type;
+				if (in_array($row->type,array("doc_embed","doc_ext")))
+					$type = "doc";
+				else if (in_array($row->type,array("image_embed","image_ext")))
+					$type = "image";
+				else if (in_array($row->type,array("video_embed","video_ext","video_youtube")))
+					$type = "video";
+				else if (in_array($row->type,array("content_embed","content_ext","content_youtube")))
+					$type = "content";
+				
+				populateCateg($type,$row->group_level);
+			}
+				
+			$iParentId = ($_REQUEST["root"] == "source") ? 6:$_REQUEST["root"];
+
+			$sqlCat = "SELECT id, group_level, title, leaf
+						FROM mystudyrecord
+						WHERE group_level = %d 
+						and id not in (1,2,3,4,5,7,8,9,10,11)
+						ORDER BY id";
+			
+			$oCat = db_query($sqlCat, $iParentId);
+			$aOutput = array();
+			
+			while ($oThis = db_fetch_object($oCat)){
+				$sCounts = $aCategs[$oThis->id]["site"] . "," . $aCategs[$oThis->id]["animation"] . "," . $aCategs[$oThis->id]["doc"] . "," . $aCategs[$oThis->id]["image"] . "," . $aCategs[$oThis->id]["video"] . "," . $aCategs[$oThis->id]["content"];
+				
+				$sClick = 'onclick="Entertainment_getCatID(\''. $oThis->id . '\',\''.$oThis->group_level.'\',\''.ucwords(strtolower($oThis->title)).'\');"';
+		 
+				$aOutput[] = array(
+								"text" => '<span ' . $sClick . ' class="' . $aClass[$aCategs[$oThis->id]["color"]] . '" style="color:black;">'.ucwords(strtolower($oThis->title)) . '</span>',
+								"id" => (int)$oThis->id,
+								"hasChildren" => (($oThis->leaf == 1) ? false:true)
+							);
+			}
+			
+			if (count($aOutput) == 0) $aOutput[] = array("text" => "<span style='color:black;'>No subjects/categories, yet.</span>");
+			
+			echo json_encode($aOutput);
+			exit;
+			
+			break; // end of entertainment portal admin
+			
+		case 'askeet/question/cats/values':
+			
+			$aClass = array("categ_red","categ_yellow","categ_green");
+			$result = db_query("SELECT id,group_level,leaf FROM mystudyrecord");
+			while($row = db_fetch_object($result)) {
+			
+				$aCategs[$row->id] = array(
+										'group' => $row->group_level,
+										'children' => array(),
+										'leaf' => $row->leaf,
+										'site' => 0,
+										'animation' => 0,
+										'doc' => 0,
+										'image' => 0,
+										'video' => 0,
+										'color' => 0,
+										'content' => 0,
+									);
+			}
+			
+			foreach ($aCategs as $id => $aCateg) {
+				if ($aCateg["leaf"] == "1") traverseParents($aCateg["group"],$id);
+			}
+
+			$result = db_query("SELECT 'S' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_site UNION
+								SELECT 'F' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_file UNION
+								SELECT 'SS' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_suggested_site WHERE promoted = 1 UNION
+								SELECT 'SF' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_suggested_file WHERE IFNULL(iAdminId,0) <> 0");
+			
+			while($row = db_fetch_object($result)) {
+				$type = $row->type;
+				if (in_array($row->type,array("doc_embed","doc_ext")))
+					$type = "doc";
+				else if (in_array($row->type,array("image_embed","image_ext")))
+					$type = "image";
+				else if (in_array($row->type,array("video_embed","video_ext","video_youtube")))
+					$type = "video";
+				else if (in_array($row->type,array("content_embed","content_ext","content_youtube")))
+					$type = "content";
+				
+				populateCateg($type,$row->group_level);
+			}
+				
+			$iParentId = ($_REQUEST["root"] == "source") ? 8:$_REQUEST["root"];
+
+			$sqlCat = "SELECT id, title, leaf
+						FROM mystudyrecord
+						WHERE group_level = %d 
+						and id not in (1,2,3,4,5,7,8,9,10,11)
+						ORDER BY id";
+			
+			$oCat = db_query($sqlCat, $iParentId);
+			$aOutput = array();
+			
+			while ($oThis = db_fetch_object($oCat)){
+				$sCounts = $aCategs[$oThis->id]["site"] . "," . $aCategs[$oThis->id]["animation"] . "," . $aCategs[$oThis->id]["doc"] . "," . $aCategs[$oThis->id]["image"] . "," . $aCategs[$oThis->id]["video"] . "," . $aCategs[$oThis->id]["content"];
+				
+				$sClick = ($oThis->leaf == 1 ? 'onclick="setContentCounts(\''. $sCounts . '\');"' : '');
+		 
+				$aOutput[] = array(
+								"text" => '<span ' . $sClick . ' class="' . $aClass[$aCategs[$oThis->id]["color"]] . '" style="color:black;">'.ucwords(strtolower($oThis->title)) . '</span>',
+								"id" => (int)$oThis->id,
+								"hasChildren" => (($oThis->leaf == 1) ? false:true)
+							);
+			}
+			
+			if (count($aOutput) == 0) $aOutput[] = array("text" => "<span style='color:black;'>No subjects/categories, yet.</span>");
+			
+			echo json_encode($aOutput);
+			exit;
+			
+			break;
+		
+		case 'askeet/question/cats/valuesadmin':
+			
+			$aClass = array("categ_red","categ_yellow","categ_green");
+			$result = db_query("SELECT id,group_level,leaf FROM mystudyrecord");
+			while($row = db_fetch_object($result)) {
+			
+				$aCategs[$row->id] = array(
+										'group' => $row->group_level,
+										'children' => array(),
+										'leaf' => $row->leaf,
+										'site' => 0,
+										'animation' => 0,
+										'doc' => 0,
+										'image' => 0,
+										'video' => 0,
+										'color' => 0,
+										'content' => 0,
+									);
+			}
+			
+			foreach ($aCategs as $id => $aCateg) {
+					if ($aCateg["leaf"] == "1")
+						traverseParents($aCateg["group"],$id);
+			}
+
+			$result = db_query("SELECT 'S' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_site UNION
+								SELECT 'F' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_file UNION
+								SELECT 'SS' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_suggested_site WHERE promoted = 1 UNION
+								SELECT 'SF' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_suggested_file WHERE IFNULL(iAdminId,0) <> 0");
+			
+			while($row = db_fetch_object($result)) {
+				$type = $row->type;
+				if (in_array($row->type,array("doc_embed","doc_ext")))
+					$type = "doc";
+				else if (in_array($row->type,array("image_embed","image_ext")))
+					$type = "image";
+				else if (in_array($row->type,array("video_embed","video_ext","video_youtube")))
+					$type = "video";
+				else if (in_array($row->type,array("content_embed","content_ext","content_youtube")))
+					$type = "content";
+				
+				populateCateg($type,$row->group_level);
+			}
+				
+			$iParentId = ($_REQUEST["root"] == "source") ? 8:$_REQUEST["root"];
+
+			$sqlCat = "SELECT id, group_level, title, leaf
+						FROM mystudyrecord
+						WHERE group_level = %d 
+						and id not in (1,2,3,4,5,7,8,9,10,11)
+						ORDER BY id";
+			
+			$oCat = db_query($sqlCat, $iParentId);
+			$aOutput = array();
+			
+			while ($oThis = db_fetch_object($oCat)){
+				$sCounts = $aCategs[$oThis->id]["site"] . "," . $aCategs[$oThis->id]["animation"] . "," . $aCategs[$oThis->id]["doc"] . "," . $aCategs[$oThis->id]["image"] . "," . $aCategs[$oThis->id]["video"] . "," . $aCategs[$oThis->id]["content"];
+				
+				$sClick = 'onclick="Values_getCatID(\''. $oThis->id . '\',\''.$oThis->group_level.'\',\''.ucwords(strtolower($oThis->title)).'\');"';
+		 
+				$aOutput[] = array(
+								"text" => '<span ' . $sClick . ' class="' . $aClass[$aCategs[$oThis->id]["color"]] . '" style="color:black;">'.ucwords(strtolower($oThis->title)) . '</span>',
+								"id" => (int)$oThis->id,
+								"hasChildren" => (($oThis->leaf == 1) ? false:true)
+							);
+			}
+			
+			if (count($aOutput) == 0) $aOutput[] = array("text" => "<span style='color:black;'>No subjects/categories, yet.</span>");
+			
+			echo json_encode($aOutput);
+			exit;
+			
+			break;
+			
+		default:
+			$aClass = array("categ_red","categ_yellow","categ_green");
+			$result = db_query("SELECT id,group_level,leaf FROM mystudyrecord");
+			while($row = db_fetch_object($result)) {
+				$aCategs[$row->id] = array(
+										'group' => $row->group_level,
+										'children' => array(),
+										'leaf' => $row->leaf,
+										'site' => 0,
+										'animation' => 0,
+										'doc' => 0,
+										'image' => 0,
+										'video' => 0,
+										'color' => 0,
+									);
+			}
+			
+			foreach ($aCategs as $id => $aCateg) {
+				if ($aCateg["leaf"] == "1")
+					traverseParents($aCateg["group"],$id);
+			}
+
+			$result = db_query("SELECT 'S' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_site UNION
+								SELECT 'F' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_file UNION
+								SELECT 'SS' AS 'j',id,sSiteType AS type,group_level FROM mystudyrecord_suggested_site WHERE promoted = 1 UNION
+								SELECT 'SF' AS 'j',id,sFileType AS type,iGroupLevel AS group_level FROM mystudyrecord_suggested_file WHERE IFNULL(iAdminId,0) <> 0");
+			while($row = db_fetch_object($result)) {
+				$type = $row->type;
+				if (in_array($row->type,array("doc_embed","doc_ext")))
+					$type = "doc";
+				else if (in_array($row->type,array("image_embed","image_ext")))
+					$type = "image";
+				else if (in_array($row->type,array("video_embed","video_ext","video_youtube")))
+					$type = "video";
+				
+				populateCateg($type,$row->group_level);
+			}
+				
+			$iParentId = ($_REQUEST["root"] == "source") ? 0:$_REQUEST["root"];
+			$sqlCat = "SELECT id, title, leaf
+						FROM mystudyrecord
+						WHERE group_level = %d
+						and id not in (6)
+						ORDER BY id";
+			
+			$oCat = db_query($sqlCat, $iParentId);
+			$aOutput = array();
+			
+			while ($oThis = db_fetch_object($oCat)){
+				$sCounts = $aCategs[$oThis->id]["site"] . "," . $aCategs[$oThis->id]["animation"] . "," . $aCategs[$oThis->id]["doc"] . "," . $aCategs[$oThis->id]["image"] . "," . $aCategs[$oThis->id]["video"];
+				$sClick = ($oThis->leaf == 1 ? 'onclick="setContentCounts(\''. $sCounts . '\',\''.ucwords(strtolower($oThis->title)).'\');"' : '');
+				$aOutput[] = array(
+								"text" => '<span ' . $sClick . ' class="' . $aClass[$aCategs[$oThis->id]["color"]] . '">'.ucwords(strtolower($oThis->title)) . '</span>',
+								"id" => (int)$oThis->id,
+								"hasChildren" => (($oThis->leaf == 1) ? false:true)
+							);
+			}
+			
+			if (count($aOutput) == 0) $aOutput[] = array("text" => "No subjects/categories, yet.");
+			
+			echo json_encode($aOutput);
+			exit;
+	}
+}
+
+
+function traverseParents($iParent,$iLeaf) {
+	global $aCategs;
+	
+	if (isset($aCategs[$iParent])) {
+		$aCategs[$iParent]["children"][] = $iLeaf;
+		if ($aCategs[$iParent]["group"] != "0")
+			traverseParents($aCategs[$iParent]["group"],$iLeaf);
+	}
+}
+
+function populateCateg($sType,$iCategId) {
+	global $aCategs;
+	
+	if (!isset($aCategs[$iCategId]))
+		return;
+
+	$aCategs[$iCategId][$sType] ++;
+	if ($aCategs[$iCategId]["leaf"] == "1") {
+		if ($aCategs[$iCategId]["site"] == 0 ||
+			$aCategs[$iCategId]["animation"] == 0 ||
+			$aCategs[$iCategId]["doc"] == 0 ||
+			$aCategs[$iCategId]["image"] == 0 ||
+			$aCategs[$iCategId]["video"] == 0) {
+				$aCategs[$iCategId]["color"] = 0;
+		} else if (($aCategs[$iCategId]["site"] > 0 && $aCategs[$iCategId]["site"] < 5) ||
+			($aCategs[$iCategId]["animation"] > 0 && $aCategs[$iCategId]["animation"] < 5) ||
+			($aCategs[$iCategId]["doc"] > 0 && $aCategs[$iCategId]["doc"] < 5) ||
+			($aCategs[$iCategId]["image"] > 0 && $aCategs[$iCategId]["image"] < 5) ||
+			($aCategs[$iCategId]["video"] > 0 && $aCategs[$iCategId]["video"] < 5)) {
+				$aCategs[$iCategId]["color"] = 1;
+		} else {
+				$aCategs[$iCategId]["color"] = 2;
+		}
+	} else {
+		$iDefaultColor = 2; 
+		if ($aCategs[$iCategId]["color"] < $iDefaultColor) {
+			if (is_array($aCategs[$iCategId]["children"])) {
+				foreach ($aCategs[$iCategId]["children"] as $iChild) {
+					if ($iDefaultColor > $aCategs[$iChild]["color"])
+						$iDefaultColor = $aCategs[$iChild]["color"];
+					if ($iDefaultColor == 0)
+						break;
+				}
+			}
+			$aCategs[$iCategId]["color"] = $iDefaultColor;
+		}
+	}
+	
+	if ($aCategs[$iCategId]["group"] != "0")
+		populateCateg($sType,$aCategs[$iCategId]["group"]);
+}
+
+function askeet_question_close(){
+	$sqlClose = "UPDATE {ask_question}
+				SET is_closed = '1'
+				WHERE id = ".$_REQUEST["id"];
+	
+	db_set_active('askeet');
+	
+	if (!db_query($sqlClose)){
+		echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlClose));
+	}else{
+		echo json_encode(array("STATUS" => "Success"));
+	}
+	
+	db_set_active('default');
+	
+	exit;
+}
+
+function askeet_answer_process_rating(){
+	$iAnswerId = $_REQUEST["id"];
+	$sField = ($_REQUEST["type"] == "up") ? "relevancy_up":"relevancy_down";
+	$iScore = ($_REQUEST["type"] == "up") ? 1:-1;
+	
+	$sqlAnswer = "UPDATE {ask_answer}
+					SET ".$sField." = ".$sField." + 1
+					WHERE id = ".$iAnswerId;
+	
+	$sqlRelevancy = "INSERT INTO {ask_relevancy}
+					VALUES(
+						".$iAnswerId.",
+						"._askeet_get_id().",
+						".$iScore.",
+						'".date("Y-m-d H:i:s")."'
+					)";
+	
+	$sqlCurrRating = "SELECT ROUND(((relevancy_up / (relevancy_up + relevancy_down)) * 100)) AS relevancy_up,
+							ROUND(((relevancy_down / (relevancy_up + relevancy_down)) * 100)) AS relevancy_down
+						FROM ask_answer
+						WHERE id = ".$iAnswerId;
+	
+	db_set_active('askeet');
+	
+	if (!db_query($sqlAnswer)){
+		echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlAnswer));
+	}else{
+		if (!db_query($sqlRelevancy)){
+			echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlRelevancy));
+		}else{
+			$oCurrRating = db_query($sqlCurrRating);
+			$oThisRating = db_fetch_object($oCurrRating);
+			
+			echo json_encode(array("STATUS" => "Success", "RETURN" => array(array("UP" => $oThisRating->relevancy_up, "DOWN" => $oThisRating->relevancy_down))));
+		}
+	}
+	
+	db_set_active('default');
+	
+	exit;
+}
+
+function askeet_post_answer_process(){
+	$iAskeetId = _askeet_get_id();
+	$iQuestionId = $_REQUEST["id"];
+	$sAnswer = ucfirst(addslashes(trim($_REQUEST["ans"])));
+	$sAnswerStripped = _askeet_normalized(strip_tags($sAnswer));
+	
+	$sqlInsert = "INSERT INTO {ask_answer} 
+					VALUES(
+						NULL,
+						".$iQuestionId.", 
+						".$iAskeetId.", 
+						'".$sAnswerStripped."', 
+						'".$sAnswer."', 
+						0,
+						0,
+						0,
+						'".date("Y-m-d H:i:s")."',
+						'0'
+					)";
+	
+	db_set_active('askeet');
+	
+	if (!db_query($sqlInsert)){
+		echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error"));
+	}else{
+		// --BEGIN Process the Answer for the Search Index
+		$aWords = _askeet_get_words("", $sAnswerStripped, "", $iQuestionId);
+		$aWords = _askeet_calc_search_index($iQuestionId, $aWords);
+		
+		$sqlDelete = "DELETE FROM {ask_search_index} WHERE question_id = ".$iQuestionId;
+		$sqlSearchIndex = "INSERT INTO {ask_search_index} VALUES";
+		
+		db_set_active('askeet');
+		
+		db_query($sqlDelete);
+		
+		foreach ($aWords as $sThisWord => $sThisWeight){
+			$sValueClause = "(".$iQuestionId.", '".$sThisWord."', ".$sThisWeight.")";
+			
+			db_query($sqlSearchIndex.$sValueClause);
+		}
+		
+		$sqlSearchIndex .= $sValueClause;
+		// --END Process the Answer for the Search Index
+		
+		echo json_encode(array("STATUS" => "Success", "RETURN" => ""));
+	}
+	
+	db_set_active('default');
+	
+	exit;
+}
+
+function askeet_latest_answers(){
+	$sTableHeader = '<table style="width:100%;" cellpadding="3"><tr><td><h1 class="askeet_title">recent answers</h1></td></tr>';
+	$sTableContent = '';
+	$sTableFooter = '</table>';
+	$sqlAnswers = "SELECT A.id AS answer_id, A.question_id, C.stripped_title, C.title, A.user_id, A.body, A.html_body, 
+						A.relevancy_up, A.relevancy_down, A.reports, DATE_FORMAT(A.created_at, '%M %e, %Y %H:%i') AS created_at, 
+						B.id AS user_id, B.nickname, B.first_name, B.last_name, B.email, B.sha1_password, B.salt, B.has_paypal, 
+						B.want_to_be_moderator, B.is_moderator, B.is_administrator, B.deletions, B.created_at AS user_created_at 
+					FROM ask_answer A, ask_user B, ask_question C 
+					WHERE A.user_id = B.id AND A.question_id = C.id 
+					ORDER by A.created_at DESC 
+					LIMIT 10";
+	
+	db_set_active('askeet');
+	
+	$oLatestAnswers = db_query($sqlAnswers);
+	$iAnswerCount = 0;
+	
+	while ($oThis = db_fetch_object($oLatestAnswers)){
+		$iAnswerCount++;
+		
+		$sTableContent .= ($iAnswerCount > 1) ? '<tr><td colspan="2" class="askeet_spacing"></td></tr>':'';
+		$sTableContent .= '<tr>
+								<td>
+									<div class="askeet_question_container">
+										<a style="color:#9C4797; font-size:1.6em; line-height:20px;" href="'.base_path().'askeet/question/'.$oThis->stripped_title.'">'.ucfirst($oThis->title).'</a>
+									</div>
+									'.$oThis->body.'
+									<div class="askeet_question_sub">
+										<div style="color:#9C4797;">asked by <b><u>'.$oThis->nickname.'</u></b> on '.$oThis->created_at.'</div>
+										<u>[report to moderator]</u>
+									</div>
+								</td>
+							</tr>';
+	}
+	
+	db_set_active('default');
+	
+	echo $sTableHeader.$sTableContent.$sTableFooter;
+	exit;
+}
+
+function askeet_tutor_optin(){
+	$iUserId = $_REQUEST["id"];
+	
+	switch($_REQUEST["st"]){
+	case 'specific':
+		exit(json_encode(array("value" => _askeet_get_selected_question_cat_specific($_REQUEST["cat"]))));
+	case 'update':
+		$sqlOptin= "UPDATE askeet_tutor SET cat = '%s' WHERE uid = %d";
+		if (!db_query($sqlOptin, serialize(explode(",", $_REQUEST["cat"])), $iUserId)){
+			echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlOptin));
+		} else{
+		exit(json_encode(array("STATUS" => "Success")));
+		}
+	case 'add':
+		$sqlOptin = "INSERT INTO {askeet_tutor} 
+					VALUES(
+						NULL,
+						".$iUserId.",
+						'%s',
+						'".$_REQUEST["na"]."',
+						'".$_REQUEST["nc"]."'
+					)";
+		
+		if (!db_query($sqlOptin, serialize(explode(",", $_REQUEST["cat"])))){
+			echo json_encode(array("STATUS" => "Error", "ERRMSG" => "Database Error", "SQL" => $sqlOptin));
+		}else{
+			$iTutorId = db_last_insert_id("askeet_tutor", "tid");
+			
+			$sqlAddRole = "INSERT INTO users_roles VALUES(%d, %d)";
+			db_query($sqlAddRole, array($iUserId, 4));
+			
+			echo json_encode(array("STATUS" => "Success", "RETURN" => $iTutorId));
+		}
+		exit;
+	break;	
+	}
+}
+
+function askeet_tutor_dashboard(){
+	global $user;
+	
+	$iUserId = $user->uid;
+	$bTutor = _askeet_is_tutor();
+	$_SESSION["bVolunteer"] = $bTutor;
+				
+	$aTrail = array(
+					l("Home", "<front>"),
+					l("Get Involved", "mystudies/getinvolved"),
+					l("Instant Tutor Dashboard", "mystudies/getinvolved/instanttutor/dashboard")
+				);
+	
+	drupal_set_breadcrumb($aTrail);
+	
+	//drupal_add_js('/sites/all/modules/askeet/askeet.js');
+	
+	if ($bTutor){
+		$iAnsweredQuestionCount = _askeet_get_tutor_answered_question_count();
+		$aTutorRating = _askeet_get_tutor_rating();
+		//$iOpenQuestionCount = _askeet_get_open_question_count();
+		$iOpenQuestionCount = _askeet_get_question_count(NULL, "open");
+		$iOpenQuestionSelectedCatCount = _askeet_get_open_question_selected_cat_count();
+		$iSelectedCatCount = _askeet_get_selected_question_cat_content();
+		$iChildWithQuestion = _askeet_get_children_with_open_question_count();
+		$sChildChildren = ($iChildWithQuestion > 1) ? "children":"child";
+		$aOpenQuestionStat = _askeet_get_open_question_stat();
+		$aCatWithAnswers = _askeet_get_tutor_answer_stat();
+		$aAnsweredChildren = _askeet_list_tutor_child();
+
+		if (count($aOpenQuestionStat) > 0){
+			$sOpenQuestionStatHTML = '<div id="askeet_cat_stat_container">
+										<div style="padding-bottom:10px;">Click on a category below to view the question(s):</div>
+										<div id="askeet_cat_stat">';
+			
+			foreach ($aOpenQuestionStat as $sCat => $iQuestinCount){
+				$sOpenQuestionStatHTML .= '<div style="text-align:left;"><a href="#askeet_scroll_here" onclick="askeet_SubjectQuestion(\''.$sCat.'\')">'.$sCat.'</a> ('.$iQuestinCount.')</div>';
+			}
+			
+			$sOpenQuestionStatHTML .= '</div></div>';
+		} else{
+			$sOpenQuestionStatHTML = '';
+		}
+		
+		if (count($iSelectedCatCount) > 0){
+			$sSelectCatCountHTML = '<tr><td width="70">&nbsp;</td>
+											<td valign="top">
+												<hr class="divider" style="margin:2px" />
+													<div class="jbox">
+														<div class="jboxhead"><h2></h2></div>
+														<div class="jboxbody">
+															<div class="jboxcontent">
+																<div id="instant_addCategory" style="padding-bottom:10px;"><img src="/themes/theme2010/images/btn_blue_addsubject.png" border="0" /></div>
+																<h3>Your Selected Subject/Category:</h3>
+																<div id="askvolunteer_selected_cats">';
+			$sSelectedIds = '';
+			foreach($iSelectedCatCount as $sId => $sContent):
+			$sSelectedIds .= '"'.$sId.'",';
+				foreach($sContent as $sTitle => $sCount):
+					$sTagid= preg_replace('/[^\w\d_ -]/si', '', $sTitle).',,,'.$sId;
+					$sSelectCatCountHTML .= '<div id="'.$sId.'"><a href="#askeet_scroll_here" onclick="askeet_SelectedSubjectQuestion(\''.$sTagid.'\')">'.ucwords(strtolower($sTitle)).'</a> ('.(($sCount > 0) ? $sCount : '0').') &nbsp;&nbsp;&nbsp;<a style="text-decoration:none;" href="javascript:void();" onclick="askeet_removecategoryitem_click('.$sId.')"><span style="color:red;font-size:10px;">remove</span></a></div>';
+				endforeach;
+			endforeach;
+			
+			$sSelectCatCountHTML .= '</div>
+											</div>
+											    	</div>
+														<div class="jboxfoot"><p></p></div>
+											</div>
+										<hr class="divider" style="margin:2px" />
+									</td>
+								</tr>';
+			$sSelectedIds = substr_replace($sSelectedIds ,"",-1);
+		}else{
+			$sSelectCatCountHTML = '';
+		}
+		
+		if (count($aCatWithAnswers) > 0){
+			$sCatWithAnswersStatHTML = '<tr><td width="70">&nbsp;</td>
+											<td valign="top">
+												<hr class="divider" style="margin:2px" />
+													<div class="jbox">
+														<div class="jboxhead"><h2></h2></div>
+														<div class="jboxbody">
+															<div class="jboxcontent">
+																<h3>Question(s) that you have answered:</h3>';
+			
+			foreach ($aCatWithAnswers as $sCat => $iAnswerCount){
+				$sCatWithAnswersStatHTML .= '<div><a href="#askeet_scroll_here" onclick="askeet_GetAnsweredQuestionByTutor(\''.$sCat.'\', '._askeet_get_id().')">'.$sCat.'</a> ('.$iAnswerCount.')</div>';
+			}
+			
+			$sCatWithAnswersStatHTML .= '</div>
+														</div>
+														<div class="jboxfoot"><p></p></div>
+											</div>
+										<hr class="divider" style="margin:2px" />
+									</td>
+								</tr>';
+		}else{
+			$sCatWithAnswersStatHTML = '';
+		}
+		
+		if (count($aAnsweredChildren) > 0){
+			$sAnsweredChildren = '
+								<tr><td width="70">&nbsp;</td>
+									<td valign="top">
+										<hr class="divider" style="margin:2px" />
+											<div class="jbox">
+												<div class="jboxhead"><h2></h2></div>
+													<div class="jboxbody">
+														<div class="jboxcontent">
+															<h3>You have answered question(s) for the following:</h3>
+														';
+			
+			for ($i=0; $i<count($aAnsweredChildren); $i++){
+				$aThisChild = $aAnsweredChildren[$i];
+				$sChild = $aThisChild["USER"];
+				
+				$sAnsweredChildren .= '<div><a href="#askeet_scroll_here" onclick="askeet_GetAnsweredQuestionByTutor(\''.$sChild.'\', '.$aThisChild["ID"].', \'questions\')">'.$sChild.'</a> ('.$aThisChild["COUNT"].')</div>';
+			}
+			
+			$sAnsweredChildren .= '</div></div></div>
+										<div class="jboxfoot"><p></p></div>
+								  </div>
+								<hr class="divider" style="margin:2px" />
+							</td>
+						</tr>';
+		}else{
+			$sAnsweredChildren = '';
+		}
+	
+	$sOutput = drupal_eval(load_vtemplate('page-instruction'));
+	$sIcon = "<span class='ui-icon ui-icon-alert' style='float: left; margin-right: .3em;'></span>";
+	$sOutput .= '<div class="divider"></div>
+				<div id="ins_dash_cbtop">
+					<div class="cbb">
+						<div class="left-border">
+							<div class="right-border">
+								<table width="980" border="0" cellpadding="0" cellspacing="0" id="gi_nav">
+									<tr><td height="25" class="bgfix"></td></tr>
+									<tr>
+									  <td valign="top" align="left">
+									  	<div id="gi_internal" style="width:960px">
+											<div class="cbb" style="text-align:center">
+												<table style="margin-top:10px;" width="100%" border="0" cellpadding="0" cellspacing="0">
+													<tr>
+														<td width="370" align="left">
+															<table style="margin:0 0 13px;">
+																<tr>
+																	<td style="padding:0;">
+																		<div class="jbox" style="width:180px; height:60px;">
+																			<div class="jboxhead"><h2></h2></div>
+																			<div class="jboxbody">
+																				<div class="jboxcontent" style="text-align:center;">
+																					Your account is: <div style="color:green; font-weight:bold;">Active</div>
+																				</div>
+																			</div>
+																			<div class="jboxfoot"><p></p></div>
+																		</div>
+																	</td>
+																	<td>&nbsp;</td>
+																	<td style="padding:0;">
+																		<div id="instant_btnVolunteerDeactivate" class="jbox" style="width:180px; height:60px;">
+																			<div class="jboxhead"><h2></h2></div>
+																			<div class="jboxbody">
+																				<div class="jboxcontent" style="text-align:center;">
+																					Click to <div style="color:red; font-weight:bold;">Deactivate Account</div>
+																				</div>
+																			</div>
+																			<div class="jboxfoot"><p></p></div>
+																		</div>
+																		<div id="instant_VolunteerDeactivateDialog" title="'.$sIcon.'Deactivate Account Notice">
+																			<p>Are you sure that you want to <u>deactivate</u> your account?</p>
+																		</div>
+																		<script type="text/javascript">
+																			var askeet_aSelectedCat = ['.$sSelectedIds.'];
+																			var SelectCategoryId = "";
+																			askeet_PopulateCat("askvolunteer_cat_1", 0);
+																		</script>
+																		<div id="instant_addCategoryDialog" title="Add new Sub-category">
+																			<div id="volunteer_tutor_categories" style="text-align:center;">
+																				<select id="askvolunteer_cat_1" style="width:175px; font-size:0.9em;" size="11"></select>
+																				<select id="askvolunteer_cat_2" style="width:175px; font-size:0.9em;" size="11"><optgroup label="No main category selected"></optgroup></select>
+																				<select id="askvolunteer_cat_3" style="width:175px; font-size:0.9em;" size="11"><optgroup label="No sub-category selected"></optgroup></select>
+																			</div>
+																		</div>
+																		<div id="instant_RemoveCatDialog" title="'.$sIcon.'Remove Category Notice">
+																			<p>Are you sure that you want to <u>remove</u> this category?</p>
+																		</div>
+																		<input type="hidden" id="askeet_bOptInstantAnswer" value="'.$iUserId.'" />
+																	</td>
+																</tr>
+															</table>
+															
+															<div class="jbox">
+																<div class="jboxhead"><h2></h2></div>
+																<div class="jboxbody">
+																	<div class="jboxcontent" style="text-align:center">
+																		<div class="jbox">
+																			<div class="jboxhead"><h2></h2></div>
+																			<div class="jboxbody">
+																				<div class="jboxcontent" style="font-size:16px;font-weight:bold;text-align:center">
+																					Open Questions Categories
+																				</div>
+																			</div>
+																			<div class="jboxfoot"><p></p></div>
+																		</div>
+																		<!--<table cellpadding="0" cellspacing="0" border="0">
+																			<tr>
+																				<td valign="top">'.$sOpenQuestionStatHTML.'</td>
+																				<td valign="top" rowspan="5" valign="top">&nbsp;</td>
+																			</tr>
+																		</table>-->
+																		<div>&nbsp;</div>
+																		<div style="text-align:left;">Click on a category below to view the question(s):</div>
+																		<div>&nbsp;</div>
+																		<ul id="askeet_VolunteerCatList"></ul>
+																		<div id="mystudies_NoFeatureDialog" title="Administrator Notice">
+																			&nbsp;
+																		</div>
+																	</div>
+																</div>
+																<div class="jboxfoot"><p></p></div>
+																<div>&nbsp;</div>
+																<div class="jbox">
+																<div class="jboxhead"><h2></h2></div>
+																<div class="jboxbody">
+																	<div class="jboxcontent" style="text-align:center">
+																		<table cellpadding="0" cellspacing="0" border="0">
+																			<tr>
+																				<td valign="top">
+																				<div id="askeet_open_questions">
+																					<div id="askeet_child_and_question">
+																					Click <a id="askeet_open_question" href="#askeet_scroll_here">here</a> to see all open question(s).
+																					</div>
+																				</div>
+																				<a name="askeet_scroll_here" style="text-align:left;"></a>
+																				<div id="askeet_questions" style="text-align:left;"></div>
+																				</td>
+																				<td valign="top" rowspan="5" valign="top">&nbsp;</td>
+																			</tr>
+																		</table>
+																	</div>
+																</div>
+																<div class="jboxfoot"><p></p></div>
+																
+															</div>
+														</td>
+														<td width="1" class="dividerv"></td>
+														<td align="right">
+															<div class="jbox">
+																<div class="jboxhead"><h2></h2></div>
+																<div class="jboxbody">
+																	<div class="jboxcontent">
+																		<table width="100%" cellpadding="0" cellspacing="0" border="0" id="gi_editor_stats">
+																			<tr>
+																				<td colspan="2" valign="middle">
+																					<div class="'.(($iAnsweredQuestionCount > 0) ? 'gi_green' : 'gi_pink').'" align="center" style="float:left">
+																						<div id="askeet_answer_count"><p>'.$iAnsweredQuestionCount.'</p>Questions you have answered</div>
+																					</div>
+																					<div class="note">&nbsp;</div> 
+																				</td>
+																			</tr>
+																			<tr>
+																				<td colspan="2" valign="middle">
+																					<div class="'.(($aTutorRating["UP"] > 0) ? 'gi_green' : 'gi_pink').'" align="center" style="float:left">
+																						<div id="askeet_rating"><p>'.$aTutorRating["UP"].'%</p>Thumbs Up Rating</div>
+																					</div>
+																					<div class="note">&nbsp;</div> 
+																				</td>
+																			</tr>
+																			<tr>
+																				<td colspan="2">
+																					<div class="gi_pink" align="center" style="float:left">
+																						<div id="askeet_rating"><p>'.$aTutorRating["DOWN"].'%</p>Thumbs Down Rating</div>
+																					</div>
+																					<div class="note">&nbsp;</div> 
+																				</td>
+																			</tr>
+																			<tr>
+																				<td colspan="2">
+																					<div class="'.(($iOpenQuestionSelectedCatCount) > 0 ? 'gi_green2' : 'gi_pink2').'" align="center" style="float:left">
+																						<div id="askeet_open_question_cat_count"><p>'.$iOpenQuestionSelectedCatCount.'</p>Questions in your selected categories</div>
+																					</div>
+																				</td>
+																			</tr>
+																			'.$sSelectCatCountHTML.'
+																			<tr>
+																				<td colspan="2">
+																					<div class="'.(($iOpenQuestionCount > 0) ? 'gi_green' : 'gi_pink').'" align="center" style="float:left">
+																						<div id="askeet_open_question_count"><p>'.$iOpenQuestionCount.'</p>Questions in all categories</div>
+																					</div>
+																				</td>
+																			</tr>
+																			<tr>
+																				<td colspan="2">
+																					<div class="'.(($iChildWithQuestion > 0) ? 'gi_green' : 'gi_pink').'" align="center">
+																						<div><p>'.$iChildWithQuestion.'</p>Children have open questions</div>
+																					</div>
+																				</td>
+																			</tr>
+																			'.$sCatWithAnswersStatHTML.'
+																			'.$sAnsweredChildren.'
+																			<tr>
+																				<td colspan="2">
+																					<div class="gi_green" align="center">
+																						<div><p>'.userpoints_get_current_points($iUserId, "all").'</p>Hope Points</div>
+																					</div>
+																				</td>
+																			</tr>
+																		</table>
+																	</div>
+																</div>
+																<div class="jboxfoot"><p></p></div>
+															</div>
+														</td>
+													</tr>
+												</table>
+											</div>		
+										</div>	
+									  </td>
+								  </tr>
+								</table>
+							</div>
+						</div>					
+					</div>
+				</div>';
+	return $sOutput;
+	}else{
+		drupal_access_denied();
+	}
+}
+
+function askeet_mail($sKey, &$aMessage, $aParams){
+	$oLanguage = $aMessage['language'];
+	$aVariables = user_mail_tokens($aParams["account"], $oLanguage);
+	$aMessage["subject"] = t("Instant Question Notification from !site", $aVariables, $oLanguage);
+	
+	switch ($sKey){
+		case "cat":
+			$aMessage["body"][] = t("Dear !username,\n\nThere is a new Instant Question posted under your preferred categories.", $aVariables, $oLanguage);
+			
+			break;
+		
+		case "all":
+			$aMessage["body"][] = t("Dear !username,\n\nThere is a new Instant Question posted that you may be able to answer.", $aVariables, $oLanguage);
+			
+			break;
+	}
+
+}
+
+function askeet_admin(){
+	$aForm['askeet_question_cost'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Cost of Question'),
+		'#default_value' => variable_get('askeet_question_cost', '0.25'),
+		'#size' => 8,
+		'#maxlength' => 8,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t('The cost of posting an Instant Question.'),
+		'#required' => TRUE
+	);
+	
+	$aForm['askeet_question_limit_daily'] = array(
+		'#type' => 'textfield',
+		'#title' => t('Question Limit per Day'),
+		'#default_value' => variable_get('askeet_question_limit_daily', '3'),
+		'#size' => 8,
+		'#maxlength' => 2,
+		'#attributes' => array("style" => "text-align:right;"),
+		'#description' => t('The number of maximum posting of Instant Questions per day.'),
+		'#required' => TRUE
+	);
+	
+	return system_settings_form($aForm);
+}
+
+function askeet_admin_validate($oForm, &$aFormState){
+	$mAskeetQuestionCost = (float)number_format(trim($aFormState['values']['askeet_question_cost']), 2, ".", "");
+	$iAskeetQuestionLimit = (int)trim($aFormState['values']['askeet_question_limit_daily']);
+	
+	if ($mAskeetQuestionCost > 0 && (!is_numeric($mAskeetQuestionCost) || !is_float($mAskeetQuestionCost))) form_set_error("askeet_question_cost", t("You must specify a numeric value for the 'Cost of Question' field."));
+	if (!is_numeric($iAskeetQuestionLimit) || !is_int($iAskeetQuestionLimit)) form_set_error("askeet_question_limit_daily", t("You must specify a numeric value for the 'Question Limit per Day' field. Put zero to have no limit."));
+}
+
+function askeet_user($sOperation, &$aFormVals, &$oUser, $sCategory=NULL){
+	$iDrupalId = $oUser->uid;
+	
+	switch ($sOperation){
+		case "insert":
+			$aProfile = _askeet_get_details($iDrupalId);
+			$sPassSalt = md5(rand(100000, 999999).$oUser->name.$oUser->mail);
+			$sPassSHA1 = sha1($sPassSalt.$aFormVals["pass"]);
+			
+			$sqlInsert = "INSERT INTO {ask_user} 
+							VALUES(
+								NULL,
+								'".$oUser->name."',
+								'".$aProfile["profile_first_name"]."',
+								'".$aProfile["profile_last_name"]."',
+								'".$oUser->mail."',
+								'".$sPassSHA1."',
+								'".$sPassSalt."',
+								0,
+								0,
+								0,
+								0,
+								0,
+								'".date("Y-m-d H:i:s")."'
+							)";
+			
+			db_set_active('askeet');
+			db_query($sqlInsert);
+			db_set_active('default');
+			
+			break;
+		
+		case "update":
+			$sPassSalt = md5(rand(100000, 999999).$oUser->name.$oUser->mail);
+			$sPassSHA1 = sha1($sPassSalt.$aFormVals["pass"]);
+			
+			$sqlUpdate = "UPDATE {ask_user} 
+							SET sha1_password = '".$sPassSHA1."',
+								salt = '".$sPassSalt."' 
+							WHERE email = '".$oUser->mail."'";
+			
+			db_set_active('askeet');
+			db_query($sqlUpdate);
+			db_set_active('default');
+			
+			break;
+		
+		case "delete":
+			$sqlDelete = "UPDATE {ask_user} 
+							SET created_at = NULL, 
+								want_to_be_moderator = 0,
+								is_moderator = 0 
+							WHERE email = '".$oUser->mail."'";
+			
+			db_set_active('askeet');
+			db_query($sqlDelete);
+			db_set_active('default');
+			
+			break;
+	}
+}
+
+
+/**
+ * Reusable functions/callbacks
+ **/
+function _askeet_get_id($sUserName=NULL){
+	if (is_null($sUserName)){
+		global $user;
+		$sUserName = $user->name;
+	}
+	
+	$sqlUser = "SELECT id FROM {ask_user} WHERE nickname = '".$sUserName."'";
+	
+	db_set_active('askeet');
+	$iUserId = db_result(db_query($sqlUser));
+	db_set_active('default');
+	
+	return $iUserId;
+}
+
+function _askeet_get_details($iUserId){
+	$sqlProfile = "SELECT B.uid, A.name, B.value 
+					FROM {profile_fields} A INNER JOIN {profile_values} B ON A.fid = B.fid 
+					WHERE B.uid = %d";
+	
+	$oQueryResult = db_query($sqlProfile, $iUserId);
+	$aDetails = array();
+	
+	while ($oDetails = db_fetch_object($oQueryResult)){
+		$aDetails[$oDetails->name] = $oDetails->value;
+	}
+	
+	return $aDetails;
+}
+
+function _askeet_popular_tags($iTagLimit=20, $iQuestionId=NULL){
+	$sqlTags = "SELECT normalized_tag AS sTag, COUNT(normalized_tag) AS iTagCount 
+				FROM {ask_question_tag}";
+	$sqlTags .= (is_null($iQuestionId)) ? "":" WHERE question_id = ".$iQuestionId;
+	$sqlTags .= " GROUP BY normalized_tag 
+				ORDER BY iTagCount DESC, sTag 
+				LIMIT ".$iTagLimit;
+	
+	db_set_active('askeet');
+	$oTags = db_query($sqlTags);
+	db_set_active('default');
+	
+	return $oTags;
+}
+
+function _askeet_get_tags($iQuestionId, $bHTML=true){
+	$sqlTags = "SELECT normalized_tag 
+				FROM {ask_question_tag} 
+				WHERE question_id = ".$iQuestionId."
+				ORDER BY normalized_tag";
+	
+	db_set_active('askeet');
+	
+	$oTags = db_query($sqlTags);
+	$sTags = '';
+	$aTags = array();
+	
+	while ($oThis = db_fetch_object($oTags)){
+		$sTags .= ($sTags != "") ? " + ":"";
+		
+		$sTags .= $iRowCount.'<a href="#askeet_scroll_here" style="color:#AAAAAA;" onclick="askeet_QuestionTag(\''.$oThis->normalized_tag.'\');">'.$oThis->normalized_tag.'</a>';
+		$aTags[] = $oThis->normalized_tag;
+	}
+	
+	db_set_active('default');
+	
+	return ($bHTML) ? $sTags:$aTags;
+}
+
+function _askeet_get_answer_count($iQuestionId){
+	$sqlAnwercount = "SELECT COUNT(id)
+						FROM {ask_answer}
+						WHERE question_id = ".$iQuestionId;
+	
+	db_set_active('askeet');
+	$iRowCount = db_result(db_query($sqlAnwercount));
+	db_set_active('default');
+	
+	return $iRowCount;
+}
+
+function _askeet_is_enrolled($iUserId){
+	$sqlEnroll = "SELECT COUNT(aid) FROM {askeet_enrollee} WHERE uid = ".$iUserId;
+	return (db_result(db_query($sqlEnroll)) == 1) ? true:false;
+}
+
+function _askeet_get_post_count_today(){
+	$sqlPostCount = "SELECT COUNT(id) 
+					FROM ask_question 
+					WHERE user_id = "._askeet_get_id()." 
+						AND created_at >= SUBSTRING(NOW(), 1, 10)";
+	
+	db_set_active('askeet');
+	$iPostCount = db_result(db_query($sqlPostCount));
+	db_set_active('default');
+	
+	return $iPostCount;
+}
+
+function _askeet_get_words($sQuestion, $sQuestionBody, $sTags, $iQuestionId=NULL){
+	$iBodyWeight = 1;
+	$iTitleWeight = 2;
+	$iTagWeight = 3;
+	
+	$sPhrase = str_repeat($sQuestion, $iTitleWeight);
+	$sPhrase .= str_repeat(" ".$sQuestionBody, $iBodyWeight);
+	
+	$aStemmedWords = _askeet_stem_phrase($sPhrase);
+	$aWords = array_count_values($aStemmedWords);
+	
+	$oTags = _askeet_popular_tags(20, $iQuestionId);
+	$iRowCount = 0;
+	
+	while (db_fetch_object($oTags)){
+		$iRowCount++;
+	}
+	
+	if ($iRowCount > 0){
+		while ($oThisTag = db_fetch_object($oTags)){
+			$sStemmedTag = PorterStemmer::Stem($oThisTag->sTag);
+			
+			if (!isset($aWords[$sStemmedTag])) $aWords[$sStemmedTag] = 0;
+			
+			$aWords[$sStemmedTag] += $oThisTag->iTagCount * $iTagWeight;
+		}
+	}else{
+		$aStemmedTags = array_count_values(_askeet_stem_phrase($sTags));
+		
+		foreach ($aStemmedTags as $sThisTag => $iThisCount){
+			if (!isset($aWords[$sThisTag])) $aWords[$sThisTag] = 0;
+			
+			$aWords[$sThisTag] += $iThisCount * $iTagWeight;
+		}
+	}
+	
+	return $aWords;
+}
+
+function _askeet_stem_phrase($sPhrase){
+	require_once drupal_get_path("module", "askeet")."/askeet_porter_stemmer.php";
+	
+	$aWords = str_word_count(strtolower($sPhrase), 1);
+	$aStopWords = array(
+						"i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", 
+						"yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", 
+						"herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", 
+						"what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", 
+						"was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", 
+						"did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", 
+						"while", "of", "at", "by", "for", "with", "about", "against", "between", "into", 
+						"through", "during", "before", "after", "above", "below", "to", "from", "up", "down", 
+						"in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", 
+						"there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", 
+						"most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", 
+						"than", "too", "very"
+					);
+	
+	$aWords = array_diff($aWords, $aStopWords);
+	$aStemmedWords = array();
+	
+	foreach ($aWords as $sWord){
+		if (strlen($sWord) <= 2) continue;
+		
+		$aStemmedWords[] = PorterStemmer::Stem($sWord);
+	}
+	
+	return $aStemmedWords;
+}
+
+function _askeet_is_tutor(){
+	global $user;
+	
+	db_set_active('default');
+	
+	$sqlTutor = "SELECT COUNT(tid) FROM {askeet_tutor} WHERE uid = ".$user->uid;
+	$bTutor = (db_result(db_query($sqlTutor)) == 1) ? true:false;
+	
+	return $bTutor;
+}
+
+function _askeet_get_tutor_answered_question_count(){
+	$aChildren = _askeet_get_children();
+	$sqlAnswers = "SELECT COUNT(DISTINCT question_id) AS iAnsweredQuestionCount
+					FROM ask_answer A
+					INNER JOIN ask_question B ON B.id = A.question_id
+					INNER JOIN ask_user C ON C.id = B.user_id
+					WHERE B.is_closed = '0'
+							AND B.is_deleted = '0'
+							AND A.user_id = "._askeet_get_id()."
+						AND C.nickname IN ('".implode("','", $aChildren)."')";
+	
+	db_set_active('askeet');
+	$iAnswerCount = db_result(db_query($sqlAnswers));
+	db_set_active('default');
+	
+	return (is_numeric($iAnswerCount)) ? $iAnswerCount:0;
+}
+
+function _askeet_get_children(){
+	$sqlChildren = "SELECT A.uid, A.name, B.value
+					FROM users A
+					INNER JOIN profile_values B ON B.uid = A.uid
+					INNER JOIN askeet_enrollee C ON C.uid = A.uid
+					WHERE B.fid = 5";
+	
+	$oChildren = db_query($sqlChildren);
+	$aChild = array();
+	
+	while ($oChild = db_fetch_object($oChildren)){
+		$aChild[] = $oChild->name;
+	}
+	
+	return $aChild;
+}
+
+function _askeet_get_tutors(){
+	$sqlTutors = "SELECT A.uid, B.name 
+					FROM askeet_tutor A
+					INNER JOIN users B ON B.uid = A.uid";
+	
+	db_set_active('default');
+	
+	$oTutors = db_query($sqlTutors);
+	$aTutor = array();
+	
+	while ($oTutor = db_fetch_object($oTutors)){
+		$aTutor[] = $oTutor->name;
+	}
+	
+	return $aTutor;
+}
+
+function _askeet_get_open_question_individual_stat(){
+	if (is_null($iUserId)){
+		$aChildren = _askeet_get_children();
+		$sClause = "INNER JOIN {ask_user} B ON B.id = A.user_id
+					WHERE A.cat_id IS NOT NULL
+						AND B.nickname IN ('".implode("','", $aChildren)."')";
+	}else{
+		$sClause = "WHERE A.cat_id IS NOT NULL AND A.user_id = ".$iUserId;
+	}
+	
+	$aChildren = _askeet_get_children();
+	$sqlCat = "SELECT A.cat_id, COUNT(A.cat_id) AS iQuestionCount
+				FROM {ask_question} A
+				".$sClause." AND A.is_closed = '0' AND A.is_deleted = '0'
+				GROUP BY A.cat_id";
+	
+	db_set_active('askeet');
+	
+	$oCat = db_query($sqlCat);
+	$aOpenQuestionCat = array();
+	
+	while ($oThis = db_fetch_object($oCat)){
+	
+		$iCatId = $oThis->cat_id;
+		$iQuestionCount = $oThis->iQuestionCount;
+		$iMainGroupCat = 1000;
+
+		while ($iMainGroupCat > 0){
+			$sqlGroup = "SELECT id, group_level, title
+						FROM {mystudyrecord}
+						WHERE id = %d";
+			
+			db_set_active('default');
+			
+			$oGroup = db_query($sqlGroup, $iCatId);
+			$oThisGroup = db_fetch_object($oGroup);
+			$CatId = $oThisGroup->id;
+			$iCatId = $oThisGroup->group_level;
+			$sCatTitle = $oThisGroup->title;
+			$iMainGroupCat = $oThisGroup->group_level;
+			
+			if (isset($aOpenQuestionCat[$CatId])){
+				$aOpenQuestionCat[$CatId] += $iQuestionCount;
+			}elseif (!is_null($CatId) || $CatId != ""){
+				$aOpenQuestionCat[$CatId] = $iQuestionCount;
+			}
+		}
+	}
+	return $aOpenQuestionCat;
+}
+
+function _askeet_get_open_question_stat($iUserId=NULL){
+	if (is_null($iUserId)){
+		$aChildren = _askeet_get_children();
+		$sClause = "INNER JOIN {ask_user} B ON B.id = A.user_id
+					WHERE A.cat_id IS NOT NULL
+						AND B.nickname IN ('".implode("','", $aChildren)."')";
+	}else{
+		$sClause = "WHERE A.cat_id IS NOT NULL AND A.user_id = ".$iUserId;
+	}
+	
+	$aChildren = _askeet_get_children();
+	$sqlCat = "SELECT A.cat_id, COUNT(A.cat_id) AS iQuestionCount
+				FROM {ask_question} A
+				".$sClause." AND A.is_closed = '0' AND A.is_deleted = '0'
+				GROUP BY A.cat_id";
+	
+	db_set_active('askeet');
+	
+	$oCat = db_query($sqlCat);
+	$aOpenQuestionCat = array();
+	
+	while ($oThis = db_fetch_object($oCat)){
+		$iCatId = $oThis->cat_id;
+		$iQuestionCount = $oThis->iQuestionCount;
+		$iMainGroupCat = 1000;
+		
+		while ($iMainGroupCat > 0){
+			$sqlGroup = "SELECT id, group_level, title
+						FROM {mystudyrecord}
+						WHERE id = %d";
+			
+			db_set_active('default');
+			
+			$oGroup = db_query($sqlGroup, $iCatId);
+			$oThisGroup = db_fetch_object($oGroup);
+			
+			$iCatId = $oThisGroup->group_level;
+			$sCatTitle = $oThisGroup->title;
+			$iMainGroupCat = $oThisGroup->group_level;
+		}
+		
+		if (isset($aOpenQuestionCat[$sCatTitle])){
+			$aOpenQuestionCat[$sCatTitle] += $iQuestionCount;
+		}elseif (!is_null($sCatTitle) || $sCatTitle != ""){
+			$aOpenQuestionCat[$sCatTitle] = $iQuestionCount;
+		}
+	}
+	
+	return $aOpenQuestionCat;
+}
+
+function _askeet_get_tutor_answer_stat(){
+	$aChildren = _askeet_get_children();
+	$sqlCat = "SELECT B.cat_id, COUNT(B.cat_id) iAnswerCount
+				FROM ask_answer A
+				INNER JOIN ask_question B ON B.id = A.question_id
+				INNER JOIN ask_user C ON C.id = B.user_id
+				WHERE B.is_closed = '0'
+					AND B.is_deleted = '0'
+					AND A.user_id = "._askeet_get_id()."
+					AND B.cat_id IS NOT NULL
+					AND C.nickname IN ('".implode("','", $aChildren)."')
+				GROUP BY B.cat_id";
+	
+	db_set_active('askeet');
+	
+	$oCat = db_query($sqlCat);
+	$aCatWithAnswers = array();
+	
+	db_set_active('default');
+	
+	while ($oThis = db_fetch_object($oCat)){
+		$iCatId = $oThis->cat_id;
+		$iAnswerCount = $oThis->iAnswerCount;
+		$iMainGroupCat = 1000;
+		
+		while ($iMainGroupCat > 0){
+			$sqlGroup = "SELECT id, group_level, title
+						FROM {mystudyrecord}
+						WHERE id = %d";
+			
+			$oGroup = db_query($sqlGroup, $iCatId);
+			$oThisGroup = db_fetch_object($oGroup);
+			
+			$iCatId = $oThisGroup->group_level;
+			$sCatTitle = $oThisGroup->title;
+			$iMainGroupCat = $oThisGroup->group_level;
+		}
+		
+		if (isset($aCatWithAnswers[$sCatTitle])){
+			$aCatWithAnswers[$sCatTitle] += $iAnswerCount;
+		}elseif (!is_null($sCatTitle) || $sCatTitle != ""){
+			$aCatWithAnswers[$sCatTitle] = $iAnswerCount;
+		}
+	}
+	
+	return $aCatWithAnswers;
+}
+
+function _askeet_get_open_question_count(){
+	$aChildren = _askeet_get_children();
+	$sqlOpen = "SELECT COUNT(A.id) AS iOpenCount
+				FROM ask_question A
+				INNER JOIN ask_user B ON B.id = A.user_id
+				WHERE A.is_closed = '0'
+					AND A.cat_id IS NOT NULL
+					AND B.nickname IN ('".implode("','", $aChildren)."')
+				GROUP BY A.is_closed";
+	
+	db_set_active('askeet');
+	$iOpenCount = db_result(db_query($sqlOpen));
+	db_set_active('default');
+	
+	return (is_numeric($iOpenCount)) ? $iOpenCount:0;
+}
+
+function _askeet_get_question_count($iUserId=NULL, $sQuestionType=NULL, $sPriority="all"){
+	if (is_null($iUserId)){
+		$aChildren = _askeet_get_children();
+		$sClause = "INNER JOIN ask_user B ON B.id = A.user_id 
+					WHERE B.nickname IN ('".implode("','", $aChildren)."')";
+	}else{
+		$sClause = "WHERE A.user_id = ".$iUserId;
+	}
+	
+	if (!is_null($sQuestionType)){
+		$iQuestionType = ($sQuestionType == "open") ? 0:1;
+		$sClause .= " AND A.is_closed = '".$iQuestionType."'";
+	}
+	
+	if ($sPriority != "all"){
+		if ($sPriority == "normal"){
+			$iPriorityVal = 0;
+		}else{
+			$iPriorityVal = 1;
+		}
+		
+		$sClause .= " AND A.priority = '".$iPriorityVal."'";
+	}
+		
+	$sqlOpen = "SELECT COUNT(A.id) AS iQuestionCount
+				FROM ask_question A
+				".$sClause." AND A.cat_id IS NOT NULL AND A.is_deleted = '0'";
+	
+	db_set_active('askeet');
+	$iQuestionCount = db_result(db_query($sqlOpen));
+	db_set_active('default');
+	
+	return (is_numeric($iQuestionCount)) ? $iQuestionCount:0;
+}
+
+function _askeet_get_selected_cat($iUserId=NULL){
+	if (is_null($iUserId)){
+		global $user;
+		$iUserId = $user->uid;
+	}
+	
+	$sqlCat = "SELECT cat FROM {askeet_tutor} WHERE uid = %d";
+	$sSelectedCat = db_result(db_query($sqlCat, $iUserId));
+	
+	return unserialize($sSelectedCat);
+}
+
+function _askeet_get_open_question_selected_cat_count(){
+	$aChildren = _askeet_get_children();
+	$aSelectedCat = _askeet_get_selected_cat();
+	$sqlOpen = "SELECT COUNT(A.id) AS iOpenCount
+				FROM ask_question A
+				INNER JOIN ask_user B ON B.id = A.user_id
+				WHERE A.is_closed = '0'
+					AND A.is_deleted = '0'
+					AND B.nickname IN ('".implode("','", $aChildren)."')
+					AND A.cat_id IN (".implode(",", $aSelectedCat).")
+				GROUP BY A.is_closed";
+	
+	db_set_active('askeet');
+	$iOpenCount = db_result(db_query($sqlOpen));
+	db_set_active('default');
+	
+	return (is_numeric($iOpenCount)) ? $iOpenCount:0;
+}
+
+function _askeet_get_selected_question_cat_content(){
+	$aChildren = _askeet_get_children();
+	$aSelectedCat = _askeet_get_selected_cat();
+	
+	foreach($aSelectedCat as $selectCatid):
+	$sqlRecord = "SELECT title FROM {mystudyrecord} WHERE id = %d";
+	$sSelectedCattitle = db_result(db_query($sqlRecord, $selectCatid));
+	
+	$sqlOpen = "SELECT COUNT(A.id) AS iOpenCount
+				FROM ask_question A
+				INNER JOIN ask_user B ON B.id = A.user_id
+				WHERE A.is_closed = '0'
+					AND A.is_deleted = '0'
+					AND B.nickname IN ('".implode("','", $aChildren)."')
+					AND A.cat_id = '".$selectCatid."'
+				GROUP BY A.is_closed";
+				
+	db_set_active('askeet');
+	$iOpenCount = db_result(db_query($sqlOpen));
+	db_set_active('default');	
+	
+	$aForm[$selectCatid] = array($sSelectedCattitle => $iOpenCount);
+	
+	endforeach;
+	
+	return $aForm;
+}
+
+function _askeet_get_selected_question_cat_specific($catID){
+	$aChildren = _askeet_get_children();
+	
+	$sqlOpen = "SELECT COUNT(A.id) AS iOpenCount
+				FROM ask_question A
+				INNER JOIN ask_user B ON B.id = A.user_id
+				WHERE A.is_closed = '0'
+					AND A.is_deleted = '0'
+					AND B.nickname IN ('".implode("','", $aChildren)."')
+					AND A.cat_id = '".$catID."'
+				GROUP BY A.is_closed";
+				
+	db_set_active('askeet');
+	$iOpenCount = db_result(db_query($sqlOpen));
+	db_set_active('default');
+	
+	return $iOpenCount;
+}
+
+
+function _askeet_get_children_with_open_question_count(){
+	$aChildren = _askeet_get_children();
+	$sqlChildWithQuestion = "SELECT COUNT(DISTINCT A.id) as iChildWithOpenQuestion
+							FROM ask_user A
+							INNER JOIN ask_question B ON B.user_id = A.id
+							WHERE B.is_closed = '0'
+								AND B.cat_id IS NOT NULL
+								AND A.nickname IN ('".implode("','", $aChildren)."')";
+	
+	db_set_active('askeet');
+	$iChildWithOpenQuestion = db_result(db_query($sqlChildWithQuestion));
+	db_set_active('default');
+	
+	return $iChildWithOpenQuestion;
+}
+
+function _askeet_get_children_with_question_count(){
+	$aChildren = _askeet_get_children();
+	$sqlChildWithQuestion = "SELECT COUNT(DISTINCT A.id) as iChildWithQuestion
+							FROM ask_user A
+							INNER JOIN ask_question B ON B.user_id = A.id
+							WHERE B.cat_id IS NOT NULL
+								AND A.nickname IN ('".implode("','", $aChildren)."')";
+	
+	db_set_active('askeet');
+	$iChildWithQuestion = db_result(db_query($sqlChildWithQuestion));
+	db_set_active('default');
+	
+	return $iChildWithQuestion;
+}
+
+function _askeet_is_question_owner($sStrippedTitle){
+	$sqlOwner = "SELECT id
+				FROM ask_question
+				WHERE stripped_title = '".$sStrippedTitle."'
+					AND user_id = "._askeet_get_id();
+	
+	db_set_active('askeet');
+	$bOwner = (is_numeric(db_result(db_query($sqlOwner)))) ? true:false;
+	db_set_active('default');
+	
+	return $bOwner;
+}
+
+function _askeet_get_tutor_rating(){
+	$sqlRating = "SELECT ROUND(((SUM(relevancy_up) / (SUM(relevancy_up) + SUM(relevancy_down))) * 100)) AS iUpPercentage, 
+						ROUND(((SUM(relevancy_down) / (SUM(relevancy_up) + SUM(relevancy_down))) * 100)) AS iDownPercentage
+					FROM ask_answer
+					WHERE user_id = "._askeet_get_id()."
+					GROUP BY user_id";
+	
+	db_set_active('askeet');
+	
+	$oRating = db_fetch_object(db_query($sqlRating));
+	$iUpPercentage = (is_null($oRating->iUpPercentage) || $oRating->iUpPercentage == "") ? 0:$oRating->iUpPercentage;
+	$iDownPercentage = (is_null($oRating->iDownPercentage) || $oRating->iDownPercentage == "") ? 0:$oRating->iDownPercentage;
+	
+	db_set_active('default');
+	
+	return array("UP" => $iUpPercentage, "DOWN" => $iDownPercentage);
+}
+
+function _askeet_notify_tutors($iCatId){
+	$sqlTutor = "SELECT B.uid, B.name, B.mail, A.cat, A.notify_all, A.notify_cat
+				FROM {askeet_tutor} A
+				INNER JOIN users B ON B.uid = A.uid";
+	$sEmailCat = "";
+	$sEmailAll = "";
+	
+	$oTutor = db_query($sqlTutor);
+	
+	while ($oThis = db_fetch_object($oTutor)){
+		$aCats = unserialize($oThis->cat);
+		$bNotifyCat = (boolean)$oThis->notify_cat;
+		$bNotifyAll = (boolean)$oThis->notify_all;
+		$bInPrefferredCat = in_array($iCatId, $aCats);
+		
+		$sKey = ($bInPrefferredCat && $bNotifyCat) ? "cat":"all";
+		$sKey = (!$bInPrefferredCat && $bNotifyAll) ? "all":"cat";
+		
+		/* echo "<pre>";
+		print_r($iCatId."\n");
+		print_r($bInPrefferredCat."\n");
+		print_r($sKey."\n");
+		print_r($bNotifyCat."\n");
+		print_r($bNotifyAll."\n");
+		print_r($aCats);
+		echo "</pre>"; */
+		
+		if (!$bInPrefferredCat && $bNotifyCat && !$bNotifyAll){
+			// do nothing
+		}else{
+			drupal_mail("askeet", $sKey, $oThis->mail, language_default(), array());
+		}
+	}
+}
+
+function _askeet_calc_search_index($iQuestionId, $aKeywords){
+	$aWordKeys = array_keys($aKeywords);
+	$aWordVals = array_values($aKeywords);
+	$aKeys = array();
+	$aVals = array();
+	$aNewIndex = array();
+	
+	db_set_active('askeet');
+	
+	$sqlIndex = "SELECT word, weight
+				FROM {ask_search_index}
+				WHERE question_id = ".$iQuestionId;
+	
+	$oIndex = db_query($sqlIndex);
+	
+	while ($oThis = db_fetch_object($oIndex)){
+		$aKeys[] = $oThis->word;
+		$aVals[] = $oThis->weight;
+	}
+	
+	db_set_active('default');
+	
+	$aKeys = array_merge($aKeys, $aWordKeys);
+	$aVals = array_merge($aVals, $aWordVals);
+	
+	foreach ($aKeys as $sKey => $sVal){
+		if (isset($aNewIndex[$sVal])){
+			$aNewIndex[$sVal] += $aVals[$sKey];
+		}else{
+			$aNewIndex[$sVal] = $aVals[$sKey];
+		}
+	}
+	
+	return $aNewIndex;
+}
+
+function _askeet_list_tutor_who_answered(){
+
+	$sqlList = "SELECT A.user_id, B.nickname, COUNT(A.user_id) AS iCount
+				FROM askeet.ask_question Q
+					INNER JOIN askeet.ask_answer A ON A.question_id = Q.id
+					INNER JOIN askeet.ask_user B ON B.id = A.user_id
+				WHERE Q.user_id = '"._askeet_get_id()."'
+					AND Q.is_closed = '0'
+					AND Q.is_deleted = '0'
+					GROUP BY A.user_id";
+	db_set_active('askeet');
+	
+	$oList = db_query($sqlList);
+	$aList = array();
+	
+	while ($oThis = db_fetch_object($oList)){
+		$aList[] = array("ID" => $oThis->user_id, "USER" => $oThis->nickname, "COUNT" => $oThis->iCount);
+	} 
+	
+	db_set_active('default');
+	
+	return $aList;
+}
+
+function _askeet_list_tutor_child(){
+	if (_askeet_is_tutor()){
+		$aChildren = _askeet_get_children();
+		$sqlList = "SELECT A.user_id, B.nickname, COUNT(C.user_id) AS iCount
+					FROM ask_question A
+					INNER JOIN ask_user B ON B.id = A.user_id
+					INNER JOIN ask_answer C ON C.question_id = A.id
+					WHERE C.user_id = "._askeet_get_id()."
+						AND B.nickname IN ('".implode("','", $aChildren)."')
+						AND A.is_closed = '0'
+						AND A.is_deleted = '0'
+					GROUP BY A.user_id";
+	}else{
+		$aTutors = _askeet_get_tutors();
+		$sqlList = "SELECT DISTINCT A.user_id, C.nickname, COUNT(A.question_id) AS iCount
+					FROM ask_answer A
+					INNER JOIN ask_question B ON B.id = A.question_id
+					INNER JOIN ask_user C ON C.id = A.user_id
+					WHERE A.user_id IS NOT NULL
+						AND B.is_closed = '0'
+						AND B.is_deleted = '0'
+						AND B.user_id = "._askeet_get_id()."
+						AND C.nickname IN ('".implode("','", $aTutors)."')
+					GROUP BY A.user_id";
+	}
+	
+	db_set_active('askeet');
+	
+	$oList = db_query($sqlList);
+	$aList = array();
+	
+	while ($oThis = db_fetch_object($oList)){
+		$aList[] = array("ID" => $oThis->user_id, "USER" => $oThis->nickname, "COUNT" => $oThis->iCount);
+	}
+	
+	db_set_active('default');
+	
+	return $aList;
+}
+
+function _askeet_normalized($sPhrase){
+	return preg_replace(array("/[!@#$%^&*()-.+=,\";':?]/", "/\s+/"), array("", " "), $sPhrase);
+}
+
+function _askeet_in_array($sNeedle, $aHaystack){
+	foreach ($aHaystack as $sReference){
+		if (strstr($sReference, "*")){
+			if (stristr($sNeedle, str_replace("*", "", $sReference))) return true;
+		}else{
+			return ($sNeedle == $sReference);
+		}
+	}
+	
+	return false;
+}

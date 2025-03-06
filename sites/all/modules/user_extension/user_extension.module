@@ -1,0 +1,4812 @@
+<?php
+function user_extension_help($sPath, $aArg){
+	$sOutput = '';
+
+	switch ($sPath){
+		case "admin/help#user_ext":
+			$sOutput = '<p>'. t("User Extension module.") .'</p>';
+			break;
+	}
+
+	return $sOutput;
+}
+
+
+function user_extension_menu(){
+	$aMenus = array();
+	
+	$aMenus['admin/user/ext'] = array(
+		'title' => 'User Roles and Clearance',
+		'description' => "Extends the user module where you can add permissions and clearance for each roles based on a specified module.",
+		'page callback' => 'user_extension_admin_module_role',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$aMenus['admin/user/ext/%'] = array(
+		'title' => 'Roles',
+		'page callback' => 'user_extension_admin_module_role',
+		'page arguments' => array(3),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_DEFAULT_LOCAL_TASK,
+		'weight' => 1
+	);
+	
+	$aMenus['admin/user/ext/clearance'] = array(
+		'title' => 'Clearance',
+		'page callback' => 'user_extension_admin_user_clearance',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK,
+		'weight' => 2
+	);
+	
+	$aMenus['admin/user/ext/del'] = array(
+		'page callback' => 'user_extension_admin_user_roles_delete',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK,
+	);
+	
+	
+	$aMenus['admin/user/ext/check/%/%'] = array(
+		'page callback' => 'check_extra_permission_ajax',
+		'page arguments' => array(4,5),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK,
+	);
+	
+	$aMenus['admin/user/ext/clearance/%'] = array(
+		'title' => 'Clearance',
+		'page callback' => 'user_extension_admin_user_clearance',
+		'page arguments' => array(4),
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_LOCAL_TASK
+	);
+	
+	$aMenus['admin/user/ext/process'] = array(
+		'page callback' => 'user_extension_admin_module_role_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['admin/user/ext/clearance/process'] = array(
+		'page callback' => 'user_extension_admin_user_clearance_process',
+		'access arguments' => array('access administration pages'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['user/ext/account/hud'] = array(
+		'page callback' => 'user_extension_account_hud',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['user/ext/account/search'] = array(
+		'page callback' => 'user_extension_account_hud_search',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['user/ext/account/update'] = array(
+		'page callback' => 'user_extension_account_hud_update',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['user/ext/account/check'] = array(
+		'page callback' => 'user_extension_check_account',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	); 
+	
+	$aMenus['user/community/build'] = array(
+		'page callback' => 'user_ext_community_build',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['user/community/build/save'] = array(
+		'page callback' => 'user_ext_community_build_save',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['user/profile/wall/process'] = array(
+		'page callback' => 'user_ext_profile_wall_process',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+        
+        $aMenus['user/profile/wall/process/kindness_report/posts'] = array(
+		'page callback' => 'user_ext_profile_kindness_report_post_show',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+	
+	$aMenus['user/profile/wall/image/%'] = array(
+		'page callback' => 'user_ext_profile_wall_image',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+
+	$aMenus['user/ext/profile/ajax/%'] = array(
+		'page callback' => 'user_ext_profile_ajax_get',
+		'page arguments' => array(4),
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+
+	$aMenus['my-profile'] = array(
+		'page callback' => 'user_ext_my_profile',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+
+	$aMenus['user/profile/update-hud-profile'] = array(
+		'page callback' => 'update_hud_profile',
+		'access arguments' => array('access content'),
+		'type' => MENU_CALLBACK
+	);
+        
+
+	
+	return $aMenus;
+}
+
+function user_extension_admin_user_roles_delete() {
+	db_query("DELETE FROM users_roles_module_permission WHERE iRoleId = '" . $_POST["iRoleId"] . "' AND id IN ('" . implode("','",$_POST["urmpid"]) . "')");
+	drupal_goto("admin/user/ext/".$_POST["iRoleId"]);
+}
+
+function user_extension_admin_module_role($iRoleId=0){
+	$aAllow = array("Deny All","Allow All","Allow Assigned Only");
+	$aAllowClass = array("#FF0000","#00FF00","#00FFFF");
+	
+	if ($iRoleId == 0){
+		$sOutput = '<p style="padding:10px 0 10px 0;">Listed below are the User Roles that you can add permissions to.</p><div style="margin-left:15px;"><ul>';
+		
+		$sqlRoles = "SELECT rid, `name` FROM role";
+		$sqlRoles .= ($iRoleId == 0) ? ' ORDER BY `name`':' WHERE rid = '.$iRoleId.'';
+		$oRolesResult = db_query($sqlRoles);
+		
+		while ($oRoles = db_fetch_object($oRolesResult)){
+			$sDetails = '';
+			$sqlDetails = "SELECT 
+								IFNULL(B.sModule,'All Modules') as sModule, 
+								IFNULL(C.sClearance,'All Clearance') AS sClearance, 
+								IFNULL(D.name,'All Roles') AS sTargetRole,
+								IFNULL(E.sClearance,'All Clearance') AS sTargetClearance, 
+								A.bAllow
+							FROM users_roles_module_permission A
+							LEFT JOIN users_roles_module B ON B.id = A.iModuleId
+							LEFT JOIN users_roles_clearance C ON A.iRoleClearanceId = C.id
+							LEFT JOIN role D ON A.iTargetRoleId = D.rid
+							LEFT JOIN users_roles_clearance E ON A.iTargetClearanceId = E.id
+							WHERE A.iRoleId IN ('0','".$oRoles->rid."') 
+							ORDER BY A.iModuleId,A.iRoleClearanceId,sTargetRole";
+			$oDetailsResult = db_query($sqlDetails);
+			
+			while ($oDetails = db_fetch_object($oDetailsResult)){
+				$sDetails .= '<li style="list-style-type:square;"><em>'. $oDetails->sModule . ' - ' . $oDetails->sClearance . ' - ' . $oDetails->sTargetRole . ' - ' . $oDetails->sTargetClearance . " - " . $aAllow[$oDetails->bAllow] . '</em></li>';
+			}
+			mysqli_free_result($oDetailsResult);
+			if ($sDetails == '') $sDetails .= '<li style="list-style-type:square;"><em>No permissions, yet.</em></li>'; 
+			
+			$sOutput .= '<li>'.l($oRoles->name, 'admin/user/ext/'.$oRoles->rid).'<ul style="padding:0 0 15px 30px;">'.$sDetails.'</ul></li>';
+		}
+		mysqli_free_result($oRolesResult);
+		
+		$sOutput .= '</ul></div>';
+	}else{
+		$sOutput = '<p style="padding:10px 0 10px 0;">Listed below are the permissions set for the specified User Role.</p>';
+		
+		$sqlRolesModulePermission = "SELECT 
+										IFNULL(B.sModule,'All Modules') as sModule,
+										IFNULL(C.sClearance,'All Clearance') AS sClearance, 
+										IFNULL(D.name,'All Roles') AS sTargetRole,
+										IFNULL(E.sClearance,'All Clearance') AS sTargetClearance, 
+										A.bAllow,
+										A.id
+									FROM users_roles_module_permission A
+									LEFT JOIN users_roles_module B ON B.id = A.iModuleId
+									LEFT JOIN users_roles_clearance C ON A.iRoleClearanceId = C.id
+									LEFT JOIN role D ON A.iTargetRoleId = D.rid
+									LEFT JOIN users_roles_clearance E ON A.iTargetClearanceId = E.id
+									WHERE A.iRoleId IN ('0','".$iRoleId."') 
+									ORDER BY A.iModuleId,A.iRoleClearanceId,iTargetRoleId";
+		$oRolesModulePermissionResult = db_query($sqlRolesModulePermission);
+		$sRolesModulePermission = '';
+		
+		while ($oRolesModulePermission = db_fetch_object($oRolesModulePermissionResult)){
+			$sRolesModulePermission .= '<tr>
+											<td style="padding:2px;"><input type="checkbox" value="' . $oRolesModulePermission->id . '" name="urmpid[]" /></td>
+											<td style="padding:2px;">'.ucwords($oRolesModulePermission->sModule).'</td>
+											<td style="padding:2px;">'.ucwords($oRolesModulePermission->sClearance).'</td>
+											<td style="padding:2px;">'.ucwords($oRolesModulePermission->sTargetRole).'</td>
+											<td style="padding:2px;">'.ucwords($oRolesModulePermission->sTargetClearance).'</td>
+											<td style="padding:2px;color:' . $aAllowClass[$oRolesModulePermission->bAllow] . '">'.$aAllow[$oRolesModulePermission->bAllow].'</td>
+										</tr>';
+		}
+		mysqli_free_result($oRolesModulePermissionResult);
+		
+		$sRolesModule = '<option value="0">All Modules</option>';
+		$oRolesModuleResult = db_query("SELECT id, sModule FROM users_roles_module ORDER BY sModule");
+		while ($oRolesModule = db_fetch_object($oRolesModuleResult)){
+			$sRolesModule .= '<option value="'.$oRolesModule->id.'">'.$oRolesModule->sModule.'</option>';
+		}
+		
+		$sRoles = '<option value="0">All Roles</option>';
+		$oRes = db_query("SELECT rid, `name` FROM role ORDER BY `name`");
+		while ($oRow = db_fetch_object($oRes)){
+			if ($iRoleId == $oRow->rid)
+				$sRole = $oRow->name;
+			$sRoles .= '<option value="'.$oRow->rid.'">'.$oRow->name.'</option>';
+		}
+		
+		$sClearanceModule = '<option value="0">All Clearance</option>';
+		$oRes = db_query("SELECT id,sClearance FROM users_roles_clearance");
+		while ($oRow = db_fetch_object($oRes)){
+			$sClearanceModule .= '<option value="'.$oRow->id.'">'.$oRow->sClearance.'</option>';
+		}
+		mysqli_free_result($oRes);
+		
+		$sAllow = '';
+		for($ctr = 0; $ctr< count($aAllow); $ctr ++) {
+			$sAllow .= '<option value="'.$ctr.'">'.$aAllow[$ctr].'</option>';
+		}
+		
+		$sOutput .= '<h3>'.ucwords($sRole).'</h3>
+					<form action="'.base_path().'admin/user/ext/process" method="post">
+						<input type="hidden" name="user_ext_iRoleId" value="'.$iRoleId.'" />
+						<table style="width:100%;">
+							<tr>
+								<td style="width:120px">Module:</td>
+								<td style="padding:2px">
+									<select name="user_ext_sModule">
+										'.$sRolesModule.'
+									</select>
+								</td>
+							</tr>
+							<tr>
+								<td>User Clearance:</td>
+								<td style="padding:2px">
+									<select name="user_ext_iClearance">
+										'.$sClearanceModule.'
+									</select>
+								</td>
+							</tr>
+							<tr>
+								<td>Target Role:</td>
+								<td style="padding:2px">
+									<select name="user_ext_iTargetRoleId">
+										'.$sRoles.'
+									</select>
+								</td>
+							</tr>
+							<tr>
+								<td>Target Clearance:</td>
+								<td style="padding:2px">
+									<select name="user_ext_iTargetClearance">
+										'.$sClearanceModule.'
+									</select>
+								</td>
+							</tr>
+							<tr>
+								<td>Access:</td>
+								<td style="padding:2px">
+									<select name="user_ext_bAllow">
+										'.$sAllow.'
+									</select>
+								</td>
+							</tr>
+							<tr>
+								<td></td>
+								<td style="padding-top:10px;"><input type="submit" name="user_ext_btnAdd" value="Add Permission" class="form-submit" /></td>
+							</tr>
+						</table>
+					</form><br />
+					<hr size="1" /><br />
+					<form action="'.base_path().'admin/user/ext/del" method="post">
+					<input type="hidden" name="iRoleId" value="' . $iRoleId . '" />
+					<table style="width:100%;">
+						<tr>
+							<td padding-right:20px;">
+								<table style="width:100%;">
+									<tr>
+										<th width="20">&nbsp;</th>
+										<th>Module</th>
+										<th>User Clearance</th>
+										<th>Target Role</th>
+										<th>Target Clearance</th>
+										<th>Access</th>
+									</tr>
+									'.(($sRolesModulePermission == "") ? '<tr><td colspan="2">No permissions, yet.</td></tr>':$sRolesModulePermission).'
+								</table>
+							</td>
+						</tr>
+						'.(($sRolesModulePermission != "") ? '<tr><td colspan="6" align="left"><input type="submit" name="btnSubmit" class="form-submit" value="Delete Selected" /></tr></td>':"").'
+					</table>
+					</form>'; 
+		
+	}
+	
+	return $sOutput;
+}
+
+function user_extension_admin_module_role_process(){
+	foreach ($_REQUEST as $sKey => $sData){
+		${$sKey} = $sData;
+	}
+	
+	$sqlVerify = "SELECT COUNT(id) AS iUserCount FROM users_roles_module_permission WHERE
+					iTargetRoleId = '" . $user_ext_iTargetRoleId . "' AND
+					iRoleId = '" . $user_ext_iRoleId . "' AND
+					iModuleId = '" . $user_ext_sModule . "' AND
+					iRoleClearanceId = '" . $user_ext_iClearance . "' AND
+					iTargetClearanceId = '" . $user_ext_iTargetClearance . "'";
+	$bExist = (db_result(db_query($sqlVerify)) > 0) ? true:false;
+	
+	if ($bExist) {
+		db_query("UPDATE users_roles_module_permission SET
+						bAllow = '" . $user_ext_bAllow . "'
+					WHERE
+						iTargetRoleId = '" . $user_ext_iTargetRoleId . "' AND
+						iRoleId = '" . $user_ext_iRoleId . "' AND
+						iModuleId = '" . $user_ext_sModule . "' AND
+						iRoleClearanceId = '" . $user_ext_iClearance . "' AND
+						iTargetClearanceId = '" . $user_ext_iTargetClearance . "'");
+	} else {
+		$sqlInsert = "INSERT INTO users_roles_module_permission VALUES(NULL, %d, '%s', '%s', '%s', '%s', '%s')";
+		db_query($sqlInsert, array($user_ext_iRoleId, $user_ext_iClearance, $user_ext_iTargetRoleId, $user_ext_sModule, $user_ext_iTargetClearance, $user_ext_bAllow));
+	}
+	mysqli_free_result($bExist);
+	drupal_goto("admin/user/ext/".$user_ext_iRoleId);
+}
+
+function user_extension_admin_user_clearance($iUserId=0){
+	$sqlUser = "SELECT A.uid, A.name AS sUser, CONCAT(UPPER(C.value), ', ', B.value) AS sFullName,
+					IF(E.sClearance IS NULL, 'No clearance', E.sClearance) AS sClearance
+				FROM users A
+				INNER JOIN profile_values B ON B.uid = A.uid AND B.fid = 2
+				INNER JOIN profile_values C ON C.uid = A.uid AND C.fid = 1
+				LEFT JOIN users_roles_clearance_user D ON D.iUserId = A.uid
+				LEFT JOIN users_roles_clearance E ON E.id = D.iClearanceId";
+	
+	if ($iUserId == 0){
+		$sqlUser .= " ORDER BY C.value";
+		$sqlUserCount = "SELECT COUNT(A.uid)
+						FROM users A
+						INNER JOIN profile_values B ON B.uid = A.uid AND B.fid = 2
+						INNER JOIN profile_values C ON C.uid = A.uid AND C.fid = 1";
+		
+		$oUsersResult = pager_query($sqlUser, 50, 0, $sqlUserCount);
+		
+		$sOutput = '<p style="padding:10px 0 10px 0;">Listed below are the users and their appropriate clearance.</p>
+					<table style="width:100%;">
+						<tr>
+							<th style="50%">Name</th>
+							<th style="25%">Userame</th>
+							<th style="25%">Clearance</th>
+						</tr>';
+		
+		while ($oUsers = db_fetch_object($oUsersResult)){
+			$sOutput .= '<tr>
+							<td>'.l(ucwords($oUsers->sFullName), 'admin/user/ext/clearance/'.$oUsers->uid).'</td>
+							<td>'.$oUsers->sUser.'</td>
+							<td>'.$oUsers->sClearance.'</td>
+						</tr>';
+		}
+		
+		$sOutput .= '<tr><td colspan="3" style="padding-top:10px;">'.theme('pager', NULL, 50).'</td></tr></table>';
+	}else{
+		$sqlUser .= " WHERE A.uid = %d";
+		$oUsersResult = db_query($sqlUser, $iUserId);
+		$oUsers = db_fetch_object($oUsersResult);
+		mysqli_free_result($oUsersResult);
+		$sqlClearance = "SELECT id, sClearance FROM users_roles_clearance";
+		$oClearanceResult = db_query($sqlClearance);
+		$sClearance = '';
+		
+		while ($oClearance = db_fetch_object($oClearanceResult)){
+			$sClearance .= '<option value="'.$oClearance->id.'">'.$oClearance->sClearance.'</option>';
+		}
+		mysqli_free_result($oClearanceResult);
+		$sOutput = '<p style="padding:10px 0 10px 0;">Set the clearance for the specified user below.</p>
+					<h3>'.$oUsers->sFullName.' - '.$oUsers->sClearance.'</h3>
+					<br />
+					<form action="'.base_path().'admin/user/ext/clearance/process" method="post">
+						<input type="hidden" name="user_ext_iUserId" value="'.$iUserId.'" />
+						<select name="user_ext_iClearanceId">
+							<option value="0">Select clearance...</option>
+							'.$sClearance.'
+						</select>
+						<input type="submit" name="user_ext_btnAdd" value="Set Clearance" class="form-submit" />
+					</form>';
+	}
+	
+	return $sOutput;
+}
+
+function user_extension_admin_user_clearance_process(){
+	foreach ($_REQUEST as $sKey => $sData){
+		${$sKey} = $sData;
+	}
+	
+	$sqlVerify = "SELECT COUNT(iUserId) AS iUserCount FROM users_roles_clearance_user WHERE iUserId = %d";
+	$bExist = (db_result(db_query($sqlVerify, $user_ext_iUserId)) > 0) ? true:false;
+	
+	if ($bExist){
+		$sqlUpdate = "UPDATE users_roles_clearance_user
+						SET iClearanceId = %d
+						WHERE iUserId = %d";
+		db_query($sqlUpdate, array($user_ext_iClearanceId, $user_ext_iUserId));
+	}else{
+		$sqlInsert = "INSERT INTO users_roles_clearance_user VALUES(NULL, %d, %d)";
+		db_query($sqlInsert, array($user_ext_iUserId, $user_ext_iClearanceId));
+	}
+	mysqli_free_result($bExist);
+	drupal_goto("admin/user/ext/clearance/".$user_ext_iUserId);
+}
+
+function user_extension_init(){
+	global $user;
+}
+
+function check_extra_permission_ajax($sTargetUser = "", $iModuleId = "") {
+	$success = "";
+	if (check_extra_permission($sTargetUser, $iModuleId))
+		$success = "1";
+	ob_end_clean();
+	echo $success;
+}
+
+function check_extra_permission($sTargetUser = "", $iModuleId = "", $iModuleDefaultClearance = '1', $bTargetUserCheck = false) {
+	global $user;
+
+	if ($bTargetUserCheck) {
+		$iCurrentUserId = $sTargetUser;
+		$sTargetUser = $user->uid;
+	} else {
+		$iCurrentUserId = $user->uid;
+	}
+	
+	if (empty($sTargetUser) || $iCurrentUserId == 1 || $iModuleId == "")
+		return true;
+
+	$aTargetRoles = array(0);
+	if (!empty($iCurrentUserId)) {
+		$aUserRoles = array(0,2);
+		
+		// Get current and target users' roles
+		$iUserClearance = 0;
+		$res = db_query("SELECT ur.uid,ur.rid,r.iClearanceId 
+							FROM users_roles ur
+							LEFT JOIN role r ON r.rid = ur.rid 
+							WHERE uid = '" . $iCurrentUserId . "' OR uid = '" . $sTargetUser . "'");
+		while ($row = db_fetch_object($res)) {
+			if ($row->uid == $sTargetUser) {
+				$aTargetRoles[] = $row->rid;
+			} else {
+				$aUserRoles[] = $row->rid;
+				if ($iUserClearance < $row->iClearanceId)
+					$iUserClearance = $row->iClearanceId;
+			}
+		}
+		mysqli_free_result($res);
+		
+		// If current user & target user has other roles aside from "Member", remove "Member" role
+		if (count($aUserRoles) > 2) 
+			unset($aUserRoles[1]);
+		if (count($aTargetRoles) > 2) {
+			for ($ctr = 0; $ctr < count($aTargetRoles); $ctr++) {
+				if ($aTargetRoles[$ctr] == 2)
+					unset($aTargetRoles[$ctr]);
+			}
+		}
+		
+		// Get Current User's clearance settings
+		
+		$res = db_query("SELECT iClearanceId FROM users_roles_clearance_user WHERE iUserId = '" . $iCurrentUserId . "'");
+		while ($row = db_fetch_object($res)) {
+			$iUserClearance = $row->iClearanceId;
+		}
+		mysqli_free_result($res);
+	} else {
+		$aUserRoles = array(0,1,10);
+	}
+	
+	// Get Target User's clearance restriction for the current module
+	$iTargetClearance = $iModuleDefaultClearance;
+	$res = db_query("SELECT iClearanceId 
+						FROM users_roles_user_modules_clearance 
+						WHERE 
+							iUserId = '" . $sTargetUser . "' AND 
+							iModuleId = '" . $iModuleId . "'"
+			);
+	while ($row = db_fetch_object($res)) {
+		$iTargetClearance = $row->iClearanceId;
+	}
+	mysqli_free_result($res);
+	// If the target user's module clearance settings is higher than the user settings, return no permission
+	$bAllowTemp = ($iTargetClearance <= $iUserClearance);
+	
+	if (!empty($iCurrentUserId)) {
+		// Check if the target user and the current user has a hopeful-volunteer relationship
+		$res = db_query("SELECT COUNT(id) as iCount 
+							FROM hopefuls_volunteer
+							WHERE 
+								(iHopefulId = '" . $sTargetUser . "' AND iVolunteerId = '" . $iCurrentUserId . "') OR
+								(iHopefulId = '" . $iCurrentUserId. "' AND iVolunteerId = '" . $sTargetUser . "')"
+				);
+		$row = db_fetch_object($res);
+		$bRelated = ($row->iCount > 0 ? true : false);
+		mysqli_free_result($res);
+	}
+	
+	$bAllow = false;
+	$res = db_query("SELECT *
+						FROM users_roles_module_permission 
+						WHERE 
+							iModuleId IN ('0','" . $iModuleId . "') AND 
+							iRoleId IN ('" . implode("','",$aUserRoles) . "') AND
+							iTargetRoleId IN ('" . implode("','",$aTargetRoles) . "') AND
+							iRoleClearanceId IN ('0','" . $iUserClearance . "') AND
+							iTargetClearanceId IN ('0','" . $iTargetClearance . "') 
+						ORDER BY iRoleId"
+			);
+
+	if (!$res)
+		return true;
+
+	$iCurrWeight = 0;
+	$iCurrRole = 0;
+	$iCurrTargetRole = 0;
+	$aAllow = array();
+	while ($row = db_fetch_object($res)) {
+		$iWeight = ($row->iModuleId > 0 ? 1000 : 0) + ($row->iRoleClearanceId > 0 ? 100 : 0) + ($row->iTargetRoleId > 0 ? 10 : 0) + ($row->iTargetClearanceId > 0 ? 1 : 0);
+		if ($iCurrWeight <= $iWeight || ($iCurrRole != $row->iRoleId) || ($iCurrTargetRole != $row->iTargetRoleId)) {
+			$aAllow[$row->iRoleId . "-" . $row->iTargetRoleId] = (($row->bAllow == 2 && !$bRelated) || $row->bAllow == 0) ? false : true;
+			$iCurrWeight = $iWeight;
+			$iCurrRole = $row->iRoleId;
+			$iCurrTargetRole = $row->iTargetRoleId;
+		} 
+	}
+	mysqli_free_result($res);
+	foreach($aAllow as $bAllowed) {
+		if ($bAllowed) {
+			$bAllow = true;
+			break;
+		}
+	}
+	
+	// if module is messaging, check if the target user has a permission to reply to current user
+	if ($bAllow && !$bTargetUserCheck && $iModuleId == 1)
+		$bAllow = check_extra_permission($sTargetUser, $iModuleId, $iModuleDefaultClearance,true);
+
+	return $bAllow;
+			
+}
+
+/* function user_extension_filter($sOperation, $iDelta=0, $iFormat=-1, $sText=""){
+	if ($sOperation == "list") return array(0 => "Removes, replaces, and/or disable certain tags, text, and/or features based on the roles and permissions.");
+	
+	// All operations besides "list" provide a $iDelta argument so we know which filter they refer to.
+	switch ($iDelta){
+		case 0:
+			switch ($sOperation){
+				// This description is shown in the administrative interface.
+				// Unlike the filter tips which are shown in the content editing interface.
+				case "description":
+					return "Removes, replaces, and/or disable certain tags or features based on the roles and permissions.";
+				
+				case "no cache":
+					return true;
+					
+				case "prepare":
+					return $sText;
+				
+				// The actual filtering is performed here.
+				// Once any necessary substitutions have taken place, the supplied text should be returned.
+				case "process":
+					
+					return $sText;
+			}
+			
+			break;
+	}
+} */
+
+# Modifies the admin side User Registration and Profile Editing.
+function user_extension_form_alter(&$oForm, &$oFormState, $sFormId){
+	global $user;
+	
+	$sJavaScript = '$(document).ready(
+						function(){
+							$("input[name=user_option]").click(
+								function(){
+									location = "/admin/user/user/create?option="+$(this).val();
+								}
+							);
+						}
+					)';
+	
+	drupal_add_js($sJavaScript, 'inline');
+	
+	if($_GET["q"] == "user/".$user->uid."/edit/I. Personal Info"){
+	
+	$sJavaScript = '$(document).ready(
+						function(){
+							$("#edit-profile-lives-with-wrapper").hide();
+						}
+					)';
+	
+	drupal_add_js($sJavaScript, 'inline');
+	}
+	
+	if ($_GET["q"] == "admin/user/user/create" && $user->uid == 1 && $sFormId == "user_register"){
+		$oForm["child_volunteer_option"] = array(
+												"#type" => "fieldset",
+												"#title" => "Create User Option",
+												"#weight" => "-11",
+												"user_option" => array(
+																	"#type" => "radios",
+																	"#title" => "",
+																	"#default_value" => (isset($_GET["option"])) ? $_GET["option"]:"",
+																	"#options" => array(
+																						"" => "Create a new User",
+																						"child" => "Create a new Student",
+																						"volunteer" => "Create a new Volunteer",
+																						"employee" => "Create a new Employee",
+																						"reporter" => "Create a new Reporter",
+																					)
+																)
+											);
+                
+
+		if ($_GET["option"] == "volunteer"){
+			$aFields["I. Personal Info"] = array(
+											"profile_lives_with"
+										);
+			
+			$aFields["II. Misc Information"] = array(
+													"profile_reading_ability",
+													"profile_language",
+													"profile_talents",
+													"profile_favorites",
+													"profile_school",
+													"profile_grade",
+													"profile_illness",
+													"profile_disability",
+													"profile_parent",
+													"profile_parent_job",
+													"profile_parent_job_desc",
+													"profile_parent_income",
+													"profile_parent_email",
+												);
+			
+			$aFields["Employee Personal Info"] = array(
+											"profile_employee_last_name",
+											"profile_employee_first_name",
+											"profile_employee_middle_name",
+											"profile_employee_nick_name",
+											"profile_employee_designation",
+											"profile_employee_date_hired",
+											"profile_employee_salary_rate",
+											"profile_employee_sss_number",
+											"profile_employee_address",
+											"profile_employee_permanent_address",
+											"profile_employee_permanent_contact_number",
+											"profile_employee_permanent_email_address",
+											"profile_employee_dob",
+											"profile_employee_religion",
+											"profile_employee_gender",
+											"profile_employee_city",
+											"profile_employee_state",
+											"profile_employee_country"
+										);
+										
+			$aFields["Employee Health Info"] = array(
+											"profile_employee_illness",
+											"profile_employee_medication",
+											"profile_employee_allergy",
+										);
+										
+			$aFields["Employee Misc Info"] = array(
+											"profile_employee_fathersname",
+											"profile_employee_fathersoccupation",
+											"profile_employee_fathersaddress",
+											"profile_employee_fatherscontactnumber",
+											"profile_employee_fathersemailaddress",
+											"profile_employee_mothersname",
+											"profile_employee_mothersoccupation",
+											"profile_employee_mothersaddress",
+											"profile_employee_motherscontactnumber",
+											"profile_employee_mothersemailaddress",
+											"profile_employee_spousename",
+											"profile_employee_contactnumber",
+											"profile_employee_numchildren",
+											"profile_employee_childrenname"
+										);
+			
+			$aFields["Other Employment Info"] = array(
+											"profile_employee_other_companyname",
+											"profile_employee_other_designation",
+											"profile_employee_other_officeaddress",
+											"profile_employee_other_contactnumber",
+											"profile_employee_other_timesched",
+											"profile_employee_other_remarks"
+										);
+										
+			$aFields["Admin Information"] = array("profile_truecafe");
+			
+			foreach ($aFields as $sGroup => $sVal){
+				foreach ($sVal as $sField) {
+					unset($oForm[$sGroup][$sField]);
+				}
+			}
+			
+                       //below code is to change school Name drop-down
+                        unset($oForm['School Information']['profile_affiliate_school']['#options']);
+                        $oForm['School Information']['profile_affiliate_school']['#options']['0']= '--';
+                        $oForm['School Information']['profile_affiliate_school']['#options']['None']= 'None';
+                        $oForm['School Information']['profile_affiliate_school']['#options']['Maximo Estrella Elementary School'] = 'Sandiwaan Center';
+                        $oForm['School Information']['profile_affiliate_school']['#options']['Francisco Benitez Elementary School'] = 'PNU - ITL';
+                          $oForm['School Information']['profile_affiliate_school']['#options']['Jose Magsaysay Elementary School'] = 'PNU';
+                          unset( $oForm['School Information']['profile_affiliate_school']['#options']['MEES-Faculty']);
+                      // $oForm['School Information']['profile_affiliate_school']['#options'] = array_reverse($oForm['School Information']['profile_affiliate_school']['#options']);
+                         // print_r($oForm['School Information']['profile_affiliate_school']);exit;
+                        
+                        
+                        
+			$oForm["account"]["roles"] = array(
+											"#type" => "checkboxes",
+											"#title" => "Roles",
+											/*"2" => array(
+														"#type" => "checkbox",
+														"#title" => "Member",
+														"#default_value" => 1,
+														"#disabled" => 1,
+														"#return_value" => 2,
+													),*/
+											"18" => array(
+														"#type" => "checkbox",
+														"#title" => "Volunteer - Offline",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 18,
+													),		
+											"15" => array(
+														"#type" => "checkbox",
+														"#title" => "eVolunteer - Admin",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 15,
+													),
+											"14" => array(
+														"#type" => "checkbox",
+														"#title" => "eVolunteer - Editor",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 14,
+													),
+											"13" => array(
+														"#type" => "checkbox",
+														"#title" => "eVolunteer - Guide",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 13,
+													),
+											"4" => array(
+														"#type" => "checkbox",
+														"#title" => "eVolunteer - Instant Tutor",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 4,
+													),
+											"6" => array(
+														"#type" => "checkbox",
+														"#title" => "eVolunteer - Mentor",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 6,
+													),
+											"12" => array(
+														"#type" => "checkbox",
+														"#title" => "eVolunteer - Monitor",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 12,
+													),
+											"16" => array(
+														"#type" => "checkbox",
+														"#title" => "eVolunteer - Private Tutor",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 16,
+													),
+										);
+			
+			$oForm["account"]["communitybuilding"] = array(
+											"#type" => "checkboxes",
+											"#title" => "Community Building",
+											"1" => array(
+														"#type" => "checkbox",
+														"#title" => "Arts, Entertainment",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 1,
+													),
+											"2" => array(
+														"#type" => "checkbox",
+														"#title" => "Engineering & Architecture",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 2,
+													),
+											"3" => array(
+														"#type" => "checkbox",
+														"#title" => "Technology & Sciences",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 3,
+													),
+											"4" => array(
+														"#type" => "checkbox",
+														"#title" => "Environment & Agriculture",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 4,
+													),
+											"5" => array(
+														"#type" => "checkbox",
+														"#title" => "Protection & Security",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 5,
+													),
+											"6" => array(
+														"#type" => "checkbox",
+														"#title" => "Health & Welfare",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 6,
+													),
+											"7" => array(
+														"#type" => "checkbox",
+														"#title" => "Management & Administration",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 7,
+													),
+											"8" => array(
+														"#type" => "checkbox",
+														"#title" => "Transportation & Supply",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 8,
+													),
+											"9" => array(
+														"#type" => "checkbox",
+														"#title" => "Education & Library",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 9,
+													),
+											"10" => array(
+														"#type" => "checkbox",
+														"#title" => "Services & Support",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 10,
+													)
+										);
+			
+			# Hides the empty fieldsets
+			$sJavaScript = '$(document).ready(
+								function(){
+									$("fieldset").find("legend").slice(2,3).parent().hide();
+									$("fieldset").find("legend").slice(4,5).parent().hide();
+									$("fieldset").find("legend").slice(3,5).parent().hide();
+									$("fieldset").find("legend").slice(5,6).parent().hide();
+									//$("fieldset").find("legend").slice(5).parent().hide();
+									//$("fieldset").find("legend").slice(6).parent().hide();
+									$("fieldset").find("legend").slice(7,9).parent().hide();
+									//$("fieldset").find("legend").slice(8).parent().hide();
+									//$("fieldset").find("legend").slice(7).parent().hide();
+								}
+							)';
+			
+			drupal_add_js($sJavaScript, 'inline');
+		}elseif ($_GET["option"] == "child"){
+			$oForm["account"]["roles"] = array(
+											"#type" => "checkboxes",
+											"#title" => "Roles",
+											/*"2" => array(
+														"#type" => "checkbox",
+														"#title" => "Member",
+														"#default_value" => 0,
+														"#disabled" => 1,
+														"#return_value" => 2,
+													),*/
+											"9" => array(
+														"#type" => "checkbox",
+														"#title" => "Student",  //changed Hopeful to student in Roles
+														"#default_value" => 1,
+														"#disabled" => 1,
+														"#return_value" => 9,
+													)
+										); 
+		
+			$oForm["account"]["communitybuilding"] = array(
+											"#type" => "checkboxes",
+											"#title" => "Community Building",
+											"1" => array(
+														"#type" => "checkbox",
+														"#title" => "Arts, Entertainment",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 1,
+													),
+											"2" => array(
+														"#type" => "checkbox",
+														"#title" => "Engineering & Architecture",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 2,
+													),
+											"3" => array(
+														"#type" => "checkbox",
+														"#title" => "Technology & Sciences",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 3,
+													),
+											"4" => array(
+														"#type" => "checkbox",
+														"#title" => "Environment & Agriculture",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 4,
+													),
+											"5" => array(
+														"#type" => "checkbox",
+														"#title" => "Protection & Security",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 5,
+													),
+											"6" => array(
+														"#type" => "checkbox",
+														"#title" => "Health & Welfare",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 6,
+													),
+											"7" => array(
+														"#type" => "checkbox",
+														"#title" => "Management & Administration",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 7,
+													),
+											"8" => array(
+														"#type" => "checkbox",
+														"#title" => "Transportation & Supply",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 8,
+													),
+											"9" => array(
+														"#type" => "checkbox",
+														"#title" => "Education & Library",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 9,
+													),
+											"10" => array(
+														"#type" => "checkbox",
+														"#title" => "Services & Support",
+														"#default_value" => 0,
+														"#disabled" => 0,
+														"#return_value" => 10,
+													)
+										); 
+			
+			$aFields["School Information"] = array(
+											"profile_school_position"
+										);
+										
+			$aFields["Employee Personal Info"] = array(
+											"profile_employee_last_name",
+											"profile_employee_first_name",
+											"profile_employee_middle_name",
+											"profile_employee_nick_name",
+											"profile_employee_designation",
+											"profile_employee_date_hired",
+											"profile_employee_salary_rate",
+											"profile_employee_sss_number",
+											"profile_employee_address",
+											"profile_employee_permanent_address",
+											"profile_employee_permanent_contact_number",
+											"profile_employee_permanent_email_address",
+											"profile_employee_dob",
+											"profile_employee_religion",
+											"profile_employee_gender",
+											"profile_employee_city",
+											"profile_employee_state",
+											"profile_employee_country"
+										);
+										
+			$aFields["Employee Health Info"] = array(
+											"profile_employee_illness",
+											"profile_employee_medication",
+											"profile_employee_allergy",
+										);
+										
+			$aFields["Employee Misc Info"] = array(
+											"profile_employee_fathersname",
+											"profile_employee_fathersoccupation",
+											"profile_employee_fathersaddress",
+											"profile_employee_fatherscontactnumber",
+											"profile_employee_fathersemailaddress",
+											"profile_employee_mothersname",
+											"profile_employee_mothersoccupation",
+											"profile_employee_mothersaddress",
+											"profile_employee_motherscontactnumber",
+											"profile_employee_mothersemailaddress",
+											"profile_employee_spousename",
+											"profile_employee_contactnumber",
+											"profile_employee_numchildren",
+											"profile_employee_childrenname"
+										);
+			
+			$aFields["Other Employment Info"] = array(
+											"profile_employee_other_companyname",
+											"profile_employee_other_designation",
+											"profile_employee_other_officeaddress",
+											"profile_employee_other_contactnumber",
+											"profile_employee_other_timesched",
+											"profile_employee_other_remarks"
+										);
+			
+			foreach ($aFields as $sGroup => $sVal){
+				foreach ($sVal as $sField) {
+					unset($oForm[$sGroup][$sField]);
+				}
+			}
+                        unset($oForm['School Information']); //to hide school information block
+                       $oForm['II. Misc Information']['profile_reading_ability']['#title'] = 'Reading Ability'; //removed child's
+                       $oForm['II. Misc Information']['profile_school']['#title'] = 'School Name'; //removed child's
+                       $oForm['II. Misc Information']['profile_grade']['#title'] = 'Grade Level';   //removed child's
+                        $oForm['II. Misc Information']['profile_illness']['#title'] = 'Illness';    //removed child's
+                        $oForm['II. Misc Information']['profile_disability']['#title'] = 'Disability'; //removed child's
+                        //below code is to change school Name drop-down
+                    //    $oForm['II. Misc Information']['profile_school']['#options']['Jose Magsaysay Elementary School'] = 'Sandiwaan Center';
+                    //     $oForm['II. Misc Information']['profile_school']['#options']['Francisco Benitez Elementary School'] = 'PNU - ITL';
+                    //      $oForm['II. Misc Information']['profile_school']['#options']['Maximo Estrella Elementary School'] = 'PNU';
+                    //      unset( $oForm['II. Misc Information']['profile_school']['#options']['MEES-Faculty']);
+                    // echo '<pre>'; print_r($oForm['II. Misc Information']['profile_school']['#options']);exit;
+                     
+			
+			# Hides the empty fieldsets
+			$sJavaScript = '$(document).ready(
+								function(){
+									$("fieldset").find("legend").slice(3,4).parent().hide();
+									$("fieldset").find("legend").slice(3,5).parent().hide();
+									$("fieldset").find("legend").slice(3,6).parent().hide();
+									$("fieldset").find("legend").slice(8,9).parent().hide();
+								}
+							)';
+			
+			drupal_add_js($sJavaScript, 'inline');
+		}elseif ($_GET["option"] == "employee"){
+			$aFields["School Information"] = array(
+											"profile_school_position",
+											"profile_affiliate_school"
+										);
+										
+			$oForm["account"]["roles"] = array(
+											"#type" => "checkboxes",
+											"#title" => "Roles",
+											/*"2" => array(
+														"#type" => "checkbox",
+														"#title" => "Member",
+														"#default_value" => 1,
+														"#disabled" => 1,
+														"#return_value" => 2,
+													),*/
+											"17" => array(
+														"#type" => "checkbox",
+														"#title" => "Employee",
+														"#default_value" => 1,
+														"#disabled" => 1,
+														"#return_value" => 17,
+													)
+										);
+			
+			$aFields["Admin Information"] = array(
+											"profile_truecafe"
+										);
+										
+			$aFields["I. Personal Info"] = array(
+											"profile_last_name", 
+											"profile_first_name",
+											"profile_address",
+											"profile_gender",
+											"profile_dob",
+											"profile_lives_with",
+											"profile_city",
+											"profile_state",
+											"profile_country"
+											);
+											
+			$aFields["II. Misc Information"] = array(
+													"profile_reading_ability",
+													"profile_language",
+													"profile_talents",
+													"profile_favorites",
+													"profile_school",
+													"profile_grade",
+													"profile_illness",
+													"profile_disability",
+													"profile_parent",
+													"profile_parent_job",
+													"profile_parent_job_desc",
+													"profile_parent_income",
+													"profile_parent_email"
+												);
+												
+			foreach ($aFields as $sGroup => $sVal){
+				foreach ($sVal as $sField) {
+					unset($oForm[$sGroup][$sField]);
+				}
+			}
+			
+			# Hides the empty fieldsets
+			$sJavaScript = '$(document).ready(
+								function(){
+									$("fieldset").find("legend").slice(2,3).parent().hide();
+									$("fieldset").find("legend").slice(6,7).parent().hide();
+									$("fieldset").find("legend").slice(6,8).parent().hide();
+									$("fieldset").find("legend").slice(9,10).parent().hide();
+								}
+							)';
+			
+			drupal_add_js($sJavaScript, 'inline');
+		} else{
+			if($_GET["option"] == 'reporter'){
+				$oForm["account"]["roles"] = array(
+					"#type" => "checkboxes",
+					"#title" => "Roles",
+					"9" => array(
+						"#type" => "checkbox",
+						"#title" => "Student",
+						"#default_value" => 1,
+						"#disabled" => 1,
+						"#return_value" => 9,
+					),
+					"2" => array(
+						"#type" => "checkbox",
+						"#title" => "Member",
+						"#default_value" => 1,
+						"#disabled" => 1,
+						"#return_value" => 2,
+					),
+					"25" => array(
+						"#type" => "checkbox",
+						"#title" => "Reporter",
+						"#default_value" => 1,
+						"#disabled" => 1,
+						"#return_value" => 25,
+					)
+				);
+			}else{
+
+				$oForm["account"]["roles"] = array(
+					"#type" => "checkboxes",
+					"#title" => "Roles",
+					"2" => array(
+								"#type" => "checkbox",
+								"#title" => "Member",
+								"#default_value" => 1,
+								"#disabled" => 1,
+								"#return_value" => 2,
+							),
+					"10" => array(
+								"#type" => "checkbox",
+								"#title" => "Guest",
+								"#default_value" => 0,
+								"#disabled" => 0,
+								"#return_value" => 10,
+							),
+					"11" => array(
+								"#type" => "checkbox",
+								"#title" => "Moderator",
+								"#default_value" => 0,
+								"#disabled" => 0,
+								"#return_value" => 11,
+							),
+					"7" => array(
+								"#type" => "checkbox",
+								"#title" => "Sponsor",
+								"#default_value" => 0,
+								"#disabled" => 0,
+								"#return_value" => 7,
+							),
+					"5" => array(
+								"#type" => "checkbox",
+								"#title" => "Staff",
+								"#default_value" => 0,
+								"#disabled" => 0,
+								"#return_value" => 5,
+							),
+				);
+			}
+										
+		$aFields["Admin Information"] = array(
+											"profile_truecafe"
+										);
+										
+		$aFields["Employee Personal Info"] = array(
+											"profile_employee_last_name",
+											"profile_employee_first_name",
+											"profile_employee_middle_name",
+											"profile_employee_nick_name",
+											"profile_employee_designation",
+											"profile_employee_date_hired",
+											"profile_employee_salary_rate",
+											"profile_employee_sss_number",
+											"profile_employee_address",
+											"profile_employee_permanent_address",
+											"profile_employee_permanent_contact_number",
+											"profile_employee_permanent_email_address",
+											"profile_employee_dob",
+											"profile_employee_religion",
+											"profile_employee_gender",
+											"profile_employee_city",
+											"profile_employee_state",
+											"profile_employee_country"
+										);
+										
+			$aFields["Employee Health Info"] = array(
+											"profile_employee_illness",
+											"profile_employee_medication",
+											"profile_employee_allergy",
+										);
+										
+			$aFields["Employee Misc Info"] = array(
+											"profile_employee_fathersname",
+											"profile_employee_fathersoccupation",
+											"profile_employee_fathersaddress",
+											"profile_employee_fatherscontactnumber",
+											"profile_employee_fathersemailaddress",
+											"profile_employee_mothersname",
+											"profile_employee_mothersoccupation",
+											"profile_employee_mothersaddress",
+											"profile_employee_motherscontactnumber",
+											"profile_employee_mothersemailaddress",
+											"profile_employee_spousename",
+											"profile_employee_contactnumber",
+											"profile_employee_numchildren",
+											"profile_employee_childrenname"
+										);
+			
+			$aFields["Other Employment Info"] = array(
+											"profile_employee_other_companyname",
+											"profile_employee_other_designation",
+											"profile_employee_other_officeaddress",
+											"profile_employee_other_contactnumber",
+											"profile_employee_other_timesched",
+											"profile_employee_other_remarks"
+										);
+			
+			$aFields["II. Misc Information"] = array(
+													"profile_reading_ability",
+													"profile_language",
+													"profile_talents",
+													"profile_favorites",
+													"profile_school",
+													"profile_grade",
+													"profile_illness",
+													"profile_disability",
+													"profile_parent",
+													"profile_parent_job",
+													"profile_parent_job_desc",
+													"profile_parent_income",
+													"profile_parent_email"
+												);
+				
+                   
+			foreach ($aFields as $sGroup => $sVal){
+				foreach ($sVal as $sField) {
+					unset($oForm[$sGroup][$sField]);
+				}
+			}
+                          //below code is to change school Name drop-down
+                        
+                        unset($oForm['School Information']['profile_affiliate_school']['#options']);
+                        $oForm['School Information']['profile_affiliate_school']['#options']['0']= '--';
+                        $oForm['School Information']['profile_affiliate_school']['#options']['None']= 'None';
+                         $oForm['School Information']['profile_affiliate_school']['#options']['Maximo Estrella Elementary School'] = 'Sandiwaan Center';
+                         $oForm['School Information']['profile_affiliate_school']['#options']['Francisco Benitez Elementary School'] = 'PNU - ITL';
+                         $oForm['School Information']['profile_affiliate_school']['#options']['Jose Magsaysay Elementary School'] = 'PNU';
+                        
+                         
+                          unset( $oForm['School Information']['profile_affiliate_school']['#options']['MEES-Faculty']);
+                       
+                        
+                        
+			
+			# Hides the empty fieldsets
+			$sJavaScript = '$(document).ready(
+								function(){
+									$("#edit-profile-lives-with-wrapper").hide();
+									$("fieldset").find("legend").slice(2,3).parent().hide();
+									$("fieldset").find("legend").slice(3,4).parent().hide();
+									$("fieldset").find("legend").slice(3,5).parent().hide();
+									$("fieldset").find("legend").slice(3,6).parent().hide();
+									$("fieldset").find("legend").slice(7,8).parent().hide();
+									$("fieldset").find("legend").slice(7,9).parent().hide();
+								}
+							)';
+			
+			drupal_add_js($sJavaScript, 'inline');
+		
+		}
+	}elseif ($user->uid == 1 && $sFormId == "user_profile_form"){
+	
+		$aQS = explode("/", $_GET["q"]);
+		$iUserId = $aQS[1];
+		$oUser = user_load($iUserId);
+		$aRoles = $oUser->roles;
+		$biAdult = false;
+		
+		foreach ($aRoles as $iRoleId => $sRole){
+			$sAdultRoles = array("Volunteer", "Staff", "Sponsor", "Moderator", "Guest");
+			
+			foreach ($sAdultRoles as $sThisRoles){
+				$biAdult = strpos($sRole, $sThisRoles);
+				
+				if (is_numeric($biAdult)){
+					$biAdult = true;
+					break;
+				}
+			}
+		}
+								
+		if ($biAdult){
+			$aFields["I. Personal Info"] = array(
+											"profile_lives_with"
+										);
+			
+			
+			
+			foreach ($aFields as $sGroup => $sVal){
+				foreach ($sVal as $sField) {
+					unset($oForm[$sGroup][$sField]);
+				}
+			}
+			
+			# Hides the Misc Information and User Checklist tab
+			$sJavaScript = '$(document).ready(
+									function(){
+										$("ul[class=tabs secondary]").find("li").slice(3,5).hide();
+									}
+								)';
+			
+			drupal_add_js($sJavaScript, 'inline');
+		}
+		
+			if($user->name == 'admin'){
+
+			$selected_type = user_userinfo('type');
+			$selected_userid = user_userinfo('id');
+			
+		 	  if($selected_type == 'user'){
+				 if($_GET['q'] == 'user/'.$selected_userid.'/edit?destination=admin/user/user' || $_GET['q'] == 'user/'.$selected_userid.'/edit'){
+				 
+					$sJavaScript = '$(document).ready(
+										function(){
+											//$(".form-item .form-checkboxes").hide();
+											//$(".form-item .form-radios").hide(); 
+											$("fieldset .form-item").slice(5,6).hide();
+											$("fieldset .form-item").slice(5,9).hide();
+											$("fieldset").find("legend").slice(3,4).parent().hide();
+										}
+									)';
+				
+					drupal_add_js($sJavaScript, 'inline');
+				 }
+			  }	 
+			}
+	}
+}
+
+// start user account page
+function user_accountTabs ( $tabs, $title, $urlpath, $content, $show_messages, $messages ) {
+	global $user;
+	drupal_set_breadcrumb( array( l("Home", "mystudies/getinvolved/volunteer") ) );
+ 
+	$checkhopeful = _mystudies_check_hopeful($user->uid);
+
+	if ( $checkhopeful == 'hopeful' ) {
+		$cgroups = array(
+			"tab1" => array( "user/{$user->uid}","user/{$user->uid}?misc", "time/buy", "time"
+				),
+			"tab2" => array( "user/{$user->uid}/edit","user/{$user->uid}/edit/I. Personal Info","user/{$user->uid}/edit/Admin Information","user/{$user->uid}/edit/II. Misc Information"
+				),
+			"tab3" => array( "messages", "messages/inbox", "messages/list", "messages/new", "messages/clearance","messagesview"
+				)
+		);
+		$ctabs = array(
+			"tab1" => array(
+				"my account"."&parent" => "user/{$user->uid}", 
+				"account info"."&child"=>"user/{$user->uid}" /*,
+				"Misc Info"."&child"=> "user/{$user->uid}?misc"*/
+			),
+			"tab2" => array(
+				"edit account"."&parent" => "user/{$user->uid}/edit",
+				"account"."&child"=> "user/{$user->uid}/edit",
+				"personal info"."&child"=>"user/{$user->uid}/edit/I. Personal Info" /*,
+				"Admin Info"."&child"=>"user/{$user->uid}/edit/Admin Information",
+				"Misc Info"."&child"=>"user/{$user->uid}/edit/II. Misc Information"*/
+			),
+			"tab3" => array(
+				"messages"."&parent" => "messages", 
+				"inbox"."&child"=>"messages",
+				"sent messages"."&child"=> "messages/inbox",
+				"all messages"."&child"=> "messages/list",
+				"write new messages"."&child"=> "messages/new",
+				"clearance"."&child"=> "messages/clearance"
+			),
+			"tab4" => array(
+				"my profile"."&parent" => "my-profile"
+			)
+		);
+		$cParents = array(
+			"my account" => "user/{$user->uid}",
+			"messages" => "messages", 
+		);
+	}
+	
+	if ( $checkhopeful == 'notahopeful' ) { // start not hopeful
+	
+		if ( isset($user->roles[17]) ) { // employee
+		
+			$cgroups = array(
+				"tab1" => array( "user/{$user->uid}"
+					),
+				"tab2" => array( "user/{$user->uid}/edit","user/{$user->uid}/edit/Employee Personal Info","user/{$user->uid}/edit/Employee Health Info","user/{$user->uid}/edit/Employee Misc Info","user/{$user->uid}/edit/Other Employment Info"
+					),
+				"tab3" => array( "messages", "messages/inbox", "messages/list", "messages/new", "messages/clearance","messagesview"
+					),
+				"tab4" => array( "secure/bank/about", "secure/bank/statement", "secure/bank/send", "secure/bank/deposit"
+					)
+			);
+			$ctabs = array(
+				"tab1" => array(
+					"my account"."&parent" => "user/{$user->uid}", 
+					"account info"."&child"=>"user/{$user->uid}"
+					),
+				"tab2" => array(
+					"edit account"."&parent" => "user/{$user->uid}/edit",
+					"account"."&child"=> "user/{$user->uid}/edit",
+					"personal info"."&child"=>"user/{$user->uid}/edit/Employee Personal Info",
+					"health info"."&child"=>"user/{$user->uid}/edit/Employee Health Info",
+					"misc info"."&child"=>"user/{$user->uid}/edit/Employee Misc Info",
+					"other employment info"."&child"=>"user/{$user->uid}/edit/Other Employment Info"
+					),
+				"tab3" => array(
+					"messages"."&parent" => "messages", 
+					"inbox"."&child"=>"messages",
+					"sent messages"."&child"=> "messages/inbox",
+					"all messages"."&child"=> "messages/list",
+					"write new messages"."&child"=> "messages/new",
+					"clearance"."&child"=> "messages/clearance"
+					),
+				"tab4" => array(
+					"my ebank"."&parent" => "secure/bank/about", 
+					"about hope banking"."&child"=>"secure/bank/about",
+					"bank statement"."&child"=> "secure/bank/statement",
+					"send bucks"."&child"=> "secure/bank/send",
+					"deposit bucks"."&child"=> "secure/bank/deposit"
+					),
+					"tab5" => array(
+						"my profile"."&parent" => "my-profile"
+					)
+			);
+			$cParents = array(
+				"my account" => "user/{$user->uid}", 
+				"edit account" => "user/{$user->uid}/edit",
+				"messages" => "messages", 
+				"my eBank" => "secure/bank/about"
+			);
+						
+		} else { // volunteers, mentors, tutors etc
+			$cgroups = array(
+				"tab1" => array( "user/{$user->uid}","myuserpoints/{$user->uid}","user/{$user->uid}?misc"
+					),
+				"tab2" => array( "user/{$user->uid}/edit","user/{$user->uid}/edit/I. Personal Info","user/{$user->uid}/edit/Admin Information","user/{$user->uid}/edit/II. Misc Information","user/community/build","user/{$user->uid}/edit/School Information"
+					),
+				"tab3" => array( "messages", "messages/inbox", "messages/list", "messages/new", "messages/clearance","messagesview"
+					),
+				"tab4" => array( "secure/bank/about", "secure/bank/statement", "secure/bank/send", "secure/bank/deposit"
+					)
+			);
+			
+			if ( isset($user->roles[2] ) ) {
+				
+				if ( isset($user->roles[18]) || isset($user->roles[13]) || isset($user->roles[14]) || isset($user->roles[15]) || isset($user->roles[12]) || isset($user->roles[4]) || isset($user->roles[6]) ) {
+					$commfield = "community building"."&child"; 
+					$commval = "user/community/build";
+				} else {
+					$commfield = "";
+					$commval = "";
+				}
+				
+				$ctabs = array(
+					"tab1" => array(
+						"my account"."&parent" => "user/{$user->uid}", 
+						"account info"."&child"=>"user/{$user->uid}",
+						"user hope points"."&child"=> "myuserpoints/{$user->uid}"
+						),
+					"tab2" => array(
+						"edit account"."&parent" => "user/{$user->uid}/edit",
+						"account"."&child"=> "user/{$user->uid}/edit",
+						"personal info"."&child"=>"user/{$user->uid}/edit/I. Personal Info",
+						"School info"."&child"=>"user/{$user->uid}/edit/School Information",
+						$commfield => $commval,
+						),
+					"tab3" => array(
+						"messages"."&parent" => "messages", 
+						"inbox"."&child"=>"messages",
+						"sent messages"."&child"=> "messages/inbox",
+						"all messages"."&child"=> "messages/list",
+						"write new messages"."&child"=> "messages/new",
+						"clearance"."&child"=> "messages/clearance"
+						),
+					"tab4" => array(
+						"my eBank"."&parent" => "secure/bank/about", 
+						"about hope banking"."&child"=>"secure/bank/about",
+						"bank statement"."&child"=> "secure/bank/statement",
+						"send bucks"."&child"=> "secure/bank/send",
+						"deposit bucks"."&child"=> "secure/bank/deposit"
+						),
+						"tab5" => array(
+							"my profile"."&parent" => "my-profile"
+						)
+				);
+
+			} else {		
+
+				$ctabs = array(
+					"tab1" => array(
+						"my account"."&parent" => "user/{$user->uid}", 
+						"account info"."&child"=>"user/{$user->uid}",
+						"user hope points"."&child"=> "myuserpoints/{$user->uid}"
+						),
+					"tab2" => array(
+						"edit account"."&parent" => "user/{$user->uid}/edit",
+						"account"."&child"=> "user/{$user->uid}/edit",
+						"personal info"."&child"=>"user/{$user->uid}/edit/I. Personal Info" ,
+									"community building"."&child"=> "user/community/build" /*,
+									"Misc Info"."&child"=>"user/{$user->uid}/edit/II. Misc Information"*/
+									),
+					"tab3" => array(
+						"messages"."&parent" => "messages", 
+						"inbox"."&child"=>"messages",
+						"sent messages"."&child"=> "messages/inbox",
+						"all messages"."&child"=> "messages/list",
+						"write new messages"."&child"=> "messages/new",
+						"clearance"."&child"=> "messages/clearance"
+						),
+					"tab4" => array(
+						"my eBank"."&parent" => "secure/bank/about", 
+						"about hope banking"."&child"=>"secure/bank/about",
+						"bank statement"."&child"=> "secure/bank/statement",
+						"send bucks"."&child"=> "secure/bank/send",
+						"deposit bucks"."&child"=> "secure/bank/deposit"
+						),
+						"tab5" => array(
+							"my profile"."&parent" => "my-profile"
+						)
+				);
+			
+			}
+			
+			$cParents = array(
+				"my account" => "user/{$user->uid}", 
+				"edit account" => "user/{$user->uid}/edit",
+				"messages" => "messages", 
+				"my eBank" => "secure/bank/about",
+				"my profile" => "my-profile"
+			);
+
+		} // END volunteers, mentors, tutors etc
+	
+	} // END not hopeful
+	
+	
+	$iScrollX = (isset($_REQUEST['scrollx'])) ? $_REQUEST['scrollx']:0;
+	$iScrollY = (isset($_REQUEST['scrolly'])) ? $_REQUEST['scrolly']:0;
+	
+	$sHtml = '<script language="javascript">
+				$(document).ready(
+					function(){
+						window.scrollTo('.$iScrollX.', '.$iScrollY.');
+					}
+				);
+				</script>';
+	
+	$sHtml .= '<a name="profile_start"></a><div style="width:766;min-height:600px; padding:0px 88px 0px 88px;" width="766">';
+	
+	if ( $user->uid ) { 
+
+		//$sHtml .= '<h2'. ($tabs ? ' class="with-tabs title"' : '') .'>'. $title .'</h2>'; 
+		
+		$sHtml .= '<div id="ka_mainContainer" class="ka_myPlace">
+				<div id="ka_header" class="clearfix">	
+					<div id="ka_headerTopNav" style="display:block;">
+					<input type="hidden" id="selectedTab" name="selectedTab" value="" />
+					<input type="hidden" id="selectedSubNavTab" name="selectedSubNavTab" value="" />
+					<ul id="ka_headerTopNav_ul">';
+
+		foreach($cgroups as $tab => $paths):
+			foreach($paths as $path):
+				if($path == $urlpath):
+					foreach($ctabs as $tab2 => $pages):
+						if($tab == $tab2):
+							$counter = 1;
+							foreach($pages as $title => $links):
+								$aTitle = explode('&', $title);
+								$sTitle = $aTitle[0];
+								$sTitletype = $aTitle[1];
+
+								if($sTitletype == 'parent'){	
+									foreach($cParents as $sParenttitle => $sParentLink){
+										if($sTitle == $sParenttitle){
+											$sHtml .= "<li><a href='" . base_path() . "{$sParentLink}'><span><b style='color:#000000;'>".$sParenttitle."</b></span></a></li>";
+										} else{
+											$sHtml .= "<li><a href='" . base_path() . "{$sParentLink}'><span>".$sParenttitle."</span></a></li>";
+										}
+									}
+								}
+
+								if($counter == 1){
+									$sHtml .= '</ul>
+										</div>
+										<div id="ka_headerSubNav">
+											<ul id="ka_headerSubNav_list">';
+								}
+
+								if($sTitletype == 'child'){
+									if($links == $urlpath){
+										$sHtml .= "<li><a href='" . base_path() . "{$links}'><span><b style='color:#000000;'>".$sTitle.'</b></span></a></li>';
+									} else{
+										$sHtml .= "<li><a href='" . base_path() . "{$links}'><span>".$sTitle.'</span></a></li>';
+									}
+								}
+
+								$counter++;	
+							endforeach;
+						endif;
+					endforeach;
+				endif;
+			endforeach;
+		endforeach; // end of foreach($cgroups as $tab => $paths)
+
+		$sHtml .= '</ul>
+			</div>';
+		$sHtml .= '</div>';
+
+	} // END if ( $user->uid )
+
+	switch($_SERVER['REQUEST_URI']){
+		case "/user/{$user->uid}":
+			$sHtml .= user_profile_info('personal');
+			break;
+		case "/user/community/build":
+			$sHtml .= user_ext_community_build($user->uid);
+			break;
+		default:
+			if ( strpos($urlpath, 'user/') !== false && strpos($urlpath, 'edit') == false ) {
+				$auid = explode('/',$urlpath);
+				$sHtml .= user_profile_info('others', $auid[1]);
+			} else {
+				$sHtml .= '<div id="ka_contentContainer" style="min-height:600px;">';
+				if ( $show_messages && $messages != "" ) {
+						$sHtml .= $messages;
+				}
+				$sHtml .= $content.'</div>';
+			}		
+	}
+
+	$sHtml .= "</div></div>
+		<script>
+		if (top === self) { 
+		} else { 
+		/*$('div').remove('.bb');
+		$('div').removeClass('bt'); 
+		$('div').removeClass('i1');
+		$('div').removeClass('i2');
+		$('div').removeClass('i3');
+		$('div').removeClass('left-border');
+		$('div').removeClass('right-border');*/
+		$('.breadcrumb a').attr('href','/mystudies/getinvolved/volunteer');
+		}
+		</script>";
+    
+	if ( $_SERVER["REQUEST_URI"] == '/user' ) {
+		$sHtml .= "<script>
+			self.location.href = '/mystudies/getinvolved/volunteer';
+			</script>";
+	}
+
+	return $sHtml;
+
+}
+
+function _user_extension_is_hopeful($oUser){
+	$bHopeful = false;
+	
+	foreach ($oUser->roles as $iKey => $sVal){
+		if ($iKey == 9){
+			$bHopeful = true;
+			break;
+		}
+	}
+	
+	return $bHopeful;
+}
+
+/**
+ * Convert a string to the file/URL safe "slug" form
+ *
+ * @param string 	$string			the string to clean
+ * @param bool		$is_filename	TRUE will allow additional filename characters
+ * @return string
+ */
+function _sanitize($string='', $is_filename=false){
+	// Replace all weird characters with dashes
+	$string = preg_replace('/[^\w\-'. ($is_filename ? '~_\.' : ''). ']+/u', '-', $string);
+	
+	// Only allow one dash separator at a time (and make string lowercase)
+	return mb_strtolower(preg_replace('/--+/u', '-', $string), 'UTF-8');
+}
+
+
+function user_ext_profile_wall_display ( $user = null, $oAccount = null ) {
+	if ( null == $user )
+		global $user;
+
+	if ( null == $oAccount )
+		$oAccount = $user;
+		
+	$sBasePath = base_path();
+	$sCurrModulePath = drupal_get_path('module', 'user_extension');
+	
+	$sBaseName = basename($_SERVER['PHP_SELF']);
+	$bIsHUD = ($sBaseName == 'hud.php' || $sBaseName == 'hud') ? true:false;
+
+	//drupal_add_css(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.css');
+	//drupal_add_js(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.js');
+	
+	$sqlPosts = "SELECT A.wid, A.uid, A.sContent, A.dTimestamp, B.picture, A.iImageSize, A.iImageWidth
+				FROM comments_kickapps_photo A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.uid = %d
+				ORDER BY wid DESC";
+	
+	$sqlComments = "SELECT A.id, A.commentfrom AS uid, A.comment AS sContent, A.commentdate AS dTimestamp, B.picture
+					FROM comments_kickapps A
+					INNER JOIN users B ON B.uid = A.commentfrom
+					WHERE A.kickaps_userid = '%s'
+						AND A.status = 1";
+	
+	
+	$sHtml .='<script language="javascript" src="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.js"></script>';
+	$sHtml .='<link type="text/css" rel="stylesheet" media="all" href="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.css"/>';
+	
+	if ($bIsHUD){
+		$bShowNotice = (isset($_GET['msg']) && trim($_GET['msg']) != '') ? true:false;
+             
+		//$bShowNotice = 0 ; //now for hiding 2 pop ups
+		if ($bShowNotice){
+			$sShowJS = "$('#dialog_Generic')
+							.html('<span style=\'font-size:0.8em;\'>".base64_decode($_GET['msg'])."</span>')
+							.dialog(
+								{
+									modal: true,
+									resizable: false,
+									autoOpen: true,
+									width: 400,
+									buttons: {
+										'Okay': function(){
+											$(this).dialog('close');
+										}
+									}
+								}
+							)";
+		}else{
+			$sShowJS = '';
+		}
+		
+		$sHtml .=   "<script language='javascript'>
+					$(document).ready(
+						function(){
+							if (window.location.hash == '#my_profile'){
+								$('#promisesmask').hide();
+								$('.window').hide();
+                                                                ".$sShowJS."
+							}
+                                                        if (window.location.hash == '#kindness_report'){
+								ToggleContent('kindness_form');
+                                                                ".$sShowJS."
+							}
+                                                         if (window.location.hash == '#kindness_status'){
+								ToggleContent('kindness_dashboard');
+                                                                ".$sShowJS."
+							}
+							
+							
+							
+						}
+					);
+					</script>
+					
+					<style>
+					.hud_button{
+						cursor: pointer;
+						border: 1px solid rgb(255, 255, 255);
+						font-family: Arial,Helvetica,sans-serif;
+						font-size: 11px;
+						color: rgb(229, 240, 49);
+						background: url('".$sBasePath."hud_files/images/buttonbg.jpg') repeat scroll 0px 0px transparent;
+						height: 20px;
+						width: 100px;
+					}
+					
+					.hud_button_small{
+						width: 30px !important;
+					}
+					</style>";
+	}
+	
+	$sHtml .='<div id="tabs-wall"><div id="dialog_Generic" title="HUD Notice"></div>';
+	
+	if ($user->uid == $oAccount->uid){
+		$sHtml .=	'<div id="wall_Main_Container">
+						<form id="form_Main" method="post" action="'.$sBasePath.'user/profile/wall/process" enctype="multipart/form-data">
+							<input type="hidden" name="wc" value="main">
+							<input type="hidden" name="iUserId" value="'.$oAccount->uid.'">
+							<input type="hidden" name="sReturnURL" value="'.$_SERVER['PHP_SELF'].(($bIsHUD) ? '#my_profile':'').'">
+							
+							<div><span class="ui-icon ui-icon-mail-closed"></span> Write Post</div>
+							<div><textarea id="wall_Main_sPostContent" name="wall_Main_sPostContent" style="color:black;" placeholder="Write Something..."></textarea></div>
+							<div id="wall_Main_File_Container" style="display:none;">
+								<input type="file" id="wall_Main_sPostMedia" name="wall_Main_sPostMedia">
+								<button type="button" id="wall_Main_btnPost" class="'.(($bIsHUD) ? 'hud_button':'').'">Post</button>
+							</div>
+							<div id="wall_Main_Preview_Container" style="display:none;">
+								<output id="wall_Main_sPostMedia_Preview"></output>
+							</div>
+						</form>
+					</div>';
+	}
+	
+	$oPosts = db_query($sqlPosts, $oAccount->uid);
+	$iPostCount = 0;
+	
+	while ($oPost = db_fetch_object($oPosts)){
+		$iPostCount++;
+		$iPostId = $oPost->wid;
+		
+		$sHtml .=  '<div id="wall_Container_'.$iPostId.'" class="wall_Container clearfix">
+						<div id="wall_Avatar_'.$iPostId.'" class="wall_col_Left">
+							<img src="/'.$oPost->picture.'" alt="op_avatar">
+						</div>
+						
+						<div id="wall_Post_'.$iPostId.'" class="wall_col_Right" style="width:520px;">
+							<div id="wall_Content_'.$iPostId.'" style="width:75%;margin-bottom:5px; float:left;">
+								'.stripslashes($oPost->sContent).'
+							
+                                                </div>';
+                $sHtml .= '<div style="width:25%;float:left;"><form id="form_delete" method="post" action="'.$sBasePath.'user/profile/wall/process" enctype="multipart/form-data">
+							<input type="hidden" name="post_delete" value="1">
+							<input type="hidden" name="iUserId" value="'.$oAccount->uid.'">
+							 <input type="hidden" name="iPostId" value="'.$iPostId.'">
+                                                             <input type="hidden" name="sReturnURL" value="'.$_SERVER['PHP_SELF'].(($bIsHUD) ? '#my_profile':'').'">
+							<div id="wall_Main_File_Container" style="width: 80%;height: 30px;">
+							<input type="submit" value="Delete" id="wall_Main_btn_Post_delete" class="kindness_post_delete_button '.(($bIsHUD) ? 'hud_button':'').'" style="width: 55px;"/>
+                                                            
+							</div>
+							
+						</form></div>';
+		
+		if ($oPost->iImageSize > 0){
+			$sHtml .=	   '<div id="wall_Media_'.$iPostId.'" class="wall_col_Right_Media">
+								<a href="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" target="_blank">
+									<img src="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" style="'.(($oPost->iImageWidth <= 400) ? 'width:'.$oPost->iImageWidth.'px !important':'').'" alt="post_media">
+								</a>
+							</div>';
+		}
+		
+		$sHtml .=  	   '	<div id="wall_Post_Content_Timestamp">Posted '.(format_interval(time()-strtotime($oPost->dTimestamp))).' ago</div>
+						</div>';
+		
+		// Role IDs for the Mentors
+		$aAllowedRoles = array(6, 22);
+		
+		$bShowCommentBox = false;
+		$showWriteComment = '';
+		
+		// Checks if any Mentor ID are assigned to the user.
+		foreach ($user->roles as $iKey => $sVal){
+			if (in_array($iKey, $aAllowedRoles)) $bShowCommentBox = true;
+		}
+
+		if ($user->uid == $oAccount->uid){
+			$showWriteComment = 'display:none;';
+		}
+
+		if ($bShowCommentBox || $user->uid == $oAccount->uid){
+			$sHtml .=  '<div id="wall_Comment_Container_'.$iPostId.'" style="width:550px; margin-left:100px;">
+							<form id="form_Comment_'.$iPostId.'" method="post" action="'.$sBasePath.'user/profile/wall/process">
+								<input type="hidden" name="wc" value="comment">
+								<input type="hidden" name="iUserId" value="'.$user->uid.'">
+								<input type="hidden" name="iCommentToUserId" value="'.$oAccount->uid.'">
+								<input type="hidden" name="iPostId" value="'.$iPostId.'">
+								<input type="hidden" name="sReturnURL" value="'.$sBasePath.'instant/mentor/dashboard?comment_posted">
+								
+								<div id="wall_Comment_Avatar" style="'. $showWriteComment .'">
+									<img src="'.$sBasePath.$user->picture.'" alt="avatar">
+								</div>
+								<div id="wall_Comment_Content" style="'. $showWriteComment .'"><textarea id="post_a_comment_'.$iPostId.'" name="wall_Comment_sPostContent_'.$iPostId.'" placeholder="Write a comment..." style="color: black;"></textarea></div>
+								<div id="wall_Comment_Button" style="'. $showWriteComment .'"><button type="button" id="wall_Comment_btnPost_'.$iPostId.'" style="font-size:0.8em;" class="'.(($bIsHUD) ? 'hud_button hud_button_small':'').'">Post</button></div>
+							</form>
+						</div>';
+		}
+		
+		$oComments = db_query($sqlComments, $iPostId);
+		
+                
+		while ($oComment = db_fetch_object($oComments)){
+			$sHtml .=  '<div id="wall_Comment_List_Container">
+							<div id="wall_Comment_List_Avatar">
+								<img src="/'.$oComment->picture.'" alt="avatar">
+							</div>
+							
+							<div id="wall_Comment_List_Content">
+								'.nl2br(stripslashes($oComment->sContent)).'
+								<div id="wall_Comment_List_Content_Timestamp">Posted '.(format_interval(time()-$oComment->dTimestamp)).' ago</div>
+							</div>
+						</div>';
+		}
+						
+		$sHtml .=  '</div>';
+	}
+	
+	if ($iPostCount == 0) $sHtml .= '<div>No activity on the user\'s wall, yet.</div>';
+	
+	$sHtml .='</div>';
+
+	return $sHtml;
+}
+
+function user_ext_profile_kindness_wall_display ( $user = null, $oAccount = null ) {
+	if ( null == $user )
+		global $user;
+
+	if ( null == $oAccount )
+		$oAccount = $user;
+		
+	$sBasePath = base_path();
+	$sCurrModulePath = drupal_get_path('module', 'user_extension');
+	
+	$sBaseName = basename($_SERVER['PHP_SELF']);
+	$bIsHUD = ($sBaseName == 'hud.php' || $sBaseName == 'hud') ? true:false;
+        $unique_kindness_report_id = uniqid();
+
+	//drupal_add_css(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.css');
+	//drupal_add_js(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.js');
+	
+	$sqlPosts = "SELECT A.wid, A.uid, A.sContent, A.dTimestamp, B.picture, A.iImageSize, A.iImageWidth
+				FROM comments_kickapps_photo A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.uid = %d
+				ORDER BY wid DESC";
+	
+	$sqlComments = "SELECT A.id, A.commentfrom AS uid, A.comment AS sContent, A.commentdate AS dTimestamp, B.picture
+					FROM comments_kickapps A
+					INNER JOIN users B ON B.uid = A.commentfrom
+					WHERE A.kickaps_userid = '%s'
+						AND A.status = 1";
+	
+	
+	//$sHtml .='<script language="javascript" src="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.js"></script>';
+	//$sHtml .='<link type="text/css" rel="stylesheet" media="all" href="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.css"/>';
+	
+	if ($bIsHUD){
+		$bShowNotice = (isset($_GET['msg']) && trim($_GET['msg']) != '') ? true:false;
+		$bShowNotice = 0 ; //now for hiding 2 pop ups
+		$sShowJS = '';
+		
+		$sHtml .=   "<script language='javascript'>
+					$(document).ready(
+						function(){
+							if (window.location.hash == '#kindness_report'){
+								$('#promisesmask').hide();
+								$('.window').hide();".$sShowJS."
+							}
+							
+							
+						}
+					);
+					</script>
+					
+					<style>
+					.hud_button{
+						cursor: pointer;
+						border: 1px solid rgb(255, 255, 255);
+						font-family: Arial,Helvetica,sans-serif;
+						font-size: 11px;
+						color: rgb(229, 240, 49);
+						background: url('".$sBasePath."hud_files/images/buttonbg.jpg') repeat scroll 0px 0px transparent;
+						height: 20px;
+						width: 100px;
+					}
+					
+					.hud_button_small{
+						width: 30px !important;
+					}
+					</style>";
+	}
+	
+	$sHtml .='<div id="tabs-wall" class="kindness_posts_tab" style="height:790px;width:470px;margin-left: 10px;float:left;overflow:auto"><div id="dialog_Generic" title="HUD Notice"></div>';
+	
+	if ($user->uid == $oAccount->uid){
+		$sHtml .=	'<div id="wall_Main_Container" style="width:470px!important">
+						<form id="form_Main_kindness" method="post" action="'.$sBasePath.'user/profile/wall/process/kindness_report/posts" enctype="multipart/form-data">
+							<input type="hidden" id="kindness_report_wc" name="wc" value="main">
+							<input type="hidden" id="kindness_report_iUserId" name="iUserId" value="'.$oAccount->uid.'">
+							<input type="hidden" id="kindness_report_sReturnURL" name="sReturnURL" value="'.$_SERVER['PHP_SELF'].(($bIsHUD) ? '#kindness_report':'').'">
+							
+							<div><span class="ui-icon ui-icon-mail-closed"></span> Write Post</div>
+							<div><textarea id="wall_Main_sPostContent_kindness" name="wall_Main_sPostContent" style="color:black;margin-bottom: 10px;width: 400px;" placeholder="Write Something..."></textarea></div>
+<input type="hidden" value="'.$unique_kindness_report_id.'" name="unique_kindness_report_id">							
+<div id="wall_Main_File_Container_kindness" style="display:none;width:400px;">
+								<input type="file" id="wall_Main_sPostMedia_kindness" name="wall_Main_sPostMedia">
+								<button type="button" id="wall_Main_btnPost_kindness" class="'.(($bIsHUD) ? 'hud_button':'').'" style="float:right;">Post</button>
+							</div>
+							<div id="wall_Main_Preview_Container_kindness" class="wall_Main_Preview_Container_kindness" style="display:none;">
+								<output id="wall_Main_sPostMedia_Preview_kindness"></output>
+							</div>
+						</form>
+					</div>';
+	}
+        
+	
+	$oPosts = db_query($sqlPosts, $oAccount->uid);
+	$iPostCount = 0;
+	
+//	while ($oPost = db_fetch_object($oPosts)){
+//		$iPostCount++;
+//		$iPostId = $oPost->wid;
+//		
+//		$sHtml .=  '<div id="wall_Container_'.$iPostId.'" class="wall_Container clearfix">
+//						<div id="wall_Avatar_'.$iPostId.'" class="wall_col_Left">
+//							<img src="/'.$oPost->picture.'" alt="op_avatar">
+//						</div>
+//						
+//						<div id="wall_Post_'.$iPostId.'" class="wall_col_Right" style="width:450px;">
+//							<div id="wall_Content_'.$iPostId.'" style="width:55%;margin-bottom:5px; float:left;">
+//								'.stripslashes($oPost->sContent).'
+//							
+//                                                </div>';
+//                $sHtml .= '<div style="width:45%;float:left;"><form id="form_delete_kindness" method="post" action="'.$sBasePath.'user/profile/wall/process" enctype="multipart/form-data">
+//							<input type="hidden" name="post_delete" value="1">
+//							<input type="hidden" name="iUserId" value="'.$oAccount->uid.'">
+//							 <input type="hidden" name="iPostId" value="'.$iPostId.'">
+//                                                             <input type="hidden" name="sReturnURL" value="'.$_SERVER['PHP_SELF'].(($bIsHUD) ? '#kindness_report':'').'">
+//							<div id="wall_Main_File_Container_kindness" style="width: 80%;height: 30px;">
+//							<input type="submit" value="Delete" id="wall_Main_btn_Post_delete_kindness" class="kindness_post_delete_button '.(($bIsHUD) ? 'hud_button':'').'" style="width: 55px;"/>
+//                                                            
+//							</div>
+//							
+//						</form></div>';
+//		
+//		if ($oPost->iImageSize > 0){
+//			$sHtml .=	   '<div id="wall_Media_'.$iPostId.'" class="wall_col_Right_Media" style="float: left;width: 100%;">
+//								<a href="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" target="_blank">
+//									<img src="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" style=" max-width: 340px;max-height:340px;'.(($oPost->iImageWidth <= 400) ? 'width:'.$oPost->iImageWidth.'px !important':'').'" alt="post_media">
+//								</a>
+//							</div>';
+//		}
+//		
+//		$sHtml .=  	   '	<div id="wall_Post_Content_Timestamp" style="float:left;">Posted '.(format_interval(time()-strtotime($oPost->dTimestamp))).' ago</div>
+//						</div>';
+//		
+//		// Role IDs for the Mentors
+//		$aAllowedRoles = array(6, 22);
+//		
+//		$bShowCommentBox = false;
+//		
+//		// Checks if any Mentor ID are assigned to the user.
+//		foreach ($user->roles as $iKey => $sVal){
+//			if (in_array($iKey, $aAllowedRoles)) $bShowCommentBox = true;
+//		}
+//		
+//		if ($bShowCommentBox || $user->uid == $oAccount->uid){
+//			$sHtml .=  '<div id="wall_Comment_Container_'.$iPostId.'" style="width:365px; margin-left:100px;">
+//							<form id="form_Comment_kindness_'.$iPostId.'" method="post" action="'.$sBasePath.'user/profile/wall/process">
+//								<input type="hidden" name="wc" value="comment">
+//								<input type="hidden" name="iUserId" value="'.$user->uid.'">
+//								<input type="hidden" name="iCommentToUserId" value="'.$oAccount->uid.'">
+//								<input type="hidden" name="iPostId" value="'.$iPostId.'">
+//								<input type="hidden" name="sReturnURL" value="'.$sBasePath.'instant/mentor/dashboard?comment_posted">
+//								
+//								<div id="wall_Comment_Avatar">
+//									<img src="'.$sBasePath.$user->picture.'" alt="avatar">
+//								</div>
+//								<div id="wall_Comment_Content"><textarea id="post_a_comment_kindness_'.$iPostId.'" name="wall_Comment_sPostContent_'.$iPostId.'" placeholder="Write a comment..." style="color: black;"></textarea></div>
+//								<div id="wall_Comment_Button"><button type="button" id="wall_Comment_btnPost_kindness_'.$iPostId.'" style="font-size:0.8em;" class="'.(($bIsHUD) ? 'hud_button hud_button_small':'').'">Post</button></div>
+//							</form>
+//						</div>';
+//		}
+//		
+//		$oComments = db_query($sqlComments, $iPostId);
+//		
+//                
+//		while ($oComment = db_fetch_object($oComments)){
+//			$sHtml .=  '<div id="wall_Comment_List_Container">
+//							<div id="wall_Comment_List_Avatar_kindness">
+//								<img src="/'.$oComment->picture.'" alt="avatar">
+//							</div>
+//							
+//							<div id="wall_Comment_List_Content">
+//								'.nl2br(stripslashes($oComment->sContent)).'
+//								<div id="wall_Comment_List_Content_Timestamp" >Posted '.(format_interval(time()-$oComment->dTimestamp)).' ago</div>
+//							</div>
+//						</div>';
+//		}
+//						
+//		$sHtml .=  '</div>';
+//	}
+	
+	//if ($iPostCount == 0) $sHtml .= '<div>No activity on the user\'s wall, yet.</div>';
+	
+	$sHtml .='</div>';
+
+	return $sHtml;
+}
+
+
+function user_ext_profile_user_wall_display_account_page ( $user = null, $iSubmitId = null ) {
+	if ( null == $user )
+		global $user;
+
+
+		
+	$sBasePath = base_path();
+	$sCurrModulePath = drupal_get_path('module', 'user_extension');
+	
+	$sBaseName = basename($_SERVER['PHP_SELF']);
+	$bIsHUD = ($sBaseName == 'hud.php' || $sBaseName == 'hud') ? true:false;
+
+	//drupal_add_css(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.css');
+	//drupal_add_js(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.js');
+        
+	$sql_unique = "select unique_kindness_report_id from kindness_submit where id = $iSubmitId";
+       $unique_kindness_report_id = db_fetch_object(db_query($sql_unique));
+       $unique_kindness_report_id = $unique_kindness_report_id->unique_kindness_report_id;
+       
+	$sqlPosts = "SELECT A.wid, A.uid, A.sContent, A.dTimestamp, B.picture, A.iImageSize, A.iImageWidth
+				FROM comments_kickapps_photo A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.unique_kindness_report_id = '$unique_kindness_report_id'  
+				ORDER BY wid DESC";
+	
+	$sqlComments = "SELECT A.id, A.commentfrom AS uid, A.comment AS sContent, A.commentdate AS dTimestamp, B.picture
+					FROM comments_kickapps A
+					INNER JOIN users B ON B.uid = A.commentfrom
+					WHERE A.kickaps_userid = '%s'
+						AND A.status = 1";
+	
+	
+	//$sHtml .='<script language="javascript" src="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.js"></script>';
+	//$sHtml .='<link type="text/css" rel="stylesheet" media="all" href="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.css"/>';
+	
+        
+	if ($bIsHUD){
+		$bShowNotice = (isset($_GET['msg']) && trim($_GET['msg']) != '') ? true:false;
+		$bShowNotice = 0 ; //for single pop up
+		$sShowJS = '';
+		
+		$sHtml .=   "<script language='javascript'>
+					$(document).ready(
+						function(){
+							if (window.location.hash == '#kindness_status'){
+								$('#promisesmask').hide();
+								$('.window').hide();
+                                                                ".$sShowJS."
+							}
+							
+							
+						}
+					);
+					</script>
+					
+					<style>
+					.hud_button{
+						cursor: pointer;
+						border: 1px solid rgb(255, 255, 255);
+						font-family: Arial,Helvetica,sans-serif;
+						font-size: 11px;
+						color: rgb(229, 240, 49);
+						background: url('".$sBasePath."hud_files/images/buttonbg.jpg') repeat scroll 0px 0px transparent;
+						height: 20px;
+						width: 100px;
+					}
+					
+					.hud_button_small{
+						width: 30px !important;
+					}
+					</style>";
+	}
+	
+	$sHtml .='<div id="tabs-wall" class="kindness_status_post" style="margin-top:20px;float:left;"><div id="dialog_Generic" title="HUD Notice"></div>';
+	
+	
+	
+	$oPosts = db_query($sqlPosts, $oAccount->uid);
+	$iPostCount = 0;
+	
+	while ($oPost = db_fetch_object($oPosts)){
+		$iPostCount++;
+		$iPostId = $oPost->wid;
+		
+		$sHtml .=  '<div id="wall_Container_'.$iPostId.'" class="wall_Container clearfix">
+						<div id="wall_Avatar_'.$iPostId.'" class="wall_col_Left">
+							<img src="/'.$oPost->picture.'" alt="op_avatar">
+						</div>
+						
+						<div id="wall_Post_'.$iPostId.'" class="wall_col_Right" style="width:520px;">
+							<div id="wall_Content_'.$iPostId.'" style="width:40%;margin-bottom:5px; float:left;">
+								'.stripslashes($oPost->sContent).'
+							
+                                                </div>';
+               
+                $sHtml .= '<div style="width:60%;float:left;"><form id="form_delete_kindness_status" method="post" action="'.$sBasePath.'user/profile/wall/process" enctype="multipart/form-data">
+							<input type="hidden" name="post_delete" value="1">
+							<input type="hidden" name="iUserId" value="'.$oAccount->uid.'">
+							 <input type="hidden" name="iPostId" value="'.$iPostId.'">
+                                                             <input type="hidden" name="sReturnURL"  value="'.$_SERVER['HTTP_REFERER'].'">
+							<div id="wall_Main_File_Container_kindness" style="width: 80%;height: 30px;">
+							<input type="submit" value="Delete" id="wall_Main_btn_Post_delete_kindness_status" class="kindness_post_delete_button hud_button" style="width: 55px;"/>
+                                                            
+							</div>
+							
+						</form></div>';
+		
+		if ($oPost->iImageSize > 0){
+			$sHtml .=	   '<div id="wall_Media_'.$iPostId.'" class="wall_col_Right_Media" style="float: left;width: 100%;">
+								<a href="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" target="_blank">
+									<img src="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" style="max-width: 250px;max-height:340px; '.(($oPost->iImageWidth <= 400) ? 'width:'.$oPost->iImageWidth.'px !important':'').'" alt="post_media">
+								</a>
+							</div>';
+		}
+		
+		$sHtml .=  	   '	<div id="wall_Post_Content_Timestamp" style="float:left;">Posted '.(format_interval(time()-strtotime($oPost->dTimestamp))).' ago</div>
+						</div>';
+		
+		// Role IDs for the Mentors
+		$aAllowedRoles = array(6, 22);
+		
+		$bShowCommentBox = false;
+		
+		// Checks if any Mentor ID are assigned to the user.
+		foreach ($user->roles as $iKey => $sVal){
+			if (in_array($iKey, $aAllowedRoles)) $bShowCommentBox = true;
+		}
+		
+//		if ($bShowCommentBox || $user->uid == $oAccount->uid){
+//			$sHtml .=  '<div id="wall_Comment_Container_'.$iPostId.'" style="width:550px; margin-left:100px;">
+//							<form id="form_Comment_kindness_'.$iPostId.'" method="post" action="'.$sBasePath.'user/profile/wall/process">
+//								<input type="hidden" name="wc" value="comment">
+//								<input type="hidden" name="iUserId" value="'.$user->uid.'">
+//								<input type="hidden" name="iCommentToUserId" value="'.$oAccount->uid.'">
+//								<input type="hidden" name="iPostId" value="'.$iPostId.'">
+//								<input type="hidden" name="sReturnURL" value="'.$sBasePath.'instant/mentor/dashboard?comment_posted">
+//								
+//								<div id="wall_Comment_Avatar">
+//									<img src="'.$sBasePath.$user->picture.'" alt="avatar">
+//								</div>
+//								<div id="wall_Comment_Content"><textarea id="post_a_comment_kindness_'.$iPostId.'" name="wall_Comment_sPostContent_'.$iPostId.'" placeholder="Write a comment..." style="color: black;"></textarea></div>
+//								<div id="wall_Comment_Button"><button type="button" id="wall_Comment_btnPost_kindness_'.$iPostId.'" style="font-size:0.8em;" class="'.(($bIsHUD) ? 'hud_button hud_button_small':'').'">Post</button></div>
+//							</form>
+//						</div>';
+//		}
+		
+		$oComments = db_query($sqlComments, $iPostId);
+		
+                
+		while ($oComment = db_fetch_object($oComments)){
+			$sHtml .=  '<div id="wall_Comment_List_Container">
+							<div id="wall_Comment_List_Avatar_kindness">
+								<img src="/'.$oComment->picture.'" alt="avatar">
+							</div>
+							
+							<div id="wall_Comment_List_Content">
+								'.nl2br(stripslashes($oComment->sContent)).'
+								<div id="wall_Comment_List_Content_Timestamp" >Posted '.(format_interval(time()-$oComment->dTimestamp)).' ago</div>
+							</div>
+						</div>';
+		}
+						
+		$sHtml .=  '</div>';
+	}
+	
+	if ($iPostCount == 0) $sHtml .= '<div>No activity on the user\'s wall, yet.</div>';
+	
+	$sHtml .='</div>';
+
+	return $sHtml;
+}
+
+function user_ext_profile_user_wall_display ( $user = null, $iSubmitId = null ) {
+	if ( null == $user )
+		global $user;
+
+
+		
+	$sBasePath = base_path();
+	$sCurrModulePath = drupal_get_path('module', 'user_extension');
+	
+	$sBaseName = basename($_SERVER['PHP_SELF']);
+	$bIsHUD = ($sBaseName == 'hud.php' || $sBaseName == 'hud') ? true:false;
+
+	//drupal_add_css(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.css');
+	//drupal_add_js(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.js');
+        
+	$sql_unique = "select unique_kindness_report_id from kindness_submit where id = $iSubmitId";
+       $unique_kindness_report_id = db_fetch_object(db_query($sql_unique));
+       $unique_kindness_report_id = $unique_kindness_report_id->unique_kindness_report_id;
+       
+	$sqlPosts = "SELECT A.wid, A.uid, A.sContent, A.dTimestamp, B.picture, A.iImageSize, A.iImageWidth
+				FROM comments_kickapps_photo A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.unique_kindness_report_id = '$unique_kindness_report_id'  
+				ORDER BY wid DESC";
+	
+	$sqlComments = "SELECT A.id, A.commentfrom AS uid, A.comment AS sContent, A.commentdate AS dTimestamp, B.picture
+					FROM comments_kickapps A
+					INNER JOIN users B ON B.uid = A.commentfrom
+					WHERE A.kickaps_userid = '%s'
+						AND A.status = 1";
+	
+	
+	//$sHtml .='<script language="javascript" src="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.js"></script>';
+	//$sHtml .='<link type="text/css" rel="stylesheet" media="all" href="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.css"/>';
+	
+        
+	if ($bIsHUD){
+		$bShowNotice = (isset($_GET['msg']) && trim($_GET['msg']) != '') ? true:false;
+		$bShowNotice = 0 ; //for single pop up
+		$sShowJS = '';
+		
+		$sHtml .=   "<script language='javascript'>
+					$(document).ready(
+						function(){
+							if (window.location.hash == '#kindness_status'){
+								$('#promisesmask').hide();
+								$('.window').hide();
+                                                                ".$sShowJS."
+							}
+							
+							
+						}
+					);
+					</script>
+					
+					<style>
+					.hud_button{
+						cursor: pointer;
+						border: 1px solid rgb(255, 255, 255);
+						font-family: Arial,Helvetica,sans-serif;
+						font-size: 11px;
+						color: rgb(229, 240, 49);
+						background: url('".$sBasePath."hud_files/images/buttonbg.jpg') repeat scroll 0px 0px transparent;
+						height: 20px;
+						width: 100px;
+					}
+					
+					.hud_button_small{
+						width: 30px !important;
+					}
+					</style>";
+	}
+	
+	$sHtml .='<div id="tabs-wall" class="kindness_status_post" style="margin-top:20px;height:400px;float:left;"><div id="dialog_Generic" title="HUD Notice"></div>';
+	
+	
+	
+	$oPosts = db_query($sqlPosts, $oAccount->uid);
+	$iPostCount = 0;
+	
+	while ($oPost = db_fetch_object($oPosts)){
+		$iPostCount++;
+		$iPostId = $oPost->wid;
+		
+		$sHtml .=  '<div id="wall_Container_'.$iPostId.'" class="wall_Container clearfix">
+						<div id="wall_Avatar_'.$iPostId.'" class="wall_col_Left">
+							<img src="/'.$oPost->picture.'" alt="op_avatar">
+						</div>
+						
+						<div id="wall_Post_'.$iPostId.'" class="wall_col_Right" style="width:520px;">
+							<div id="wall_Content_'.$iPostId.'" style="width:40%;margin-bottom:5px; float:left;">
+								'.stripslashes($oPost->sContent).'
+							
+                                                </div>';
+               
+                $sHtml .= '<div style="width:60%;float:left;"><form id="form_delete_kindness_status" method="post" action="'.$sBasePath.'user/profile/wall/process" enctype="multipart/form-data">
+							<input type="hidden" name="post_delete" value="1">
+							<input type="hidden" name="iUserId" value="'.$oAccount->uid.'">
+							 <input type="hidden" name="iPostId" value="'.$iPostId.'">
+                                                             <input type="hidden" name="sReturnURL"  value="'.$sBasePath.'hud.php?#kindness_status">
+							<div id="wall_Main_File_Container_kindness" style="width: 80%;height: 30px;">
+							<input type="submit" value="Delete" id="wall_Main_btn_Post_delete_kindness_status" class="kindness_post_delete_button hud_button" style="width: 55px;"/>
+                                                            
+							</div>
+							
+						</form></div>';
+		
+		if ($oPost->iImageSize > 0){
+			$sHtml .=	   '<div id="wall_Media_'.$iPostId.'" class="wall_col_Right_Media" style="float: left;width: 100%;">
+								<a href="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" target="_blank">
+									<img src="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" style="max-width: 250px;max-height:340px; '.(($oPost->iImageWidth <= 400) ? 'width:'.$oPost->iImageWidth.'px !important':'').'" alt="post_media">
+								</a>
+							</div>';
+		}
+		
+		$sHtml .=  	   '	<div id="wall_Post_Content_Timestamp" style="float:left;">Posted '.(format_interval(time()-strtotime($oPost->dTimestamp))).' ago</div>
+						</div>';
+		
+		// Role IDs for the Mentors
+		$aAllowedRoles = array(6, 22);
+		
+		$bShowCommentBox = false;
+		
+		// Checks if any Mentor ID are assigned to the user.
+		foreach ($user->roles as $iKey => $sVal){
+			if (in_array($iKey, $aAllowedRoles)) $bShowCommentBox = true;
+		}
+		
+//		if ($bShowCommentBox || $user->uid == $oAccount->uid){
+//			$sHtml .=  '<div id="wall_Comment_Container_'.$iPostId.'" style="width:550px; margin-left:100px;">
+//							<form id="form_Comment_kindness_'.$iPostId.'" method="post" action="'.$sBasePath.'user/profile/wall/process">
+//								<input type="hidden" name="wc" value="comment">
+//								<input type="hidden" name="iUserId" value="'.$user->uid.'">
+//								<input type="hidden" name="iCommentToUserId" value="'.$oAccount->uid.'">
+//								<input type="hidden" name="iPostId" value="'.$iPostId.'">
+//								<input type="hidden" name="sReturnURL" value="'.$sBasePath.'instant/mentor/dashboard?comment_posted">
+//								
+//								<div id="wall_Comment_Avatar">
+//									<img src="'.$sBasePath.$user->picture.'" alt="avatar">
+//								</div>
+//								<div id="wall_Comment_Content"><textarea id="post_a_comment_kindness_'.$iPostId.'" name="wall_Comment_sPostContent_'.$iPostId.'" placeholder="Write a comment..." style="color: black;"></textarea></div>
+//								<div id="wall_Comment_Button"><button type="button" id="wall_Comment_btnPost_kindness_'.$iPostId.'" style="font-size:0.8em;" class="'.(($bIsHUD) ? 'hud_button hud_button_small':'').'">Post</button></div>
+//							</form>
+//						</div>';
+//		}
+		
+		$oComments = db_query($sqlComments, $iPostId);
+		
+                
+		while ($oComment = db_fetch_object($oComments)){
+			$sHtml .=  '<div id="wall_Comment_List_Container">
+							<div id="wall_Comment_List_Avatar_kindness">
+								<img src="/'.$oComment->picture.'" alt="avatar">
+							</div>
+							
+							<div id="wall_Comment_List_Content">
+								'.nl2br(stripslashes($oComment->sContent)).'
+								<div id="wall_Comment_List_Content_Timestamp" >Posted '.(format_interval(time()-$oComment->dTimestamp)).' ago</div>
+							</div>
+						</div>';
+		}
+						
+		$sHtml .=  '</div>';
+	}
+	
+	if ($iPostCount == 0) $sHtml .= '<div>No activity on the user\'s wall, yet.</div>';
+	
+	$sHtml .='</div>';
+
+	return $sHtml;
+}
+
+
+function user_ext_profile_wall_process () {
+	global $user;
+	
+	if (isset($_REQUEST['wc'])){
+		$iUserId = $_REQUEST['iUserId'];
+		$sReturnURL = urldecode($_REQUEST['sReturnURL']);
+		
+		$aReturnURL = explode('#', $sReturnURL);
+		$sPartURL = $aReturnURL[0];
+		$sPartHash = (isset($aReturnURL[1]) || $aReturnURL[1] != '') ? '#'.$aReturnURL[1]:'';
+		
+		//$sImageDir = $_SERVER['DOCUMENT_ROOT'].'/sites/all/module/user_extension/profile_images/';
+		
+		$sqlPhoto = "INSERT INTO comments_kickapps_photo
+					 VALUES(NULL, %d, '%s', '%s', '%s', '%s', '%s', %d, %d, %d,NULL)";
+		
+		$sqlComment = "INSERT INTO comments_kickapps
+					   VALUES(NULL, '%s', %d, %d, 'photo', '%s', UNIX_TIMESTAMP(), 0)";
+		
+		switch ($_REQUEST['wc']){
+			case 'main':
+				$sDateTime = date('Y-m-d H:i:s');
+				$sImageDataEncoded = '';
+				$sImageName = '';
+				$sImageType = '';
+				$iImageSize = 0;
+			print_r($_FILES['wall_Main_sPostMedia']);	
+				if (isset($_REQUEST['wall_Main_sPostContent']) && trim($_REQUEST['wall_Main_sPostContent']) != ''){
+					$sPostContent = addslashes($_REQUEST['wall_Main_sPostContent']);
+					
+					if (isset($_FILES['wall_Main_sPostMedia']) && count($_FILES['wall_Main_sPostMedia']) > 1){
+						$aImageName = explode('.', $_FILES['wall_Main_sPostMedia']['name']);
+						$sImageName = _sanitize($aImageName[0]);
+						$sImageName .= '.'.$aImageName[1];
+						
+						$sImageTemp = $_FILES['wall_Main_sPostMedia']['tmp_name'];
+						$sImageType = $_FILES['wall_Main_sPostMedia']['type'];
+						$iImageSize = $_FILES['wall_Main_sPostMedia']['size'];
+						
+						list($iWidth, $iHeight) = getimagesize($sImageTemp);
+						
+						/* echo $iWidth.', '.$iHeight;
+						echo '<pre>';
+						echo $sReturnURL;
+						print_r($_FILES['wall_Main_sPostMedia']);
+						echo '</pre>';
+						exit; */
+						
+						// Read the temporary file
+						$oFP = fopen($sImageTemp, 'r');
+						$sImageData = fread($oFP, filesize($sImageTemp));
+						fclose($oFP);
+						
+						$sImageDataEncoded = chunk_split(base64_encode($sImageData));  
+						
+						// Delete the temporary file
+						unlink($sImageTemp);
+						
+						//move_uploaded_file($sImageTemp, $sImageDir.$sImageName);
+					}
+					
+					db_query($sqlPhoto, $iUserId, $sPostContent, $sDateTime, $sImageDataEncoded, $sImageName, $sImageType, $iWidth, $iHeight, $iImageSize);
+					
+					$iPostId = db_last_insert_id('comments_kickapps_photo', 'wid');
+					
+					$sPostMsg = "Your wall post has been submitted.";
+				}else{
+					$sPostMsg = "Something went wrong. Your wall post was not submitted.";
+				}
+				
+				break;
+				
+			case 'comment':
+				$iCommentToUserId = $_REQUEST['iCommentToUserId'];
+				
+				if (isset($_REQUEST['iPostId'])){
+					$iPostId = $_REQUEST['iPostId'];
+					$sCommentContent = addslashes($_REQUEST['wall_Comment_sPostContent_'.$iPostId]);
+					
+					db_query($sqlComment, $sCommentContent, $iUserId, $iCommentToUserId, $iPostId);
+					
+					$sPostMsg = "Your comment was sent to the admin for approval.";
+				}
+				
+				break;
+		}
+		
+		$bQmark = strpos($sPartURL, '?');
+		$sPrefix = ($bQmark === false) ? '?':'&';
+		$sPostMsgEnc = $sPrefix.'msg='.base64_encode($sPostMsg);
+		$sNewReturnURL = $sPartURL.$sPostMsgEnc.$sPartHash;
+		
+		header('Location: '.$sNewReturnURL);
+	}elseif(isset($_REQUEST['post_delete']) && $_REQUEST['post_delete'] == 1)
+        { 
+            $iPostId = $_REQUEST['iPostId'];
+            $iUserId = $_REQUEST['iUserId'];
+            $sReturnURL = urldecode($_REQUEST['sReturnURL']);
+            $unique_kindness_report_id = $_REQUEST['unique_kindness_report_id'];;
+		
+		$aReturnURL = explode('#', $sReturnURL);
+		$sPartURL = $aReturnURL[0];
+		$sPartHash = (isset($aReturnURL[1]) || $aReturnURL[1] != '') ? '#'.$aReturnURL[1]:'';
+                
+          	$sqlPhoto = "DELETE FROM comments_kickapps_photo WHERE wid = $iPostId";
+		
+		$sqlComment = "DELETE FROM comments_kickapps WHERE  kickaps_userid = $iPostId";
+                $post_delete = db_query($sqlPhoto);
+                db_query($sqlComment);
+                $bQmark = strpos($sPartURL, '?');
+		$sPrefix = ($bQmark === false) ? '?':'&';
+                if($post_delete == 1)
+                {
+                $sPostMsg = "Post Deleted Successfully.";
+                }
+                else {
+                 $sPostMsg = "Sorry Something went Wrong.";   
+                }
+                $sPostMsgEnc = $sPrefix.'msg='.base64_encode($sPostMsg);
+                $sNewReturnURL = $sPartURL.$sPostMsgEnc.$sPartHash;
+                if(isset($unique_kindness_report_id))
+                {
+		 $current_posts = get_current_kindnes_report_posts($unique_kindness_report_id);
+		echo $current_posts;
+                
+                }else{
+                  header('Location: '.$sNewReturnURL);  
+                }
+		
+        }
+}
+function get_current_kindnes_report_posts($unique_kindness_report_id)
+{
+
+		global $user;
+
+		$oAccount = $user;
+		
+	$sBasePath = base_path();
+	$sCurrModulePath = drupal_get_path('module', 'user_extension');
+	
+	$sBaseName = basename($_SERVER['PHP_SELF']);
+	$bIsHUD = ($sBaseName == 'hud.php' || $sBaseName == 'hud') ? true:false;
+       
+
+	//drupal_add_css(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.css');
+	//drupal_add_js(drupal_get_path('module', 'user_extension').'/user_extension_profile_wall.js');
+	
+	$sqlPosts = "SELECT A.wid, A.uid, A.sContent, A.dTimestamp, B.picture, A.iImageSize, A.iImageWidth
+				FROM comments_kickapps_photo A
+				INNER JOIN users B ON B.uid = A.uid
+				WHERE A.unique_kindness_report_id = '$unique_kindness_report_id' AND A.uid = %d
+				ORDER BY wid DESC";
+	
+	$sqlComments = "SELECT A.id, A.commentfrom AS uid, A.comment AS sContent, A.commentdate AS dTimestamp, B.picture
+					FROM comments_kickapps A
+					INNER JOIN users B ON B.uid = A.commentfrom
+					WHERE A.kickaps_userid = '%s'
+						AND A.status = 1";
+	
+	
+	//$sHtml .='<script language="javascript" src="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.js"></script>';
+	//$sHtml .='<link type="text/css" rel="stylesheet" media="all" href="'.$sBasePath.$sCurrModulePath.'/user_extension_profile_wall.css"/>';
+	
+	if ($bIsHUD){
+		$bShowNotice = (isset($_GET['msg']) && trim($_GET['msg']) != '') ? true:false;
+		$bShowNotice = 0 ; //now for hiding 2 pop ups
+		$sShowJS = '';
+		
+		$sHtml .=   "<script language='javascript'>
+					$(document).ready(
+						function(){
+							if (window.location.hash == '#kindness_report'){
+								$('#promisesmask').hide();
+								$('.window').hide();".$sShowJS."
+							}
+							
+							
+						}
+					);
+					</script>
+					
+					<style>
+					.hud_button{
+						cursor: pointer;
+						border: 1px solid rgb(255, 255, 255);
+						font-family: Arial,Helvetica,sans-serif;
+						font-size: 11px;
+						color: rgb(229, 240, 49);
+						background: url('".$sBasePath."hud_files/images/buttonbg.jpg') repeat scroll 0px 0px transparent;
+						height: 20px;
+						width: 100px;
+					}
+					
+					.hud_button_small{
+						width: 30px !important;
+					}
+					</style>";
+	}
+	
+	$sHtml .='<div id="tabs-wall" class="kindness_posts_tab" style="height:790px;width:470px;margin-left: 10px;float:left;overflow:auto;"><div id="dialog_Generic" title="HUD Notice"></div>';
+	
+	if ($user->uid == $oAccount->uid){
+		$sHtml .=	'<div id="wall_Main_Container" style="width:470px!important">
+						<form id="form_Main_kindness" method="post" action="'.$sBasePath.'user/profile/wall/process/kindness_report/posts" enctype="multipart/form-data">
+							<input type="hidden" id="kindness_report_wc" name="wc" value="main">
+							<input type="hidden" id="kindness_report_iUserId" name="iUserId" value="'.$oAccount->uid.'">
+							<input type="hidden" id="kindness_report_sReturnURL" name="sReturnURL" value="'.$_SERVER['PHP_SELF'].(($bIsHUD) ? '#kindness_report':'').'">
+							
+							<div><span class="ui-icon ui-icon-mail-closed"></span> Write Post</div>
+							<div><textarea id="wall_Main_sPostContent_kindness" name="wall_Main_sPostContent" style="color:black;margin-bottom: 10px;width: 400px;" placeholder="Write Something..."></textarea></div>
+<input type="hidden" value="'.$unique_kindness_report_id.'" name="unique_kindness_report_id" id="unique_kindness_report_id">							
+<div id="wall_Main_File_Container_kindness" style="display:none;width:400px;">
+								<input type="file" id="wall_Main_sPostMedia_kindness" name="wall_Main_sPostMedia">
+								<button type="button" id="wall_Main_btnPost_kindness" class="hud_button '.(($bIsHUD) ? 'hud_button':'').'" style="float:right;">Post</button>
+							</div>
+							<div id="wall_Main_Preview_Container_kindness" class="wall_Main_Preview_Container_kindness" style="display:none;">
+								<output id="wall_Main_sPostMedia_Preview_kindness"></output>
+							</div>
+						</form>
+					</div>';
+	}
+        
+	
+	$oPosts = db_query($sqlPosts, $oAccount->uid);
+	$iPostCount = 0;
+	
+	while ($oPost = db_fetch_object($oPosts)){
+		$iPostCount++;
+		$iPostId = $oPost->wid;
+		
+		$sHtml .=  '<div id="wall_Container_'.$iPostId.'" class="wall_Container clearfix">
+						<div id="wall_Avatar_'.$iPostId.'" class="wall_col_Left">
+							<img src="/'.$oPost->picture.'" alt="op_avatar">
+						</div>
+						
+						<div id="wall_Post_'.$iPostId.'" class="wall_col_Right" style="width:450px;">
+							<div id="wall_Content_'.$iPostId.'" style="width:55%;margin-bottom:5px; float:left;">
+								'.stripslashes($oPost->sContent).'
+							
+                                                </div>';
+                $sHtml .= '<div style="width:45%;float:left;"><form id="form_delete_kindness" method="post" action="'.$sBasePath.'user/profile/wall/process" enctype="multipart/form-data">
+							<input type="hidden" name="post_delete" value="1">
+							<input type="hidden" name="iUserId" value="'.$oAccount->uid.'">
+							 <input type="hidden" name="iPostId" value="'.$iPostId.'">
+                                                              <input type="hidden" name="unique_kindness_report_id" value="'.$unique_kindness_report_id.'">
+                                                             <input type="hidden" name="sReturnURL" value="'.$sBasePath.'hud.php?#kindness_report">
+							<div id="wall_Main_File_Container_kindness" style="width: 80%;height: 30px;">
+							<input type="submit" value="Delete" id="wall_Main_btn_Post_delete_kindness" class="kindness_post_delete_button_kindness_report hud_button'.(($bIsHUD) ? 'hud_button':'').'" style="width: 55px;"/>
+                                                            
+							</div>
+							
+						</form></div>';
+		
+		if ($oPost->iImageSize > 0){
+			$sHtml .=	   '<div id="wall_Media_'.$iPostId.'" class="wall_col_Right_Media" style="float: left;width: 100%;">
+								<a href="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" target="_blank">
+									<img src="'.$sBasePath.'user/profile/wall/image/'.$iPostId.'" style=" max-width: 340px;max-height:340px;'.(($oPost->iImageWidth <= 400) ? 'width:'.$oPost->iImageWidth.'px !important':'').'" alt="post_media">
+								</a>
+							</div>';
+		}
+		
+		$sHtml .=  	   '	<div id="wall_Post_Content_Timestamp" style="float:left;">Posted '.(format_interval(time()-strtotime($oPost->dTimestamp))).' ago</div>
+						</div>';
+		
+		// Role IDs for the Mentors
+		$aAllowedRoles = array(6, 22);
+		
+		$bShowCommentBox = false;
+		
+		// Checks if any Mentor ID are assigned to the user.
+		foreach ($user->roles as $iKey => $sVal){
+			if (in_array($iKey, $aAllowedRoles)) $bShowCommentBox = true;
+		}
+		
+		if ($bShowCommentBox || $user->uid == $oAccount->uid){
+			$sHtml .=  '<div id="wall_Comment_Container_'.$iPostId.'" style="width:365px; margin-left:100px;">
+							<form id="form_Comment_kindness_'.$iPostId.'" method="post" action="'.$sBasePath.'user/profile/wall/process">
+								<input type="hidden" name="wc" value="comment">
+								<input type="hidden" name="iUserId" value="'.$user->uid.'">
+								<input type="hidden" name="iCommentToUserId" value="'.$oAccount->uid.'">
+								<input type="hidden" name="iPostId" value="'.$iPostId.'">
+								<input type="hidden" name="sReturnURL" value="'.$sBasePath.'instant/mentor/dashboard?comment_posted">
+								
+								<div id="wall_Comment_Avatar">
+									<img src="'.$sBasePath.$user->picture.'" alt="avatar">
+								</div>
+								<div id="wall_Comment_Content"><textarea id="post_a_comment_kindness_'.$iPostId.'" name="wall_Comment_sPostContent_'.$iPostId.'" placeholder="Write a comment..." style="color: black;"></textarea></div>
+								<div id="wall_Comment_Button"><button type="button" id="wall_Comment_btnPost_kindness_'.$iPostId.'" style="font-size:0.8em;width:35px;" class="hud_button '.(($bIsHUD) ? 'hud_button hud_button_small':'').'">Post</button></div>
+							</form>
+						</div>';
+		}
+		
+		$oComments = db_query($sqlComments, $iPostId);
+		
+                
+		while ($oComment = db_fetch_object($oComments)){
+			$sHtml .=  '<div id="wall_Comment_List_Container">
+							<div id="wall_Comment_List_Avatar_kindness">
+								<img src="/'.$oComment->picture.'" alt="avatar">
+							</div>
+							
+							<div id="wall_Comment_List_Content">
+								'.nl2br(stripslashes($oComment->sContent)).'
+								<div id="wall_Comment_List_Content_Timestamp" >Posted '.(format_interval(time()-$oComment->dTimestamp)).' ago</div>
+							</div>
+						</div>';
+		}
+						
+		$sHtml .=  '</div>';
+	}
+	
+	if ($iPostCount == 0) $sHtml .= '<div>No activity on the user\'s wall, yet.</div>';
+	
+	$sHtml .='</div>';
+
+	return $sHtml;   
+}
+function user_ext_profile_kindness_report_post_show () {
+	global $user;
+	
+	if (isset($_POST['wc'])){
+		$iUserId = $_POST['iUserId'];
+		$sReturnURL = urldecode($_POST['sReturnURL']);
+		
+		$aReturnURL = explode('#', $sReturnURL);
+		$sPartURL = $aReturnURL[0];
+		$sPartHash = (isset($aReturnURL[1]) || $aReturnURL[1] != '') ? '#'.$aReturnURL[1]:'';
+                $unique_kindness_report_id = $_POST['unique_kindness_report_id'];
+		
+		//$sImageDir = $_SERVER['DOCUMENT_ROOT'].'/sites/all/module/user_extension/profile_images/';
+		
+		$sqlPhoto = "INSERT INTO comments_kickapps_photo
+					 VALUES(NULL, %d, '%s', '%s', '%s', '%s', '%s', %d, %d, %d,'%s')";
+		
+		$sqlComment = "INSERT INTO comments_kickapps
+					   VALUES(NULL, '%s', %d, %d, 'photo', '%s', UNIX_TIMESTAMP(), 0)";
+		
+		switch ($_POST['wc']){
+			case 'main':
+				$sDateTime = date('Y-m-d H:i:s');
+				$sImageDataEncoded = '';
+				$sImageName = '';
+				$sImageType = '';
+				$iImageSize = 0;
+				
+				if (isset($_POST['wall_Main_sPostContent']) && trim($_POST['wall_Main_sPostContent']) != ''){
+					$sPostContent = addslashes($_POST['wall_Main_sPostContent']);
+					
+					if (isset($_FILES['wall_Main_sPostMedia']) && count($_FILES['wall_Main_sPostMedia']) > 1){
+						$aImageName = explode('.', $_FILES['wall_Main_sPostMedia']['name']);
+						$sImageName = _sanitize($aImageName[0]);
+						$sImageName .= '.'.$aImageName[1];
+						
+						$sImageTemp = $_FILES['wall_Main_sPostMedia']['tmp_name'];
+						$sImageType = $_FILES['wall_Main_sPostMedia']['type'];
+						$iImageSize = $_FILES['wall_Main_sPostMedia']['size'];
+						
+						list($iWidth, $iHeight) = getimagesize($sImageTemp);
+						
+						/* echo $iWidth.', '.$iHeight;
+						echo '<pre>';
+						echo $sReturnURL;
+						print_r($_FILES['wall_Main_sPostMedia']);
+						echo '</pre>';
+						exit; */
+						
+						// Read the temporary file
+						$oFP = fopen($sImageTemp, 'r');
+						$sImageData = fread($oFP, filesize($sImageTemp));
+						fclose($oFP);
+						
+						$sImageDataEncoded = chunk_split(base64_encode($sImageData));  
+						
+						// Delete the temporary file
+						unlink($sImageTemp);
+						
+						//move_uploaded_file($sImageTemp, $sImageDir.$sImageName);
+					}
+					
+					db_query($sqlPhoto, $iUserId, $sPostContent, $sDateTime, $sImageDataEncoded, $sImageName, $sImageType, $iWidth, $iHeight, $iImageSize,$unique_kindness_report_id);
+					
+					$iPostId = db_last_insert_id('comments_kickapps_photo', 'wid');
+					
+					$sPostMsg = "Your wall post has been submitted.";
+				}else{
+					$sPostMsg = "Something went wrong. Your wall post was not submitted.";
+				}
+                                $current_posts = get_current_kindnes_report_posts($unique_kindness_report_id);
+				echo $current_posts;
+				break;
+				
+			case 'comment':
+				$iCommentToUserId = $_REQUEST['iCommentToUserId'];
+				
+				if (isset($_REQUEST['iPostId'])){
+					$iPostId = $_REQUEST['iPostId'];
+					$sCommentContent = addslashes($_REQUEST['wall_Comment_sPostContent_'.$iPostId]);
+					
+					db_query($sqlComment, $sCommentContent, $iUserId, $iCommentToUserId, $iPostId);
+					
+					$sPostMsg = "Your comment was sent to the admin for approval.";
+				}
+				
+				break;
+		}
+		
+		$bQmark = strpos($sPartURL, '?');
+		$sPrefix = ($bQmark === false) ? '?':'&';
+		$sPostMsgEnc = $sPrefix.'msg='.base64_encode($sPostMsg);
+		$sNewReturnURL = $sPartURL.$sPostMsgEnc.$sPartHash;
+		
+		//header('Location: '.$sNewReturnURL);
+	}elseif(isset($_REQUEST['post_delete']) && $_REQUEST['post_delete'] == 1)
+        { 
+            $iPostId = $_REQUEST['iPostId'];
+            $iUserId = $_REQUEST['iUserId'];
+            $sReturnURL = urldecode($_REQUEST['sReturnURL']);
+		
+		$aReturnURL = explode('#', $sReturnURL);
+		$sPartURL = $aReturnURL[0];
+		$sPartHash = (isset($aReturnURL[1]) || $aReturnURL[1] != '') ? '#'.$aReturnURL[1]:'';
+                
+          	$sqlPhoto = "DELETE FROM comments_kickapps_photo WHERE wid = $iPostId";
+		
+		$sqlComment = "DELETE FROM comments_kickapps WHERE  kickaps_userid = $iPostId";
+                $post_delete = db_query($sqlPhoto);
+                db_query($sqlComment);
+                $bQmark = strpos($sPartURL, '?');
+		$sPrefix = ($bQmark === false) ? '?':'&';
+                if($post_delete == 1)
+                {
+                $sPostMsg = "Post Deleted Successfully.";
+                }
+                else {
+                 $sPostMsg = "Sorry Something went Wrong.";   
+                }
+                $sPostMsgEnc = $sPrefix.'msg='.base64_encode($sPostMsg);
+                $sNewReturnURL = $sPartURL.$sPostMsgEnc.$sPartHash;
+		
+		header('Location: '.$sNewReturnURL);
+        }
+}
+
+function user_ext_profile_wall_image ( $iPostId ) {
+	$sImageDataEncoded = '';
+	$sqlImage = "SELECT sImageData, sImageName, sImageType, iImageSize
+				FROM comments_kickapps_photo
+				WHERE wid = %d";
+	
+	$oImage = db_query($sqlImage, $iPostId);
+	
+	while ($oThis = db_fetch_object($oImage)){
+		$sImageName = $oThis->sImageName;
+		$sImageDataEncoded = stripslashes($oThis->sImageData);
+		$sImageType = $oThis->sImageType;
+		$iImageSize = $oThis->iImageSize;
+	}
+	
+	header('Content-Type: '.$sImageType);
+	
+	echo base64_decode($sImageDataEncoded);
+}
+
+function user_profile_info ( $sProfType, $uid = '' ) {
+	global $user;
+	
+	if ($sProfType == 'others') {
+		$iUserid = (int) $uid;
+		$oAccount = user_load( array( 'uid' => $iUserid ) );
+	} else {
+		$iUserid = (int) $user->uid;
+		$oAccount = $user;
+	}
+	
+	//<script type='text/css' src='/misc/jqueryui/jquery-ui.css'></script>
+	//<script type='text/javascript' src='/misc/jqueryui/jquery-ui.min.js'></script>
+	
+	$sHtml = "<script language='javascript'>
+				$(document).ready(
+					function(){
+						$('button').button();
+						
+						$('#button_ProfileCommentPost').click(
+							function(){
+								var sProfileNotice;
+								var sPostComment = $.trim($('#comment_hopenet_textarea').val());
+								
+								if (sPostComment != ''){
+									$.post(
+										'".base_path()."admin/instant/savetocomment',
+										{
+											iMentorId: ".$user->uid.",
+											iUserId: ".$iUserid.",
+											sComment: sPostComment,
+											sType: 'profile'
+										},
+										function(oReply){
+											//if (parseInt(oReply.STATUS) == 1){
+												alert('Your comment was sent to the admin for approval.');
+												$('#comment_hopenet_textarea').val('');
+											//}
+										},
+										'json'
+									);
+								}else{
+									alert('Please write/compose your comment first.');
+								}
+							}
+						);
+					}
+				);
+			</script>";
+	
+	//drupal_add_js($sJavaScript, 'inline');
+	
+	$sHtml .= '<div id="dialog_Profile" style="display:none;" title="Profile Comment Notice"></div><div id="ka_contentContainer" style="min-height:600px;">';	
+	$sL = '<div style="clear:both;display:block;width:100%;border-bottom:1px solid #BFBFBF;">&nbsp;</div>';
+	
+	$sHtml .= '<div class="demo">
+				<div id="Accounttabs">
+
+					<ul>';
+	if ( _mystudies_check_hopeful( $iUserid ) == 'hopeful' ) {
+		$sHtml .='<li><a href="#tabs-wall" style="text-decoration:none;font-size:12px;">Kindness Workz Wall</a></li>';
+		//$sHtml .='<li><a href="#tabs-4" style="text-decoration:none;font-size:12px;">Community Building</a></li>';
+	}
+	$sHtml .='
+						<li><a href="#tabs-1" style="text-decoration:none;font-size:12px;">Account</a></li>
+						<li><a href="#tabs-2" style="text-decoration:none;font-size:12px;">Personal Info</a></li>';
+						
+						/*if (_user_extension_is_hopeful($oAccount)){
+							$iMentorId = $user->uid;
+							
+							$sqlVolunteerRoleId = "SELECT count(uid) as count 
+													FROM {users_roles}
+													WHERE uid = %d
+														AND rid in (4,7,5,6,11,12,13,14,15,16,17,18,19,20,21,22)";
+							$bVolunteerRoleId = (boolean)db_result(db_query($sqlVolunteerRoleId, $iMentorId));
+							
+							$sqlAssignedToMentor = "SELECT count(id) as count 
+													FROM {instant_ementor_assignment}
+													WHERE ementor_id = %d 
+														AND hopeful_id = %d";
+							$bAssignedToMentor = (boolean)db_result(db_query($sqlAssignedToMentor, $iMentorId, $iUserid));
+							
+							if ($bVolunteerRoleId && $bAssignedToMentor){
+								$sHtml .= '<li><a href="#ProfileCommentTab" style="text-decoration:none;font-size:12px;">Comments</a></li>';
+							}
+						}*/
+	
+						if(_mystudies_check_hopeful($iUserid) == 'hopeful'){
+							$sHtml .='<li><a href="#tabs-3" style="text-decoration:none;font-size:12px;">Admin Info</a></li>';
+							//$sHtml .='<li><a href="#tabs-4" style="text-decoration:none;font-size:12px;">Community Building</a></li>';
+						}
+						
+						if(isset($user->roles[17])){ // employee
+							$sHtml .='<li><a href="#tabs-3" style="text-decoration:none;font-size:12px;">Health Info</a></li>';
+							$sHtml .='<li><a href="#tabs-4" style="text-decoration:none;font-size:12px;">Misc Info</a></li>';
+							$sHtml .='<li><a href="#tabs-5" style="text-decoration:none;font-size:12px;">Other Employment Info</a></li>';
+						}
+						
+						if(isset($user->roles[4]) || isset($user->roles[6]) || isset($user->roles[12]) || isset($user->roles[13]) || isset($user->roles[14]) || isset($user->roles[18]) ){ // volunteers
+						//$sHtml .='<li><a href="#tabs-3" style="text-decoration:none;font-size:12px;">Community Building</a></li>';
+						}
+	
+	$sHtml .='</ul>';
+
+	switch($sProfType){
+		case 'personal':
+		case 'others':
+			/* if ( 'others' == $sProfType ) {
+				$iUserid = (int) $uid;
+				$oAccount = user_load( array( 'uid' => $iUserid ) );
+			} else {
+				$iUserid = (int) $user->uid;
+				$oAccount = $user;
+			} */
+			
+			// echo '<pre>';
+			// print_r($sProfType);
+			// echo '</pre>';
+			
+			// echo '<pre>'.$iUserid;
+			// print_r(_mystudies_check_hopeful($iUserid));
+			// echo '</pre>';
+			
+			// echo '<pre>';
+			// print_r($oAccount);
+			// echo '</pre>';
+			
+			// exit;
+		
+			// --BEGIN Wall Tab
+			if ( _mystudies_check_hopeful( $iUserid ) == 'hopeful' ) {
+				$sHtml .= user_ext_profile_wall_display( $user, $oAccount );
+			}
+			// --END Wall Tab
+
+			// --BEGIN Comment Tab
+			/* if (_user_extension_is_hopeful($oAccount)){
+				if ($bVolunteerRoleId && $bAssignedToMentor){
+					$sqlMentorComments = "SELECT A.id, B.name AS volunteer, C.name AS hopeful,
+												A.comment, A.commentfrom, A.commentto, commentdate, A.status
+											FROM {comments_kickapps} A
+											INNER JOIN {users} B ON B.uid = A.commentfrom
+											INNER JOIN {users} C ON C.uid = A.commentto
+											WHERE A.commentto = %d
+												AND A.status = 1
+												AND A.type = 'profile'
+											ORDER BY A.id DESC";
+					$oMentorCommentsResults = db_query($sqlMentorComments, $iUserid);
+					
+					$sHtml .=  '<div id="ProfileCommentTab">
+									<textarea id="comment_hopenet_textarea" name="comment_hopenet_textarea" style="width:100%;" rows="4"></textarea>
+									<div align="right">
+										<button id="button_ProfileCommentPost" name="button_ProfileCommentPost" type="button">Post</button>
+									</div>';
+					
+					while ($aMentorComments = db_fetch_array($oMentorCommentsResults)){
+						$sBasePath = base_path();
+						$sCommentFrom = $aMentorComments->commentfrom;
+						
+						$sUserPhoto = $_SERVER['DOCUMENT_ROOT'].'/sites/default/files/pictures/picture-'.$sCommentFrom.'.jpg';
+						$sImgName = (file_exists($sUserPhoto)) ? 'picture-'.$sCommentFrom.'.jpg':'none.png';
+						$sImgPath = $sBasePath.'sites/default/files/pictures/'.$sImgName;
+						
+						$sTimePassed = format_interval(time() - $aMentorComments['commentdate']);
+						
+						$sHtml .=  '<div id="ProfileCommentTab_Comment_'.$aMentorComments['id'].'" style="width:100%;">
+										<table>
+											<tr>
+												<td style="vertical-align:top; min-width:80px;">
+													<center>
+														<img src="'.$sImgPath.'" alt="Mentor Avatar" width="60" height="69" />
+														<div><small>'.$aMentorComments['volunteer'].'</small></div>
+													</center>
+												</td>
+												<td style="vertical-align:top; width:100%;">
+													<div style=""><small><em>Posted '.$sTimePassed.' ago</em></small></div>
+													'.stripslashes($aMentorComments['comment']).'
+												</td>
+											</tr>
+											<tr>
+												<td colspan="2" style="padding-bottom:20px"></td>
+											</tr>
+										</table>
+									</div>';
+					}
+					
+					$sHtml .=  '</div>';
+				}
+			} */
+			// --END Comment Tab
+
+			$sHtml .= '<div id="tabs-1">';
+
+			//unset($user->roles[2]);
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Screen Name</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$oAccount->name.'</div>
+								   </div>'.$sL;
+								   
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Role</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.implode(', ', $oAccount->roles).'</div>
+								   </div>'.$sL;
+			
+			if(isset($oAccount->roles[2])){
+				$sqlSchoolinfo = db_query("SELECT * FROM profile_values WHERE uid = '{$iUserid}' AND fid in (161, 162)");
+				while ($oSchool = db_fetch_object($sqlSchoolinfo)){
+					$schoolID = $oSchool->fid;
+					$schoolValue = $oSchool->value;
+					
+					if($schoolValue == 0){
+						$schoolValue = 'N/A';	
+					}
+					
+					if($schoolID == 162){
+						$sTitle = 'Affiliate School';
+					} else if($schoolID == 161){
+						$sTitle = 'Affiliate School Position';
+					}
+					
+					//if(isset($schoolValue)){
+					$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+										 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+										 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$schoolValue.'</div>
+									   </div>'.$sL;
+					//}
+				}
+				mysqli_free_result($sqlSchoolinfo);
+			}
+			
+			if(isset($oAccount->roles[4]) || isset($oAccount->roles[6]) || isset($oAccount->roles[12]) || isset($oAccount->roles[13]) || isset($oAccount->roles[14]) || isset($oAccount->roles[18])){ 
+				$hopeTeamsSQL = db_query("SELECT * FROM hopeteams_value a LEFT JOIN hopeteam_fields b ON a.htf_id = b.htf_id WHERE a.uid = '{$iUserid}'");
+				$count = 0;
+				
+				$arr_communityBuild	= array();				 
+				while ($communityBuild = db_fetch_object($hopeTeamsSQL)){	
+					$arr_communityBuild[] = $communityBuild->title;		
+				}
+				mysqli_free_result($hopeTeamsSQL);
+				if(count($arr_communityBuild) > 0){
+				$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+											 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Community Building</b></div>
+											 <div style="float:left;width:70%;min-height:10px;font-size:12px;">
+											 '.implode('| ', $arr_communityBuild).'
+											 </div>
+								</div>'.$sL;
+				} else{
+				$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+											 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Community Building</b></div>
+											 <div style="float:left;width:70%;min-height:10px;font-size:12px;">
+											 N/A
+											 </div>
+								</div>'.$sL;
+				}
+			}
+			
+			$oTeamassignmentResult = db_query("SELECT B.team_name FROM hope_teamusers A 
+									  LEFT JOIN hope_team B ON A.team_id = B.kickappsteam_id
+									  WHERE A.uid ='{$iUserid}'");
+			$oTeamassignment = db_fetch_object($oTeamassignmentResult);
+			mysqli_free_result($oTeamassignmentResult);
+			$teamassignmenteamname = $oTeamassignment->team_name == '' ? 'N/A' : $oTeamassignment->team_name;
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Team Assignment</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$teamassignmenteamname.'</div>
+								   </div>'.$sL;
+			
+			if(_mystudies_check_hopeful($oAccount->uid) == 'notahopeful'){
+				$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Email Address</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$oAccount->mail.'</div>
+								   </div>'.$sL;
+			}
+								   
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Icon</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;"><img width="100px" src="/'.$oAccount->picture.'"/></div>
+								   </div>'.$sL;
+								   
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Member for</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.format_interval(time() - $oAccount->created).'</div>
+								   </div>'.$sL;
+
+			$result = db_query("SELECT fbid FROM {fboauth_users} WHERE uid = %d", $iUserid);
+			$fbid = db_result($result);
+			if ( $fbid != NULL ) {
+				$reg_method = 'FACEBOOK';
+			} else {
+				$reg_method = 'DRUPAL FORM';
+			}			   
+
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Registration Method:</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$reg_method.'</div>
+								   </div>'.$sL;
+			
+			if(_mystudies_check_hopeful($iUserid) == 'notahopeful'){
+				if($sProfType == 'personal'){
+				$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$iUserid.'/edit" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+				}
+			}
+			
+			$sHtml .= '</div>';
+			
+			// start of tab 2 - personal info
+			$sHtml .= '<div id="tabs-2">';
+			if(isset($oAccount->roles[17])){ // for employees
+				$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$iUserid}' AND fid in (120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137)";
+				$oProfResult = db_query($sqlProfvalues);
+				
+				$result = db_query($sqlProfvalues);
+				
+				$count = count(db_fetch_array($result));
+				mysqli_free_result($result);
+				
+				if($count == 1){
+					$sHtml .= '<span style="font-size:12px;">All Personal information fields are currently blank.</span>';
+				} else{
+
+					while ($oProfs = db_fetch_object($oProfResult)){
+					$profID = $oProfs->fid;
+					$profValue = $oProfs->value;
+						
+							if($sProfType == 'personal' || $sProfType == 'others'){
+								switch($profID){
+								case 120: $sTitle = 'Last Name'; break;
+								case 121: $sTitle = 'First Name'; break;
+								case 122: $sTitle = 'Middle Name'; break;
+								case 123: $sTitle = 'Nick Name'; break;
+								case 124: $sTitle = 'Designation'; break;
+								case 125: $sTitle = 'Date Hired'; break;
+								case 126: $sTitle = 'Salary Rate'; break;
+								case 127: $sTitle = 'SSS Number'; break;
+								case 128: $sTitle = 'Home Address'; break;
+								case 129: $sTitle = 'Permanent Address'; break;
+								case 130: $sTitle = 'Contact Number/s'; break;
+								case 131: $sTitle = 'Email Address/es'; break;
+								case 132: $sTitle = 'Birthdate'; break;
+								case 133: $sTitle = 'Religion'; break;
+								case 134: $sTitle = 'Gender'; break;
+								case 135: $sTitle = 'City'; break;
+								case 136: $sTitle = 'State/Province'; break;
+								case 137: $sTitle = 'Country'; break;
+								}
+								if($profValue !== ''){
+									switch($profID){
+									case 120:case 121:case 123:case 124: case 126: case 127: case 128: case 129: case 130: case 131: case 133: case 134: case 135: case 136: case 137:
+									$sHtml .= '
+												<div style="clear:both;display:block;width:100%;padding-top:12px;">
+												 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+												 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+											   </div>'.$sL;
+									break;
+									case 125:case 132:
+									$ardate = unserialize($profValue);
+									$birthdate = date("F j, Y", strtotime($ardate['year'].'-'.$ardate['month'].'-'.$ardate['day']));   
+									$sHtml .= '
+												<div style="clear:both;display:block;width:100%;padding-top:12px;">
+												 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+												 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$birthdate.'</div>
+											   </div>'.$sL;
+									break;
+									}
+								}
+							}
+						
+					}
+					mysqli_free_result($oProfResult);
+				}
+					if($sProfType == 'personal'){
+					$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$iUserid.'/edit/Employee Personal Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+					}
+			} else{ // for hopefuls, volunteers etc
+				
+				$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Screen Name</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$oAccount->name.'</div>
+								   </div>'.$sL;
+								   
+
+				$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$iUserid}'";
+				$oProfResult = db_query($sqlProfvalues);
+				$truecafe = '';
+				
+				$arr_profids = array(1 => 'Last Name', 
+									 2 => 'First Name', 
+									 3 => 'Home Address', 
+									 4 => 'Gender', 
+									 5 => 'Birthdate', 
+									 57 => 'City', 
+									 58 => 'State/Province', 
+									 59 => 'Country');
+									 
+				$arr_profidsExist = array();
+				while ($oProfs = db_fetch_object($oProfResult)){
+				$profID = $oProfs->fid;
+				$profValue = $oProfs->value;
+					if(array_key_exists($profID, $arr_profids)){
+						$arr_profidsExist[$profID] = $profValue;
+					}	
+				}
+				mysqli_free_result($oProfResult);
+				
+				if($sProfType == 'personal' || $sProfType == 'others'){
+					foreach($arr_profids as $fid => $ftitle){		
+								if(array_key_exists($fid, $arr_profidsExist)){
+									$fvalue = $arr_profidsExist[$fid];
+								} else{
+									$fvalue = "N/A";	
+								}
+								
+								if($fid == 5){
+									if(array_key_exists(5, $arr_profidsExist)){
+										$ardate = unserialize($arr_profidsExist[$fid]);
+										$fvalue = date("F j, Y", strtotime($ardate['year'].'-'.$ardate['month'].'-'.$ardate['day'])); 
+									}
+								}
+								
+								$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+											 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$ftitle.'</b></div>
+											 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$fvalue.'</div>
+										   </div>'.$sL;
+										   
+					}
+				}
+				
+				if(array_key_exists(52, $arr_profidsExist)){
+					$truecafe = 1;
+				}
+			
+				if(_mystudies_check_hopeful($iUserid) == 'notahopeful'){
+					if($sProfType == 'personal'){
+						$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$iUserid.'/edit/I. Personal Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+					}
+				}			
+			}
+			$sHtml .= '</div>';	
+			// end of tab 2 - personal info
+			
+			// start of tab 3 - hopefuls - admin info
+			if(_mystudies_check_hopeful($iUserid) == 'hopeful'){
+				$sHtml .= '<div id="tabs-3">';
+				
+				if($truecafe ==1){
+				$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+										 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>True Cafe Access</b></div>
+										 <div style="float:left;width:70%;min-height:10px;font-size:12px;">&nbsp;</div>
+									   </div>'.$sL;
+				}		
+				
+				$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+										 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Bank Account</b></div>
+										 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$oAccount->bank_account.'</div>
+									   </div>'.$sL;
+				
+				$sHtml .= '</div>';	
+			}
+			// end of tab 3 - hopefuls
+			
+			if ( isset($oAccount->roles[17] ) ) {
+				$sHtml .= '<div id="tabs-3">';  // start of tab 3 - health info employee
+				$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$iUserid}' AND fid in (138, 139, 140)";
+				$oProfResult = db_query($sqlProfvalues);
+				
+				$result = db_query($sqlProfvalues);
+				$count = count(db_fetch_array($result));
+				mysqli_free_result($result);
+				
+				if ( $count == 1 ) {
+					$sHtml .= '<span style="font-size:12px;">All Health information fields are currently blank.</span>';
+				} else {
+					while ($oProfs = db_fetch_object($oProfResult)){
+						$profID = $oProfs->fid;
+						$profValue = $oProfs->value;
+					
+						if ( $sProfType == 'personal' || $sProfType == 'others' ) {
+							switch($profID){
+								case 138: $sTitle = 'Illness/es'; break;
+								case 139: $sTitle = 'Medication/s'; break;
+								case 140: $sTitle = 'Allergy/ies'; break;
+							}
+							
+							if($profValue == ''){
+								$profValue = 'N/A';
+							}
+							
+							$sHtml .= '
+										<div style="clear:both;display:block;width:100%;padding-top:12px;">
+										 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+										 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+									   </div>'.$sL;
+						} // END if ( $sProfType == 'personal' || $sProfType == 'others' )
+					} // END while
+					mysqli_free_result($oProfResult);
+				}
+				
+				if ( $sProfType == 'personal' ) {
+					$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$iUserid.'/edit/Employee Health Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+				}
+				$sHtml .= '</div>';	
+			
+			
+				$sHtml .= '<div id="tabs-4">'; // start misc info employee
+				$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$iUserid}' AND fid in (141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154)";
+				$oProfResult = db_query($sqlProfvalues);
+				
+				$result = db_query($sqlProfvalues);
+				$count = count(db_fetch_array($result));
+				mysqli_free_result($result);
+				
+				if($count == 1){
+					$sHtml .= '<span style="font-size:12px;">All misc information fields are currently blank.</span>';
+				} else{
+					while ($oProfs = db_fetch_object($oProfResult)){
+					$profID = $oProfs->fid;
+					$profValue = $oProfs->value;
+						
+							if($sProfType == 'personal' || $sProfType == 'others'){
+								switch($profID){
+								case 141: $sTitle = 'Father\'s Name'; break;
+								case 142: $sTitle = 'Occupation'; break;
+								case 143: $sTitle = 'Address'; break;
+								case 144: $sTitle = 'Contact Number/s'; break;
+								case 145: $sTitle = 'Email Address'; break;
+								case 146: $sTitle = 'Mother\'s Name'; break;
+								case 147: $sTitle = 'Occupation'; break;
+								case 148: $sTitle = 'Address'; break;
+								case 149: $sTitle = 'Contact Number/s'; break;
+								case 150: $sTitle = 'Email Address'; break;
+								case 151: $sTitle = 'Spouse Name'; break;
+								case 152: $sTitle = 'Contact Number/s'; break;
+								case 153: $sTitle = 'Number of Children'; break;
+								case 154: $sTitle = 'Children Name'; break;
+								}
+								
+								if($profValue == ''){
+								$profValue = 'N/A';
+								}
+								
+								$sHtml .= '
+											<div style="clear:both;display:block;width:100%;padding-top:12px;">
+											 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+											 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+										   </div>'.$sL;
+							}
+					
+					}
+					mysqli_free_result($oProfResult);
+				}
+				if($sProfType == 'personal'){
+					$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$iUserid.'/edit/Employee Misc Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+				}
+				$sHtml .= '</div>';	
+				
+				$sHtml .= '<div id="tabs-5">'; // start misc info employee
+				$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$iUserid}' AND fid in (155, 156, 157, 158, 159, 160)";
+				$oProfResult = db_query($sqlProfvalues);
+				
+				$result = db_query($sqlProfvalues);
+				$count = count(db_fetch_array($result));
+				mysqli_free_result($result);
+				
+				if ( $count == 1 ) {
+					$sHtml .= '<span style="font-size:12px;">All other employment information fields are currently blank.</span>';
+				} else {
+					while ( $oProfs = db_fetch_object($oProfResult) ) {
+						$profID = $oProfs->fid;
+						$profValue = $oProfs->value;
+					
+						if ( $sProfType == 'personal' || $sProfType == 'others' ) {
+							switch($profID){
+								case 155: $sTitle = 'Company Name'; break;
+								case 156: $sTitle = 'Designation'; break;
+								case 157: $sTitle = 'Office Address'; break;
+								case 158: $sTitle = 'Contact Number/s'; break;
+								case 159: $sTitle = 'Time Schedule'; break;
+								case 160: $sTitle = 'Remarks'; break;
+							}
+							
+							if($profValue == ''){
+								$profValue = 'N/A';
+							}
+							
+							$sHtml .= '
+										<div style="clear:both;display:block;width:100%;padding-top:12px;">
+										 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+										 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+									   </div>'.$sL;
+						} // END if ( $sProfType == 'personal' || $sProfType == 'others' )
+						mysqli_free_result($oProfResult);
+					} // END while
+				}
+
+				if ( $sProfType == 'personal' ) {
+					$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$iUserid.'/edit/Other Employment Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+				}
+				$sHtml .= '</div>';	
+			
+			} // end of employee tabs
+
+			break;
+		}
+	$sHtml .= '</div>';// end of tab
+	
+	$sHtml .= '</div>';	
+	return $sHtml;
+}
+
+function user_adminaccountTabs($tabs, $title, $urlpath, $content, $tabs2, $show_messages, $messages, $help){
+	global $user;
+
+	$cParents = array(
+		"Account" => "user/{$user->uid}", 
+		"Messages" => "messages",
+		"Good Deeds" => "kindness",
+		"My Bank" => "hopebank", 
+		"Time Tracker" => "time", 
+		"Adsense" => "adsense", 
+		"Hope points" => "userpoints",
+		"Administer" => "admin"
+	);
+
+	$sHtml = '<div style="width:766;min-height:600px; padding:0px 88px 0px 88px;" width="766">';
+
+	$sHtml .= '<div id="ka_mainContainer" class="ka_myPlace">
+		<div id="ka_header" class="clearfix">	
+			<div id="ka_headerTopNav" style="display:block;">
+				<input type="hidden" id="selectedTab" name="selectedTab" value="" />
+				<input type="hidden" id="selectedSubNavTab" name="selectedSubNavTab" value="" />
+				<ul id="ka_headerTopNav_ul">';	
+
+	foreach($cParents as $sParenttitle => $sParentLink){
+		$sHtml .= "<li><a href='/{$sParentLink}'><span>".$sParenttitle."</span></a></li>";
+	}
+
+	$sHtml .= '</ul>
+			</div>
+			<div id="ka_headerSubNav">
+				<ul id="ka_headerSubNav_list">';
+
+	switch($_GET['q']){
+		case 'hopebank/send':
+		case 'hopebank':
+			$sHtml .= '<li><a href="/hopebank/send">Send Hope Bucks</a></li>';
+			break;
+	}
+
+	$sHtml .= '</ul>
+		</div>';
+
+	$sHtml .= '</div>';	
+
+	$sHtml .= '<div id="ka_contentContainer">';
+
+	$sHtml .= '<div id="ka_contentContainer" style="min-height:600px;">';
+
+	$selected_type = user_userinfo('type');
+	$selected_userid = user_userinfo('id');
+
+	if($selected_type == 'user'){
+
+		$sQluser = "SELECT *
+								FROM users
+								WHERE uid = %d"; 
+		$ouserResult = db_query($sQluser, array($selected_userid));
+		$ouserRes = db_fetch_object($ouserResult);
+		$useruid = $ouserRes->uid;
+		$username = $ouserRes->name;
+		$user_data = unserialize($ouserRes->data);
+		$user_created = $ouserRes->created;
+		$user_picture = $ouserRes->picture;
+		$user_mail = $ouserRes->mail;
+		$user_status = $ouserRes->status;
+
+		$arr_roles = array();
+		$result = db_query('SELECT r.rid, r.name 
+												FROM {role} r 
+												INNER JOIN {users_roles} ur 
+												ON ur.rid = r.rid 
+												WHERE ur.uid = %d',
+												$useruid );
+
+		while ($role = db_fetch_object($result)) {
+			$arr_roles[$role->rid] = $role->name;
+		}
+
+		$usertype = 'other';
+		if(isset($arr_roles[9])){
+			$usertype = 'hopeful';
+		} else{
+			if(isset($arr_roles[17])){
+				$usertype = 'employee';
+			} else if(isset($arr_roles[4]) || isset($arr_roles[6]) || isset($arr_roles[12]) || isset($arr_roles[13]) || isset($arr_roles[14]) || isset($arr_roles[18])){ // volunteers
+				$usertype = 'volunteer';
+			} else{
+				$usertype = 'other';
+			}
+		}
+		
+		if ($show_messages && $messages != ""): 
+			$sHtml .= $messages;
+		endif; 
+		if ($help != ""):
+			$sHtml .= '<div id="help">'.$help.'</div>';
+		endif; 
+
+		if($selected_userid == '1'){
+			$sHtml .= '<h2 class="with-tabs title">'.$username.'</h2>';
+		} else{
+			$sHtml .= '<div id="tabs-wrapper" class="clear-block"><h2 class="with-tabs title">'.$username.'</h2>
+				<ul class="tabs primary"><ul class="tabs primary">
+					<li class="active" >
+						<span>
+							<span><a href="/admin/user/user" class="active">List</a></span>
+						</span>
+					</li>
+					<li >
+						<span>
+							<span><a href="/admin/user/user/create">Add user</a></span>
+						</span>
+					</li>
+				</ul>
+			</ul></div><div id="help"><div class="help"><p>Drupal allows users to register, login, log out, maintain user profiles, etc. Users of the site may not use their own names to post content until they have signed up for a user account.</p>
+			<div class="more-help-link">[<a href="/admin/help/user">more help...</a>]</div></div></div>';
+		}
+
+		$sHtml .= '<fieldset><legend>Menu Options</legend>
+			<div style="clear:both;width:500px;height:30px;">
+				<ul class="sf-menu sf-navbar">
+					<li>
+						<a class="sf-with-ul" href="/user/'.$selected_userid.'" style="text-decoration:none;">
+							<div>Account</div>
+						</a>
+					</li>
+					<li>
+						<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit" style="text-decoration:none;">
+							<div>Edit Account</div>
+							<span class="sf-sub-indicator"> ?</span></a>
+							<ul>
+								<li class="">
+									<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit" style="font-size:11px;text-decoration:none;">Account Info</a>
+								</li>';
+							
+		if($usertype == 'hopeful'){				
+			$sHtml .= '<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/I. Personal Info" style="font-size:11px;text-decoration:none;">Personal</a>
+			</li> 
+			<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/Admin Information" style="font-size:11px;text-decoration:none;">Admin</a>
+			</li>
+			<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/II. Misc Information" style="font-size:11px;text-decoration:none;">Misc</a>
+			</li>
+			<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/User Checklist" style="font-size:11px;text-decoration:none;">List</a>
+			</li>
+			<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/communitybuild" style="font-size:11px;text-decoration:none;">Community Build</a>
+			</li>';
+		}
+
+		if($usertype == 'employee'){				
+			$sHtml .= ' <li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/Employee Personal Info" style="font-size:11px;text-decoration:none;">Personal Info</a>
+			</li> 
+			<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/Employee Health Info" style="font-size:11px;text-decoration:none;">Health Info</a>
+			</li>
+			<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/Employee Misc Info" style="font-size:11px;text-decoration:none;">Misc Info</a>
+			</li>
+			<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/Other Employment Info" style="font-size:11px;text-decoration:none;">Other Employment Info</a>
+			</li>';
+		}
+
+		if($usertype == 'volunteer'){				
+				$sHtml .= '<li>
+					<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/I. Personal Info" style="font-size:11px;text-decoration:none;">Personal Info</a>
+				</li>
+				<li>
+					<a class="sf-with-ul" href="/user/'.$selected_userid.'/communitybuild" style="font-size:11px;text-decoration:none;">Team Build</a>
+				</li>
+				<li>
+					<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/School Information" style="font-size:11px;text-decoration:none;">School Info</a>
+				</li>';
+		}
+
+		if($usertype == 'other'){
+			$sHtml .= ' <li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/I. Personal Info" style="font-size:11px;text-decoration:none;">Personal Info</a>
+			</li>
+			<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/edit/School Information" style="font-size:11px;text-decoration:none;">School Info</a>
+			</li>';
+		}
+		
+		$sHtml .= '</ul>
+			</li>';
+
+		if($selected_userid !== '1'){
+			$sHtml .= '<li>
+				<a class="sf-with-ul" href="/user/'.$selected_userid.'/messages" style="text-decoration:none;">
+					<div>Messages</div></a>
+				</li>';
+		}
+
+		$sHtml .= '</ul>
+			</div>
+			<div style="clear:both;">&nbsp;</div>
+			</fieldset>';
+
+		if(strpos(isset($urlpath) ? $urlpath : '<front>', 'User Checklist')){
+			$sHtml .= drupal_eval(file_get_contents(drupal_get_path('module', 'user_extension') . '/templates/' . 'profile-check.tpl.php'));
+		} else {
+
+			$edit = user_userinfo('edit');
+			if(isset($edit)){
+				if($edit == 'communitybuild'){
+					$sHtml .= user_ext_community_build($selected_userid);
+				} else{
+					$sHtml .= $content;
+				}
+			} else{
+				$sHtml .= user_admin_profile_info($usertype, $useruid, $arr_roles, $username, $user_data, $user_created, $user_picture, $user_mail, $user_status);
+			}
+		}
+	} else{
+		if ($tabs): 
+			$sHtml .= '<div id="tabs-wrapper" class="clear-block">'; 
+		endif; 
+		if ($title): 
+			$sHtml .= '<h2'. ($tabs ? ' class="with-tabs title"' : '') .'>'. $title .'</h2>'; 
+		endif; 
+		if ($tabs): 
+			$sHtml .= '<ul class="tabs primary">'. $tabs .'</ul></div>'; 
+		endif;
+		if ($tabs2): 
+			$sHtml .= '<ul class="tabs secondary">'. $tabs2 .'</ul>'; 
+		endif;
+		if ($show_messages && $messages != ""): 
+			$sHtml .= $messages;
+		endif; 
+		if ($help != ""):
+			$sHtml .= '<div id="help">'.$help.'</div>';
+		endif; 
+
+		$sHtml .= $content;
+	}
+
+	$sHtml .= '</div></div>';
+
+	$sHtml .= '</div>';
+
+	return $sHtml;
+}
+
+function user_admin_profile_info ( $usertype, $useruid, $arr_roles, $username, $user_data, $user_created, $user_picture, $user_mail, $user_status ) {
+	global $user;
+
+	$sHtml = '<div id="ka_contentContainer" style="min-height:600px;">';	
+	$sL = '<div style="clear:both;display:block;width:100%;border-bottom:1px solid #BFBFBF;">&nbsp;</div>';
+	
+	$sHtml .= '<div class="demo">
+				<div id="Accounttabs">
+					<ul>
+						<li><a href="#tabs-1" style="text-decoration:none;font-size:12px;">Account</a></li>
+						<li><a href="#tabs-2" style="text-decoration:none;font-size:12px;">Personal Info</a></li>';
+	
+						if($usertype == 'hopeful'){	
+						$sHtml .='<li><a href="#tabs-3" style="text-decoration:none;font-size:12px;">Admin Info</a></li>';
+						$sHtml .='<li><a href="#tabs-4" style="text-decoration:none;font-size:12px;">Misc Info</a></li>';
+						//$sHtml .='<li><a href="#tabs-5" style="text-decoration:none;font-size:12px;">Community Building</a></li>';
+						}
+						
+						if($usertype == 'employee'){ // employee
+						$sHtml .='<li><a href="#tabs-3" style="text-decoration:none;font-size:12px;">Health Info</a></li>';
+						$sHtml .='<li><a href="#tabs-4" style="text-decoration:none;font-size:12px;">Misc Info</a></li>';
+						$sHtml .='<li><a href="#tabs-5" style="text-decoration:none;font-size:12px;">Other Employment Info</a></li>';
+						}
+						
+						if($usertype == 'volunteer'){ // volunteer
+						//$sHtml .='<li><a href="#tabs-3" style="text-decoration:none;font-size:12px;">Community Building</a></li>';
+						}
+	
+	$sHtml .='</ul>';
+					
+	$userid = $useruid;
+	$status = $user_status == 1 ? 'Active' : 'Not Active';
+	
+	$sHtml .= '<div id="tabs-1">';
+   
+    $sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+							 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Screen Name</b></div>
+							 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$username.'</div>
+						   </div>'.$sL;
+						   
+	$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+							 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Status</b></div>
+							 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$status .'</div>
+						   </div>'.$sL;
+						   
+	if($usertype !== 'employee' && $usertype !== 'hopeful'){
+	$sqlSchoolinfo = db_query("SELECT * FROM profile_values WHERE uid = '{$userid}' AND fid in (161, 162)");
+	$schoolCount = 0;
+	while ($oSchool = db_fetch_object($sqlSchoolinfo)){
+	$schoolCount = 1;
+	$schoolID = $oSchool->fid;
+	$schoolValue = $oSchool->value;
+		if($schoolID == 162){
+		$sTitle = 'Affiliate School';
+		} else if($schoolID == 161){
+		$sTitle = 'Affiliate School Position';
+		}
+		if(isset($schoolValue) && $schoolValue !== 0){
+		$schoolValue = 'N/A';
+		}
+			if($usertype == 'hopeful' && $sTitle == 'Affiliate School Position'){	
+			
+			} else{
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">';
+			$sHtml .= '<div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>';
+			$sHtml .= '<div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$schoolValue.'</div>
+							   </div>'.$sL;
+			}
+	}
+		if($schoolCount == 0){
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">';
+			$sHtml .= '<div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Affiliate School</b></div>';
+			$sHtml .= '<div style="float:left;width:70%;min-height:10px;font-size:12px;">N/A</div>
+							   </div>'.$sL;
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">';
+			$sHtml .= '<div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Affiliate School Position</b></div>';
+			$sHtml .= '<div style="float:left;width:70%;min-height:10px;font-size:12px;">N/A</div>
+							   </div>'.$sL;
+		}
+	}
+	
+	if($usertype == 'other' || $usertype == 'volunteer' || $usertype == 'hopeful' ){ 
+		$hopeTeamsSQL = db_query("SELECT * FROM hopeteams_value a LEFT JOIN hopeteam_fields b ON a.htf_id = b.htf_id WHERE a.uid = '{$userid}'");
+		$count = 0;
+		
+		$arr_communityBuild	= array();				 
+		while ($communityBuild = db_fetch_object($hopeTeamsSQL)){	
+			$arr_communityBuild[] = $communityBuild->title;		
+		}
+		if(count($arr_communityBuild) > 0){
+		$commbuild = implode('| ', $arr_communityBuild);
+		} else{
+		$commbuild = 'N/A';
+		}
+		$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Community Building</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">
+									 '.$commbuild.'
+									 </div>
+						</div>'.$sL;
+		
+
+		$oTeamassignmentResult = db_query("SELECT B.team_name FROM hope_teamusers A 
+							  LEFT JOIN hope_team B ON A.team_id = B.kickappsteam_id
+							  WHERE A.uid ='{$userid}'");
+		$oTeamassignment = db_fetch_object($oTeamassignmentResult);
+		$teamassignmenteamname = $oTeamassignment->team_name == '' ? 'N/A' : $oTeamassignment->team_name;
+		
+		$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+							 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Team Assignment</b></div>
+							 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$teamassignmenteamname.'</div>
+						   </div>'.$sL;
+	}
+	
+	
+	//unset($arr_roles[2]);	
+	$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+							 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Role</b></div>
+							 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.implode(', ', $arr_roles).'</div>
+						   </div>'.$sL;
+						   
+	if($usertype == 'other' || $usertype == 'employee'){
+	$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+							 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Email Address</b></div>
+							 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$user_mail.'</div>
+						   </div>'.$sL;
+	}
+						   
+	$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+							 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Icon</b></div>
+							 <div style="float:left;width:70%;min-height:10px;font-size:12px;"><img width="100px" src="/'.$user_picture.'"/></div>
+						   </div>'.$sL;
+						   
+	$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+							 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Member for</b></div>
+							 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.format_interval(time() - $user_created).'</div>
+						   </div>'.$sL;
+	
+
+	$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/edit" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+	
+	$sHtml .= '</div>';
+	
+	// start of tab 2 - personal info
+	$sHtml .= '<div id="tabs-2">';
+	if($usertype == 'employee'){ // for employees
+		$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$userid}' AND fid in (120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137)";
+		$oProfResult = db_query($sqlProfvalues);
+		
+		$result = db_query($sqlProfvalues);
+		$count = count(db_fetch_array($result));
+
+		if($count == 1){
+			$sHtml .= '<span style="font-size:12px;">All Personal information fields are currently blank.</span>';
+		} else{
+			while ($oProfs = db_fetch_object($oProfResult)){
+			$profID = $oProfs->fid;
+			$profValue = $oProfs->value;
+				
+						switch($profID){
+						case 120: $sTitle = 'Last Name'; break;
+						case 121: $sTitle = 'First Name'; break;
+						case 122: $sTitle = 'Middle Name'; break;
+						case 123: $sTitle = 'Nick Name'; break;
+						case 124: $sTitle = 'Designation'; break;
+						case 125: $sTitle = 'Date Hired'; break;
+						case 126: $sTitle = 'Salary Rate'; break;
+						case 127: $sTitle = 'SSS Number'; break;
+						case 128: $sTitle = 'Home Address'; break;
+						case 129: $sTitle = 'Permanent Address'; break;
+						case 130: $sTitle = 'Contact Number/s'; break;
+						case 131: $sTitle = 'Email Address/es'; break;
+						case 132: $sTitle = 'Birthdate'; break;
+						case 133: $sTitle = 'Religion'; break;
+						case 134: $sTitle = 'Gender'; break;
+						case 135: $sTitle = 'City'; break;
+						case 136: $sTitle = 'State/Province'; break;
+						case 137: $sTitle = 'Country'; break;
+						}
+						if($profValue !== ''){
+							switch($profID){
+							case 120:case 121:case 123:case 124: case 126: case 127: case 128: case 129: case 130: case 131: case 133: case 134: case 135: case 136: case 137:
+							$sHtml .= '
+										<div style="clear:both;display:block;width:100%;padding-top:12px;">
+										 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+										 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+									   </div>'.$sL;
+							break;
+							case 125:case 132:
+							$ardate = unserialize($profValue);
+							$birthdate = date("F j, Y", strtotime($ardate['year'].'-'.$ardate['month'].'-'.$ardate['day']));   
+							$sHtml .= '
+										<div style="clear:both;display:block;width:100%;padding-top:12px;">
+										 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+										 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$birthdate.'</div>
+									   </div>'.$sL;
+							break;
+							}
+						}
+					
+			}
+		}
+
+			$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/edit/Employee Personal Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+
+	} else{ // for hopefuls, volunteers etc
+		
+		$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+							 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Screen Name</b></div>
+							 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$username.'</div>
+						   </div>'.$sL;
+						   
+		$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$userid}'";
+		$oProfResult = db_query($sqlProfvalues);
+		$truecafe = '';
+		
+		$arr_profids = array(1 => 'Last Name', 
+							 2 => 'First Name', 
+							 3 => 'Home Address', 
+							 4 => 'Gender', 
+							 5 => 'Birthdate', 
+							 57 => 'City', 
+							 58 => 'State/Province', 
+							 59 => 'Country',
+							 163 => 'Phone',
+							 164 => 'Department Name',
+							 165 => 'Department Address',
+							 166 => 'Department Phone',
+							 167 => 'Department Email',
+							 168 => 'Organization',
+							 169 => 'Age',
+							 170 => 'Birth Month',
+							 171 => 'Birth Year',
+						);
+			 
+		$arr_profidsExist = array();
+		while ($oProfs = db_fetch_object($oProfResult)){
+		$profID = $oProfs->fid;
+		$profValue = $oProfs->value;
+			if(array_key_exists($profID, $arr_profids)){
+				$arr_profidsExist[$profID] = $profValue;
+			}	
+		}
+		
+		foreach($arr_profids as $fid => $ftitle){		
+					if(array_key_exists($fid, $arr_profidsExist)){
+						$fvalue = $arr_profidsExist[$fid];
+					} else{
+						$fvalue = "N/A";	
+					}
+					
+					if($fid == 5){
+						if(array_key_exists(5, $arr_profidsExist)){
+							$ardate = unserialize($arr_profidsExist[$fid]);
+							$fvalue = date("F j, Y", strtotime($ardate['year'].'-'.$ardate['month'].'-'.$ardate['day'])); 
+						}
+					}
+					/*
+					if($fid == 56){
+						if(array_key_exists(56, $arr_profidsExist)){
+						$fvalue = ucfirst($arr_profidsExist[$fid]);
+						}
+					}*/
+					
+					$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+								 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$ftitle.'</b></div>
+								 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$fvalue.'</div>
+							   </div>'.$sL;
+							   
+		}
+		
+		if(array_key_exists(52, $arr_profidsExist)){
+			$truecafe = 1;
+		}
+
+		$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/edit/I. Personal Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+
+	}
+	$sHtml .= '</div>';	
+	// end of tab 2 - personal info
+	
+	// start of tab 3 - hopefuls - admin info
+	if($usertype == 'hopeful'){
+		$sHtml .= '<div id="tabs-3">';
+		
+		if($truecafe ==1){
+		$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+								 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>True Cafe Access</b></div>
+								 <div style="float:left;width:70%;min-height:10px;font-size:12px;">&nbsp;</div>
+							   </div>'.$sL;
+		}		
+		
+		$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+								 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Bank Account</b></div>
+								 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$user_data['bank_account'].'</div>
+							   </div>'.$sL;
+		
+		$sHtml .= '</div>';	
+		
+		$sHtml .= '<div id="tabs-4">'; // start misc info hopefuls
+		$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$userid}' AND fid in (6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 53, 54, 55)";
+		$oProfResult = db_query($sqlProfvalues);
+		
+		$result = db_query($sqlProfvalues);
+		$count = count(db_fetch_array($result));
+
+		if($count == 1){
+			$sHtml .= '<span style="font-size:12px;">All misc information fields are currently blank.</span>';
+		} else{
+			while ($oProfs = db_fetch_object($oProfResult)){
+			$profID = $oProfs->fid;
+			$profValue = $oProfs->value;
+				
+						switch($profID){
+						case 6: $sTitle = 'Child\'s Reading Ability'; break;
+						case 7: $sTitle = 'Child\'s School Name'; break;
+						case 9: $sTitle = 'Child\'s Grade Level'; break;
+						case 10: $sTitle = 'Child\'s Illness'; break;
+						case 11: $sTitle = 'Child\'s Disability'; break;
+						case 12: $sTitle = 'Parent/Guadian Name'; break;
+						case 13: $sTitle = 'Parent/Guadian\'s Occupation'; break;
+						case 14: $sTitle = 'Parent/Guadian\'s Job Description'; break;
+						case 15: $sTitle = 'Monthly Family Income'; break;
+						case 16: $sTitle = 'Parent/Guardian Email Address'; break;
+						case 53: $sTitle = 'Language'; break;
+						case 54: $sTitle = 'Talents'; break;
+						case 55: $sTitle = 'Favorites'; break;
+						}
+						
+						if($profValue == ''){
+						$profValue = 'N/A';
+						}
+						
+						$sHtml .= '
+									<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:40%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+									 <div style="float:left;width:60%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+								   </div>'.$sL;
+			}
+		}
+
+			$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/edit/II. Misc Information" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+
+		$sHtml .= '</div>';	
+		/*
+		$sHtml .= '<div id="tabs-5">';
+	
+		$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Community Building Fields</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">&nbsp;</div>
+								   </div>'.$sL;
+								   
+		$hopeTeamsSQL = db_query("SELECT * FROM hopeteams_value a LEFT JOIN hopeteam_fields b ON a.htf_id = b.htf_id WHERE a.uid = '{$userid}'");
+		$count = 0;
+		while ($communityBuild = db_fetch_object($hopeTeamsSQL)){	 
+			$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;">'.$communityBuild->title.'</div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">&nbsp;</div>
+								   </div>'.$sL;
+		$count++;
+		}
+		if($count == 0){
+		$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;">No fields selected yet.</div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">&nbsp;</div>
+								   </div>'.$sL;
+		}
+		
+		$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/communitybuild" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+			
+		$sHtml .= '</div>'; */
+	}
+	// end of tab 3 - hopefuls
+	/*
+	if($usertype == 'volunteer'){ 
+	$sHtml .= '<div id="tabs-3">';
+	
+	$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+								 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>Community Building Fields</b></div>
+								 <div style="float:left;width:70%;min-height:10px;font-size:12px;">&nbsp;</div>
+							   </div>'.$sL;
+							   
+	$hopeTeamsSQL = db_query("SELECT * FROM hopeteams_value a LEFT JOIN hopeteam_fields b ON a.htf_id = b.htf_id WHERE a.uid = '{$userid}'");
+    $count = 0;
+	while ($communityBuild = db_fetch_object($hopeTeamsSQL)){	 
+		$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+								 <div style="float:left;width:30%;min-height:10px;font-size:12px;">'.$communityBuild->title.'</div>
+								 <div style="float:left;width:70%;min-height:10px;font-size:12px;">&nbsp;</div>
+							   </div>'.$sL;
+	$count++;
+	}
+	if($count == 0){
+	$sHtml .= '<div style="clear:both;display:block;width:100%;padding-top:12px;">
+								 <div style="float:left;width:30%;min-height:10px;font-size:12px;">No fields selected yet.</div>
+								 <div style="float:left;width:70%;min-height:10px;font-size:12px;">&nbsp;</div>
+							   </div>'.$sL;
+	}
+	
+	$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/communitybuild" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+		
+	$sHtml .= '</div>';
+	}*/
+	
+	if($usertype == 'employee'){ 
+	$sHtml .= '<div id="tabs-3">';  // start of tab 3 - health info employee
+		$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$userid}' AND fid in (138, 139, 140)";
+		$oProfResult = db_query($sqlProfvalues);
+		
+		$result = db_query($sqlProfvalues);
+		$count = count(db_fetch_array($result));
+
+		if($count == 1){
+			$sHtml .= '<span style="font-size:12px;">All Health information fields are currently blank.</span>';
+		} else{
+			while ($oProfs = db_fetch_object($oProfResult)){
+			$profID = $oProfs->fid;
+			$profValue = $oProfs->value;
+				
+						switch($profID){
+						case 138: $sTitle = 'Illness/es'; break;
+						case 139: $sTitle = 'Medication/s'; break;
+						case 140: $sTitle = 'Allergy/ies'; break;
+						}
+						if($profValue !== ''){
+						$sHtml .= '
+									<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+								   </div>'.$sL;
+						}
+			}
+		}
+
+			$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/edit/Employee Health Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+
+	$sHtml .= '</div>';	
+	
+	
+	$sHtml .= '<div id="tabs-4">'; // start misc info employee
+		$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$userid}' AND fid in (141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154)";
+		$oProfResult = db_query($sqlProfvalues);
+		
+		$result = db_query($sqlProfvalues);
+		$count = count(db_fetch_array($result));
+
+		if($count == 1){
+			$sHtml .= '<span style="font-size:12px;">All misc information fields are currently blank.</span>';
+		} else{
+			while ($oProfs = db_fetch_object($oProfResult)){
+			$profID = $oProfs->fid;
+			$profValue = $oProfs->value;
+				
+						switch($profID){
+						case 141: $sTitle = 'Father\'s Name'; break;
+						case 142: $sTitle = 'Occupation'; break;
+						case 143: $sTitle = 'Address'; break;
+						case 144: $sTitle = 'Contact Number/s'; break;
+						case 145: $sTitle = 'Email Address'; break;
+						case 146: $sTitle = 'Mother\'s Name'; break;
+						case 147: $sTitle = 'Occupation'; break;
+						case 148: $sTitle = 'Address'; break;
+						case 149: $sTitle = 'Contact Number/s'; break;
+						case 150: $sTitle = 'Email Address'; break;
+						case 151: $sTitle = 'Spouse Name'; break;
+						case 152: $sTitle = 'Contact Number/s'; break;
+						case 153: $sTitle = 'Number of Children'; break;
+						case 154: $sTitle = 'Children Name'; break;
+						}
+						
+						if($profValue !== ''){
+						$sHtml .= '
+									<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+								   </div>'.$sL;
+						}
+			}
+		}
+
+			$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/edit/Employee Misc Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+
+	$sHtml .= '</div>';	
+	
+	$sHtml .= '<div id="tabs-5">'; // start misc info employee
+		$sqlProfvalues = "SELECT * FROM profile_values WHERE uid = '{$userid}' AND fid in (155, 156, 157, 158, 159, 160)";
+		$oProfResult = db_query($sqlProfvalues);
+		
+		$result = db_query($sqlProfvalues);
+		$count = count(db_fetch_array($result));
+
+		if($count == 1){
+			$sHtml .= '<span style="font-size:12px;">All other employment information fields are currently blank.</span>';
+		} else{
+			while ($oProfs = db_fetch_object($oProfResult)){
+			$profID = $oProfs->fid;
+			$profValue = $oProfs->value;
+				
+						switch($profID){
+						case 155: $sTitle = 'Company Name'; break;
+						case 156: $sTitle = 'Designation'; break;
+						case 157: $sTitle = 'Office Address'; break;
+						case 158: $sTitle = 'Contact Number/s'; break;
+						case 159: $sTitle = 'Time Schedule'; break;
+						case 160: $sTitle = 'Remarks'; break;
+						}
+						if($profValue !== ''){
+						$sHtml .= '
+									<div style="clear:both;display:block;width:100%;padding-top:12px;">
+									 <div style="float:left;width:30%;min-height:10px;font-size:12px;"><b>'.$sTitle.'</b></div>
+									 <div style="float:left;width:70%;min-height:10px;font-size:12px;">'.$profValue.'</div>
+								   </div>'.$sL;
+						}
+			}
+		}
+
+			$sHtml .= '<div align="right" style="padding-top:5px;padding-right:12px;"><a href="/user/'.$userid.'/edit/Other Employment Info" style="text-decoration:none;"><b style="color:#20579b;">edit</b></a></div>';
+
+	$sHtml .= '</div>';	
+	
+	} // end of employee tabs
+
+	$sHtml .= '</div>';// end of tab
+	
+	$sHtml .= '</div>';	
+	return $sHtml;
+}
+
+function user_extension_account_hud(){
+	include $_SERVER['DOCUMENT_ROOT'] . base_path() . 'hud_files/part/profile.php';
+}
+
+function user_extension_account_hud_search($value){
+	global $user;
+
+	$res = db_query("SELECT name 
+						FROM users 
+						WHERE 
+							name like '" . $value . "'");
+	$row = db_fetch_object($res);
+	$name = $row->name; 
+	
+	$nameavailability = $name == null ? 'available' : 'notavailable';
+	
+	$sqlFirst = db_query("
+			SELECT B.value as first
+			FROM users A
+			INNER JOIN profile_values B ON B.uid = A.uid AND B.fid = 1
+			WHERE A.uid = '{$user->uid}'");
+	
+	$sqlResFirst = db_fetch_object($sqlFirst);
+	$firstnameprotect = $sqlResFirst->first;
+	//$firstnamepos = strpos($value, $firstnameprotect);
+	
+	if(strpos(strtolower($value), strtolower($firstnameprotect)) !== false){
+	$firstnamepos = 'notavailable';
+	} else{
+	$firstnamepos = 'available';
+	}
+	
+	$sqlLast = db_query("
+			SELECT B.value as last
+			FROM users A
+			INNER JOIN profile_values B ON B.uid = A.uid AND B.fid = 2
+			WHERE A.uid = '{$user->uid}'");
+	
+	$sqlResLast = db_fetch_object($sqlLast);
+	$lastnameprotect = $sqlResLast->last;
+	//$lastnamepos = strpos($value, $lastnameprotect);
+	
+	if(strpos(strtolower($value), strtolower($lastnameprotect)) !== false){
+	$lastnamepos = 'notavailable';
+	} else{
+	$lastnamepos = 'available';
+	}
+	
+	
+	exit(json_encode(array("NAME" => $nameavailability, "FIRST" => $firstnamepos, "LAST" => $lastnamepos, "SCREENNAME" => $value)));
+}
+
+function user_extension_account_hud_update($value){
+	global $user;
+
+	$sqlUpdate = "UPDATE users
+					SET name = '%s'
+					WHERE uid = %d";
+						
+	db_query($sqlUpdate, array($value, $user->uid));
+	
+	//Kickapps_update_username($value, $user->name, $user);
+	
+	exit(json_encode(array("RETURN" => 'success')));
+}
+
+function user_userinfo($find){
+	$user_path = $_GET['q'];
+	$val_user = explode('/', $user_path);
+	$usertype = $val_user[0];
+	$useruid = $val_user[1];
+	$useredit = $val_user[2];
+	switch($find){
+	case 'edit':
+	$field = $useredit;
+	break;
+	case 'id':
+	$field = $useruid;
+	break;
+	case 'type':
+	$field = $usertype;
+	break;
+	case 'roles':
+	$field = array();
+	$result = db_query('SELECT r.rid, r.name FROM {role} r INNER JOIN {users_roles} ur ON ur.rid = r.rid WHERE ur.uid = %d', $useruid);
+	while ($role = db_fetch_object($result)) {
+	  $field[$role->rid] = $role->name;
+	}
+	break;
+	case 'status':
+	$sQluser = "SELECT status
+							FROM users
+							WHERE uid = %d"; 
+	$ouserResult = db_query($sQluser, array($useruid));
+	$ouserRes = db_fetch_object($ouserResult);
+	$field = $ouserRes->status;
+	break;	
+	case 'name':
+	$sQluser = "SELECT name
+							FROM users
+							WHERE uid = %d"; 
+	$ouserResult = db_query($sQluser, array($useruid));
+	$ouserRes = db_fetch_object($ouserResult);
+	$field = $ouserRes->name;
+	case 'bank-account':
+	$sQluser = "SELECT data
+							FROM users
+							WHERE uid = %d"; 
+	$ouserResult = db_query($sQluser, array($useruid));
+	$ouserRes = db_fetch_object($ouserResult);
+	$field = unserialize($ouserRes->data);
+	break;
+	case 'picture':
+	$sQluser = "SELECT picture
+							FROM users
+							WHERE uid = %d"; 
+	$ouserResult = db_query($sQluser, array($useruid));
+	$ouserRes = db_fetch_object($ouserResult);
+	$field = $ouserRes->picture;
+	break;
+	case 'created':
+	$sQluser = "SELECT created
+							FROM users
+							WHERE uid = %d"; 
+	$ouserResult = db_query($sQluser, array($useruid));
+	$ouserRes = db_fetch_object($ouserResult);
+	$field = $ouserRes->created;
+	break;
+	case 'mail':
+	$sQluser = "SELECT mail
+							FROM users
+							WHERE uid = %d"; 
+	$ouserResult = db_query($sQluser, array($useruid));
+	$ouserRes = db_fetch_object($ouserResult);
+	$field = $ouserRes->mail;
+	break;
+	}
+	return $field;
+}
+
+function user_extension_check_account($name){
+	
+	$res = db_query("SELECT uid 
+						FROM users 
+						WHERE 
+							name = '" . $name . "'");
+	$row = db_fetch_object($res);
+	
+	$res = 0;
+	$result = db_query('SELECT r.rid, r.name FROM {role} r INNER JOIN {users_roles} ur ON ur.rid = r.rid WHERE ur.uid = %d', $row->uid);
+	while ($role = db_fetch_object($result)) {
+	  if($role->rid == '9'){
+	  $res = 1;
+	  }
+	}
+	
+	if ($res == 0) {
+		exit(json_encode(array("RETURN" => 'notahopeful')));
+	} else {
+		exit(json_encode(array("RETURN" => 'hopeful')));
+	}
+}
+
+function user_ext_community_build($user_id){
+	$sHtml .= '<div id="communityBuildCheck" style="clear:both;width:700px;padding-top:12px;padding-left:12px;">
+				<div id="divmessage"></div>
+				<fieldset><legend>Community Building</legend>
+				';
+				
+	$result = db_query("SELECT * 
+						FROM hopeteam_fields");
+	
+	while ($input = db_fetch_object($result)) {
+	$htf_id = $input->htf_id;
+	$htf_title = $input->title;
+	$htf_explanation = $input->explanation;
+	
+	  $checkExist = db_query("SELECT count(uid) as count FROM hopeteams_value where uid = '{$user_id}' and htf_id = '{$htf_id}'");
+	  $existCount = db_fetch_object($checkExist);
+	  
+		  if($existCount->count == 0){
+		  $sHtml .= '<input type="checkbox" name="community" value="'.$htf_id.'" /> '.$htf_title.' <div class="description" style="font-size:11px;"> '.$htf_explanation.' </div><br/>';
+		  } else{
+		  $sHtml .= '<input type="checkbox" name="community" value="'.$htf_id.'" checked="yes" /> '.$htf_title.' <div class="description" style="font-size:11px;"> '.$htf_explanation.' </div><br/>';
+		  }
+	 }
+	
+	$sHtml .= '
+	          <div style="padding-top:32px;padding-bottom:10px;"><input type="hidden" id="userid" name="userid" value="'.$user_id.'"/><input type="button" id="saveCommunity" name="saveCommunity" value="Save" disabled="disabled"/>
+			  </div>
+			  </fieldset></div>';
+	
+	/*$sJavaScript = '$(document).ready(
+								function(){
+									function countChecked() {
+										var n = $("input:checked").length;
+										if(n >= 3){
+										$("#divmessage").html("<div class=error>Please select only two Community Building Fields.</div>");
+										$("#saveCommunity").attr("disabled", true);
+										} else if(n == 2){
+										$("#divmessage").html("<div class=ok>" + n + " Community Building Fields selected! You may now click save.</div>");
+										$("#saveCommunity").attr("disabled", false);
+										} else if(n == 1){
+										$("#divmessage").html("<div class=normalok>You have selected 1 Community Building Fields, click one more.</div>");
+										$("#saveCommunity").attr("disabled", true);
+										} else{
+										$("#divmessage").html("<div class=normalok>Please select two Community Building Fields that you wish to participate in as a member of the Hope Team.</div>");
+										$("#saveCommunity").attr("disabled", true);
+										}
+									}
+									countChecked();
+									$(":checkbox").click(countChecked);
+									
+									$("#saveCommunity").click(
+										function(){
+											$("#communityBuildCheck :checked").each(function() {
+											var value = $(this).val();
+												$.post(
+													"/user/community/build/save/" + value + "/" + $("#userid").val(),
+													{ func: "" },
+													function(sReply){
+														var oReturn = sReply.RETURN;
+														$("#divmessage").html("<div class=ok>You have successfully saved your selected Community Building Fields.</div>");
+													},
+													"json"
+												);
+											});
+										}
+									);
+								}
+							)';
+							
+	drupal_add_js($sJavaScript, "inline");*/
+	
+	$sHtml .= '<script>$(document).ready(
+								function(){
+									function countChecked() {
+										var n = $("input:checked").length;
+										if(n >= 3){
+										$("#divmessage").html("<div class=error>Please select only two Community Building Fields.  Saving is disabled.</div>");
+										$("#saveCommunity").attr("disabled", true);
+										} else if(n == 2){
+										$("#divmessage").html("<div class=ok>" + n + " Community Building Fields selected. Saving is enabled.</div>");
+										$("#saveCommunity").attr("disabled", false);
+										} else if(n == 1){
+										$("#divmessage").html("<div class=normalok>You have selected 1 Community Building Fields, click one more.</div>");
+										$("#saveCommunity").attr("disabled", true);
+										} else{
+										$("#divmessage").html("<div class=normalok>Please select two Community Building Fields.  Saving is disabled.</div>");
+										$("#saveCommunity").attr("disabled", true);
+										}
+									}
+									countChecked();
+									$(":checkbox").click(countChecked);
+									
+									$("#saveCommunity").click(
+										function(){
+											$("#communityBuildCheck :checked").each(function() {
+											var value = $(this).val();
+												$.post(
+													"/user/community/build/save/" + value + "/" + $("#userid").val(),
+													{ func: "" },
+													function(sReply){
+														var oReturn = sReply.RETURN;
+														$("#divmessage").html("<div class=ok>Selected Community Building Fields saved.</div>");
+													},
+													"json"
+												);
+												
+											});
+											alert("You have successfully saved your selected Community Building Fields.");
+										}
+									);
+								}
+							)</script>';
+	
+	return $sHtml;
+}
+
+function user_ext_community_build_save($value, $userid){
+	$checkExist = db_query("SELECT count(uid) as count FROM hopeteams_value where uid = '{$userid}'");
+	$existCount = db_fetch_object($checkExist);
+
+	if($existCount->count >= 2){
+	$sqlDelete = "DELETE FROM hopeteams_value WHERE uid = '{$userid}'";
+	db_query($sqlDelete);
+	
+	$sqlInsert = "INSERT INTO hopeteams_value VALUES(NULL, '{$value}', '{$userid}')";
+	db_query($sqlInsert);
+	} else{
+	$sqlInsert = "INSERT INTO hopeteams_value VALUES(NULL, '{$value}', '{$userid}')";
+	db_query($sqlInsert);
+	}
+		
+	exit(json_encode(array("RETURN" => $existCount->count)));
+}
+
+
+/**
+* Check to see if a user has been assigned a certain role.
+*
+* @param $role
+*   The name of the role you're trying to find.
+* @param $user
+*   The uid or user object for the user you're checking; defaults to the current user.
+* @return
+*   TRUE if the user object has the role, FALSE if it does not.
+*/
+function user_has_role ( $sRole, $oUser = NULL ) {
+	if ( is_numeric( $oUser ) ) {
+		$oUser = user_load( $oUser );
+	}
+
+  if ( $oUser == NULL ) {
+    global $user;
+    $oUser = $user;
+  }
+
+  if ( is_array( $oUser->roles ) && in_array( $sRole, array_values( $oUser->roles ) ) ) {
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+function user_extension_profile_alter ( &$account ) {
+	$hopeTeamsSQL = db_query(
+		"SELECT * FROM hopeteams_value a
+		LEFT JOIN hopeteam_fields b
+		ON a.htf_id = b.htf_id
+		WHERE a.uid = '{$account->uid}'"
+	);
+
+	$arr_communityBuild = array();         
+	while ( $oCommunityBuild = db_fetch_object( $hopeTeamsSQL ) ) {
+	  $arr_communityBuild[] = $oCommunityBuild->title;   
+	}
+	mysqli_free_result( $hopeTeamsSQL );
+
+	if ( count( $arr_communityBuild ) > 0 ) {
+		$sDetails = implode( '| ', $arr_communityBuild );
+		$account->content['I. Personal Info']['profile_community_building'] = array(
+			'#type' => 'user_profile_item',
+			'#title' => 'Community Building',
+			'#weight' => 0,
+			'#value' => $sDetails,
+			'#attributes' => array('class' => 'profile-profile_community_building')
+		);
+	}
+}
+
+
+/**
+ * Used in AJAX calls to output a user profile
+ * 
+ */
+function user_ext_profile_ajax_get ( $sUid = null ) {
+	if ( null == $sUid ) {
+		global $user;
+		$oAccount = $user;
+	} else {
+		$oAccount = $user = user_load( $sUid );
+	}
+
+	require_once drupal_get_path( 'module', 'user' ) . '/user.pages.inc';
+
+	echo user_view( $oAccount );
+
+	exit;
+}
+
+
+/**
+ * Add any extra JS needed on profile pages
+ */
+function user_extension_preprocess_user_profile () {
+	drupal_add_js( drupal_get_path( 'module', 'kindness' ) . '/kindness_profile.js' );
+}
+
+
+function user_ext_my_profile () {
+	global $user;
+	$account = $user;
+
+	drupal_set_title(check_plain($account->name));
+
+	// Retrieve all profile fields and attach to $account->content.
+	user_build_content($account);
+
+	// To theme user profiles, copy modules/user/user_profile.tpl.php
+	// to your theme directory, and edit it as instructed in that file's comments.
+	return theme('user_profile', $account);
+}
+
+function update_hud_profile() {
+	global $user;
+
+	foreach ($_REQUEST as $sKey => $sData){
+		${$sKey} = $sData;
+	}
+
+	$registration_name = "$first_name $last_name";
+
+	$user_data = [
+		'name' => $registration_name,
+		'profile_first_name' => $first_name,
+		'profile_last_name' => $last_name,
+	    'mail' => $email,
+	    'profile_phone' => $phone,
+	    'profile_school' => $school,
+	    'profile_grade' => $grade_level,
+	    'profile_age' => $age,
+	    'profile_organization' => $organization,
+	    'profile_birth_month' => $birth_month,
+	    'profile_birth_year' => $birth_year,
+	];
+
+	if (!empty($pass)) {
+		$user_data['pass'] = $pass;
+	}
+	
+
+	$userDetails = user_save($user, $user_data);
+	if (isset($_REQUEST['account-picture-filename'])) {
+		$upload_folder = $_SERVER['DOCUMENT_ROOT'].'/hud_files/uploads/';
+		$account_picture = $_REQUEST['account-picture-filename'];
+		$account_filename = $userDetails->uid.'-'.end(explode('-', $account_picture));
+		rename($upload_folder.'/temp/'.$account_picture, $upload_folder.'users/' . $account_filename);
+
+		user_save($userDetails, [
+			'picture' => 'hud_files/uploads/users/'.$account_filename
+		]);
+	}
+}

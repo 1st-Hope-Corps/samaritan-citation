@@ -1,0 +1,1109 @@
+<?php
+
+/**
+* Create administration form for variables
+* @return form content for section
+*/
+/*
+    KickApps Single Sign-On Drupal Plugin
+    Copyright (C) 2007  KickApps Inc.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
+
+/***
+* Register the administration screen with Drupal
+* @return the form info
+*/
+function teams_menu() {
+	watchdog("Teams", "Make menu");
+	
+	$items = array();
+	
+	$items['community/teams'] = array(
+		'title' => 'My Community Teams',
+		'page callback' => 'teams_landingpage',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+		
+	$items['community/hopefulteams'] = array(
+		'title' => 'My Community Teams',
+		'page callback' => 'teams_hopefulteams',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+			
+	$items['community/volunteerteams'] = array(
+		'title' => 'My Community Teams',
+		'page callback' => 'teams_volunteerteams',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+				
+	$items['community/offlinevolunteerunit'] = array(
+		'title' => 'My Community Teams',
+		'page callback' => 'teams_offlinevolunteerunit',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$items['community/volunteerteamdashboard'] = array(
+		'title' => 'Offline Volunteer Unit',
+		'page callback' => 'teams_volunteerteamdashboard',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	$items['community/assignteam'] = array(
+		'title' => 'My Community',
+		'page callback' => 'teams_assignteam',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$items['community/loadteamtable'] = array(
+		'title' => 'My Community',
+		'page callback' => 'teams_loadteamtable',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+	
+	$items['admin/kickapps/manage'] = array(
+		'title' => 'Manage Kickapps Group',
+		'page callback' => 'teams_manage_group',
+		'access arguments' => array('access content'),
+		'type' => MENU_NORMAL_ITEM
+	);
+
+	return $items;
+}
+
+
+function teams_landingpage(){
+	global $user;
+
+	$csS = 'kickapps_theme2010';
+
+	if ( $_GET['css'] == $csS ) {
+		$sHeader = drupal_eval(load_teams_template('page-team-volunteer'));
+  } else {
+		$sHeader = drupal_eval(load_teams_template('page-team-hopefuls'));
+	}
+
+	$sOutput = '<div><center><h3>HopeNet Teams</h3></center></div>';
+
+	$sOutput .= '<div style="background-color:#ffffff;">
+					<center>
+					<img src="' . base_path() . 'themes/theme2010/images/gi_teams_1.jpg" />
+					</center>
+					<div style="width:400px;padding-left:170px;">Teamwork is crucial to the success of HopeNet and because of this HopeNet has organized both the Hopefuls and its volunteers into teams.</div>
+
+					<div style="clear:both;background-color:#ffffff;">&nbsp;</div>
+					<div style="background-color:#ffffff;padding-left:30px;">
+						<div style="float:left;"><img src="' . base_path() . 'themes/theme2010/images/gi_teams_2.jpg" />
+						<center>To learn more about the Volunteer Teams <br/> <a href="' . base_path() . 'community/volunteerteams" style="text-decoration:none;"><b style="color:black;">Please Click Here</b></a></center>
+						</div>
+						<div style="float:left;width:100px;">&nbsp;</div>
+						<div style="float:left;"><img src="' . base_path() . 'themes/theme2010/images/gi_teams_3.jpg" />
+						<center>To learn more about the Hopeful Teams <br/> <a href="' . base_path() . 'community/hopefulteams" style="text-decoration:none;"><b style="color:black;">Please Click Here</b></a></center>
+						</div>
+					</div>
+			  </div>
+			  ';
+
+	$sFooter = '
+			</div><div style="height:50px;">&nbsp;</div>
+		</div></body></html>';
+
+	return $sHeader . $sOutput . $sFooter;
+}
+
+
+function teams_loadteamtable($troopid){
+
+	$sqlTeam = "SELECT A.kickappsteam_id, A.team_name, A.team_color, A.team_type
+				FROM hope_team A
+				WHERE troop_id = %d";
+	$oTeamResult = db_query($sqlTeam,  array($troopid));
+    
+	$sOutput = '<tr>';
+	while ($oTeam = db_fetch_object($oTeamResult)){
+	
+	$sOutput .= '<td style="text-align:center; width:215px; heigh:315px; padding-bottom:10px;">
+		               <div style="margin:2px; 2px; 2px; 2px;padding-top:12px; padding-bottom:12px;background-color: #FFFFFF !important; background-image: none; border: 1px solid #cdcdcd !important; #000000 !important; font-size: 12px;"">
+						<div style="width:165px;"><a href="' . base_path() . 'community?m=team&id='.$oTeam->kickappsteam_id.'"><span style="border:1px solid black;padding: 0;margin: 8px 5px 3px;display: block;width:163px;height:20px;background:#'.$oTeam->team_color.' no-repeat center center"></span></a></div>
+						<div id="name_373" style="text-align:left;padding-left:8px;"><a href="' . base_path() . 'community?m=team&id='.$oTeam->kickappsteam_id.'"><b>'.$oTeam->team_name.'</b></a><br/><b>Members</b>: '.teams_teamcount($oTeam->kickappsteam_id).'</div>
+					   </div>
+					</td>';
+	}
+	$sOutput .= '</tr>';
+	
+	$sqlTr = "SELECT A.troop_id, A.troop_name, B.wing_name, C.group_name
+				FROM hope_troop A
+				INNER JOIN hope_wing B ON B.wing_id = A.wing_id
+				INNER JOIN hope_group C ON C.group_id = B.group_id
+				WHERE A.troop_id = %d";
+				
+	$oTrResult = db_query($sqlTr,  array($troopid));
+	$oTr = db_fetch_object($oTrResult);
+	
+	$sCurrpath = 'Location : '.$oTr->group_name.' -> '.$oTr->wing_name.' -> '.$oTr->troop_name;
+
+	echo json_encode(array("STATUS" => 1, "Output" => $sOutput, "Path" => $sCurrpath));
+}
+
+function teams_assignteam($teamid, $userid, $task){	
+  switch($task){
+  case 'join':  
+	$sqlInsert = "INSERT INTO hope_teamusers VALUES(NULL, %d, %d, NULL, NULL)";
+	db_query($sqlInsert, array($teamid, $userid));
+  break;
+  case 'leave':
+	$sqlDelete = "DELETE FROM hope_teamusers WHERE team_id = %d AND uid = %d";
+	db_query($sqlDelete, array($teamid, $userid));
+  break;
+  case 'update':
+	$sqlUpdate = "UPDATE hope_teamusers
+					SET status = NULL,
+					team_id = %d
+					WHERE uid = %d";
+	db_query($sqlUpdate, array($teamid, $userid));
+  break;
+  }
+  
+  echo json_encode(array("STATUS" => 1, "RETURN" => TRUE));
+}
+
+function teams_teamcount($kickappsgroup_id){
+	$sqlCount= "SELECT count(A.team_userid) as count_members
+				FROM hope_teamusers A
+				WHERE team_id = %d"; 
+	$oCountResult = db_query($sqlCount,  array($kickappsgroup_id));
+	$oCount = db_fetch_object($oCountResult);
+	
+	return $oCount->count_members; 
+}
+
+function teams_hopefulteams(){
+	global $user;
+
+	$csS = 'kickapps_theme2010';
+	
+	$sqlMemberexist = "SELECT team_id as memberteamexist
+					FROM hope_teamusers
+					WHERE uid = %d
+					AND status is null";
+					
+	$oExistResult = db_query($sqlMemberexist,  array($user->uid));
+	$oExist = db_fetch_object($oExistResult);
+	$memberstatusid = $oExist->memberteamexist;
+	
+	$sqlDiv = "SELECT A.div_id
+				FROM hope_assign_users A
+				WHERE uid = %d"; 
+	$oDivResult = db_query($sqlDiv,  array($user->uid));
+	$oDiv = db_fetch_object($oDivResult);
+	$div_id = $oDiv->div_id;
+	
+	$sBrowse = '<a href="javascript:void(0);" id="sBrowseTeams">Browse Teams</a>';
+	$sBrowsec = '<div id="sBrowseTeamsMenu" style="display:none;">
+				<ul class="sf-menu">';
+
+	$sqlGroup = "SELECT A.group_id, A.group_name
+				FROM hope_group A
+				WHERE div_id = %d"; 
+	$oGroupResult = db_query($sqlGroup,  array($div_id));
+    
+	while ($oGroup = db_fetch_object($oGroupResult)){
+		
+		$sBrowsec .= '<li>
+						<a href="javascript:void(0);" style="text-decoration:none;">'.$oGroup->group_name.'</a>';				
+						
+						$sqlWing = "SELECT A.wing_id, A.wing_name
+						FROM hope_wing A
+						WHERE A.group_id = %d";
+						
+						$oWingResult = db_query($sqlWing,  array($oGroup->group_id));
+						$oWingResult2 = db_query($sqlWing,  array($oGroup->group_id));
+						$oWing2 = db_fetch_object($oWingResult2);
+						
+						if($oWing2->wing_id !== null){
+						$sBrowsec .= '<ul>';
+							while ($oWing = db_fetch_object($oWingResult)){
+								
+								$sBrowsec .= '<li>
+												<a href="javascript:void(0);" style="text-decoration:none;">'.$oWing->wing_name.'</a>';
+								
+									$sqlTroop = "SELECT A.troop_id, A.troop_name
+									FROM hope_troop A
+									WHERE A.wing_id = %d";
+									$oTroopResult = db_query($sqlTroop,  array($oWing->wing_id));
+									$oTroopResult2 = db_query($sqlTroop,  array($oWing->wing_id));
+									$oTroop2 = db_fetch_object($oTroopResult2);
+									
+									if($oTroop2->troop_id !== null){
+										$sBrowsec .= '<ul>';
+										while ($oTroop = db_fetch_object($oTroopResult)){
+											$sBrowsec .= '<li>
+															<a href="javascript:void(0);" style="text-decoration:none;" onclick="loadTeamsTable(\''.$oTroop->troop_id.'\');">'.$oTroop->troop_name.'</a>';
+											$sBrowsec .= '</li>';
+										}
+										$sBrowsec .= '</ul>';
+									}
+									
+								$sBrowsec .= '</li>';	
+						}	
+						$sBrowsec .= '</ul>';
+						}
+						
+		$sBrowsec .= '</li>';
+	}
+	$sBrowsec .= '</ul>';	
+	$sBrowsec .= '</div>';
+
+	$sqlTr = "SELECT A.troop_id, A.troop_name, B.wing_name, C.group_name
+				FROM hope_troop A
+				INNER JOIN hope_wing B ON B.wing_id = A.wing_id
+				INNER JOIN hope_group C ON C.group_id = B.group_id
+				ORDER BY RAND() LIMIT 1";
+				
+	$oTrResult = db_query($sqlTr);
+	$oTr = db_fetch_object($oTrResult);
+	
+	$sqlTeam = "SELECT A.kickappsteam_id, A.team_name, A.team_color, A.team_type
+				FROM hope_team A
+				WHERE troop_id = %d";
+	$oTeamResult = db_query($sqlTeam,  array($oTr->troop_id));
+	$sOutput = '<tr>';
+
+	while ($oTeam = db_fetch_object($oTeamResult)){
+		
+		//if($_GET['css'] !== $csS){
+		//$sTeamLink = 'http://affiliate.kickapps.com/_Hope-Team/group/'.$oTeam->kickappsteam_id.'/158175.html';
+		//} else{
+		$sTeamLink = base_path() . 'community?m=team&id='.$oTeam->kickappsteam_id;
+		//}
+			
+		$sOutput .= '<td style="text-align:center; width:215px; heigh:315px; padding-bottom:10px;">
+			               <div style="margin:2px; 2px; 2px; 2px;padding-top:12px; padding-bottom:12px;background-color:#'.$oTeam->team_color.' !important;background-image: none; border: 1px solid #cdcdcd !important; color: #000000 !important; font-size: 12px;">
+							<div style="margin:2px; 0px; 0px; 0px;padding-top:0x; padding-bottom:0px;background-color:#fafafa !important;background-image: none; border: 1px solid #cdcdcd !important; color: #000000 !important; font-size: 12px;">
+							<div id="name_373" style="text-align:left;padding-left:8px;"><a href="'.$sTeamLink.'"><b>'.$oTeam->team_name.'</b></a><br/><b>Members</b>: '.teams_teamcount($oTeam->kickappsteam_id).'</div>
+							</div>
+						   </div>
+						</td>';
+		
+	}
+
+	$sOutput .= '</tr>';
+	$sCurrpath = '<div style="font-size:11px;" id="sPath">&nbsp;Team Location : '.$oTr->group_name.' -> '.$oTr->wing_name.' -> '.$oTr->troop_name.'</div>';
+	
+	if($_GET['css'] == $csS){
+	$sHeader = drupal_eval(load_teams_template('page-team-volunteer'));
+    } else{
+	$sHeader = drupal_eval(load_teams_template('page-team-hopefuls'));
+	}
+	
+	if($memberstatusid == null){
+	/*$sqlTeam2 = "SELECT A.kickappsteam_id, A.team_name, A.team_color, A.team_type
+				FROM hope_team A
+				WHERE troop_id = %d
+				ORDER BY RAND() LIMIT 1";
+	$oTeamResult2 = db_query($sqlTeam2,  array($oTr->troop_id));
+	$oTeam2 = db_fetch_object($oTeamResult2);*/
+	
+	$sqlTeam2 = "SELECT A.kickappsteam_id, A.team_name, A.team_color, A.team_type
+				FROM hope_team A
+				WHERE troop_id != %d
+				ORDER BY RAND() LIMIT 1";
+	$oTeamResult2 = db_query($sqlTeam2,  array($oTr->troop_id));
+	$oTeam2 = db_fetch_object($oTeamResult2);
+	
+	$sDialog = '';	
+		// $sSelectFrame = '<div align="center"><iframe id="communityiframe" scrolling="no" marginwidth="0" marginheight="0" frameborder="0" vspace="0" hspace="0" style="overflow-x: hidden;overflow-y: hidden;overflow:hidden; width:440px; height:350px;" src="http://affiliate.kickapps.com/_Hope-Team/group/'.$oTeam2->kickappsteam_id.'/158175.html?css=kickapps_theme2010&invite=yes"></iframe></div>';
+	
+		$sDialog = '<div id="teams_InviteDialog" title="Hope Invitation" style="display:none;">
+							<p><b>You are invited to join the team below.</b></p> <span style="font-size:10px;">'.$sCurrpath.'</span>
+							'.$sSelectFrame.'
+						</div>';
+						
+		$sHeader .= $sDialog;
+		
+		$sJavaScript = '$(document).ready(
+								function(){
+									$("#teams_InviteDialog").dialog(
+										{
+											modal: true,
+											autoOpen: true,
+											resizable: false,
+											width: 650,
+											width: 550,
+											buttons: {
+												"I have selected this team": function(){
+													location = Drupal.settings.basePath + "community?m=gr&css=kickapps_theme2010";
+												},
+												"No Thanks, I will select my own team": function(){
+												    $(this).dialog("close");
+													
+												}
+											}
+										}
+									);
+								}
+							)';
+			
+		drupal_add_js($sJavaScript, "inline");
+		
+		if($_GET['css'] !== $csS)
+		$sHeader .= drupal_eval(load_teams_template('page-hopeful-js'));
+	}//eof automatic random invitation selector
+	
+	if($memberstatusid !== null){
+    $sHeader .= '<div style="height:30px;"><h3>My Team</h3></div>';
+	
+		$sqlTeam = "SELECT A.kickappsteam_id, A.team_name, A.team_color, A.team_type, A.troop_id
+					FROM hope_team A
+					WHERE kickappsteam_id = %d";
+		$oTeamResult = db_query($sqlTeam,  array($memberstatusid));
+		
+		$sHeader .= '<table><tr>';
+		while ($oTeam = db_fetch_object($oTeamResult)){
+			//if($_GET['css'] !== $csS){
+			//$sTeamLink = 'http://affiliate.kickapps.com/_Hope-Team/group/'.$oTeam->kickappsteam_id.'/158175.html';
+			//} else{
+			$sTeamLink = base_path() . 'community?m=team&id='.$oTeam->kickappsteam_id;
+			//}
+			
+			$sHeader .= '<td style="text-align:center; width:215px; heigh:315px; padding-bottom:10px;">
+			               <div style="margin:2px; 2px; 2px; 2px;padding-top:12px; padding-bottom:12px;background-color:#'.$oTeam->team_color.' !important;background-image: none; border: 1px solid #cdcdcd !important; color: #000000 !important; font-size: 12px;">
+							<div style="margin:2px; 0px; 0px; 0px;padding-top:0x; padding-bottom:0px;background-color:#fafafa !important;background-image: none; border: 1px solid #cdcdcd !important; color: #000000 !important; font-size: 12px;">
+							<div id="name_373" style="text-align:left;padding-left:8px;"><a href="'.$sTeamLink.'"><b>'.$oTeam->team_name.'</b></a><br/><b>Members</b>: '.teams_teamcount($oTeam->kickappsteam_id).'</div>
+							</div>
+						   </div>
+						</td>';
+			
+			$sqlTr = "SELECT A.troop_id, A.troop_name, B.wing_name, C.group_name
+					FROM hope_troop A
+					INNER JOIN hope_wing B ON B.wing_id = A.wing_id
+					INNER JOIN hope_group C ON C.group_id = B.group_id
+					WHERE A.troop_id = %d";
+					
+			$oTrResult = db_query($sqlTr,  array($oTeam->troop_id));
+			$oTr = db_fetch_object($oTrResult);
+			
+			$sCurrpath2 = '<span style="font-size:11px;">Location: '.$oTr->group_name.' -> '.$oTr->wing_name.' -> '.$oTr->troop_name.'</span>';
+			
+		}
+		$sHeader .= '</tr></table>'.$sCurrpath2;
+	
+    }	
+	if($memberstatusid !== null){
+		$sRandom = 'random';
+	} else{
+		$sRandom = 'random selection';
+	}
+	
+	$sHeader .= '<div style="height:50px;padding-top:5px;"><h3>Hope Teams <span style="font-size:10px;">('.$sRandom.')</span> <sup><span id="loadText" style="font-size:10px;"></span><sup>'.$sBrowse.'</sup></h3></div>
+				'.$sBrowsec.'<div style="clear:both;">&nbsp;</div><table id="teams_table">';
+	$sFooter = '
+		</table>
+		'.$sCurrpath.'
+		</div><div style="height:50px;">&nbsp;</div>
+	</div></body></html>';
+
+	return $sHeader.$sOutput.$sFooter;
+} 
+
+
+function teams_volunteerteams(){
+
+	$sHeader = drupal_eval(load_teams_template('page-team-volunteer'));
+
+	$sOutput = '<div><center><h3>Volunteer Teams</h3></center></div>';
+
+	$sOutput .= '<div style="background-color:#ffffff;">
+					<center>
+					<img src="' . base_path() . 'themes/theme2010/images/gi_volunteer_standout.jpg" />
+					</center>
+					<div style="clear:both;background-color:#ffffff;padding-left:100px;"><img src="' . base_path() . 'themes/theme2010/images/gi_volunteer_corps_line.jpg" /></div>
+					<div style="background-color:#ffffff;padding-left:10px;">
+						<div style="float:left;"><img  style="cursor:pointer;" src="' . base_path() . 'themes/theme2010/images/gi_offline_volunteer_unit.jpg" onclick=window.location="' . base_path() . 'community/offlinevolunteerunit"; />
+						</div>
+						<div style="float:left;width:100px;padding-left:100px;">&nbsp;</div>
+						<div style="float:left;"><img src="' . base_path() . 'themes/theme2010/images/gi_online_volunteer_unit.jpg"/>
+						</div>
+					</div>
+			  </div>
+			  ';
+
+	$sFooter = '
+		</div><div style="height:50px;">&nbsp;</div>
+	</div></body></html>';
+
+	return $sHeader.$sOutput.$sFooter;
+}
+
+function teams_volunteerteamdashboard(){
+	global $user;
+
+	$theme_imgpath = base_path() . 'themes/theme2010/images/';
+	$sHeader = drupal_eval(load_teams_template('page-team-volunteer'));
+
+	$sOutput .= '<div style="background-color:#ffffff;">
+					'; // start
+
+	$sOutput .= '<div style="background-color:#ffffff;" align="center">';
+
+	$sqlMemberDetails = "SELECT B.kickappsteam_id, B.team_name, C.troop_id, C.troop_name, D.wing_id, D.wing_name, E.group_id, E.group_name
+						FROM hope_teamusers A
+						LEFT JOIN hope_team B ON B.kickappsteam_id = A.team_id
+						LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+						LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+						LEFT JOIN hope_group E ON E.group_id = D.group_id
+						WHERE A.uid = %d";
+
+	$oDetailsResult = db_query($sqlMemberDetails, $user->uid);
+	$oDetails = db_fetch_object($oDetailsResult);
+	mysqli_free_result($oDetailsResult);
+	$kickappsteam_id = $oDetails->kickappsteam_id;
+	$team_name = $oDetails->team_name;
+	$troop_id = $oDetails->troop_id;
+	$troop_name = $oDetails->troop_name;
+	$wing_id = $oDetails->wing_id;
+	$wing_name = $oDetails->wing_name;
+	$group_id = $oDetails->group_id;
+	$group_name = $oDetails->group_name;
+	$arr_colors = array('red', 'white','blue' ,'gold');
+
+	$sOutput .= '<div style="width:200px;height:50px;"><ul><b style="font-size:18px;"><u>My Team</u></b></ul></div>';
+
+
+	$sOutput .= '<div style="float:left;width:280px;height:70px;background-color:yellow;border:1px solid #b3b3b3;">
+						Click the city and school in the dropdown box to see the existing hopeful units.<br/>
+						<select id="Selectbycityteams" onchange="teamsselectbyschools_volunteer(this.value);">
+						<option value="">Click City -></option>
+						<option value="">->Makati</option>
+						<option value="Jose Magsaysay Elementary School">--->Jose Magsaysay Elementary School</option>
+						<option value="Francisco Benitez Elementary School">--->Francisco Benitez Elementary School</option>
+						<option value="Maximo Estrella Elementary School" selected>--->Maximo Estrella Elementary School</option>
+						</select>
+				</div>
+				<div style="float:left;width:30px;">&nbsp;</div>
+				<div style="float:left;width:250px;height:70px;background-color:#1ef102;" id="group_name_teams"><b>'.$group_name.'</b><br/> Volunteer Organization</div>';
+
+	$sOutput .= '
+				<div id="coming_soonmsg" style="clear:both;display:none;height:200px;padding-top:80px;"><span style="color:red;"><b>Coming Soon..</b></span></div>
+				<div id="heirarchy_menu" style="padding-left:50px;">';
+
+	$sOutput .= '<div style="clear:both;"><img src="'.$theme_imgpath.'z_vline1.gif" /><img src="'.$theme_imgpath.'z_vline2.gif" /><img src="'.$theme_imgpath.'z_vline3.png" /><img src="'.$theme_imgpath.'z_vline4.gif" /></div>';
+
+	$sOutput .= '<div align="center" style="padding-left:150px;">';
+	$sqlTroop = "SELECT A.troop_id, A.troop_name
+				FROM hope_troop A
+				WHERE A.wing_id = %d";
+
+	//$oTroopResult = db_query($sqlTroop, $wing_id);
+	$oTroopResult = db_query($sqlTroop, 9);
+
+	$coltroop = 0;
+	$linetroop = '';
+	while ($oTroop = db_fetch_object($oTroopResult)){
+	$troopname = $oTroop->troop_name;
+	$arr_troopname = explode(' ', $troopname);
+	$troopcolor = strtolower($arr_troopname[0]);
+	$troopcolorfont = $troopcolor == 'blue' ? 'white': 'black';
+
+	if($oTroop->troop_id == $troop_id){
+	$linetroop = $coltroop + 1;
+	$sOutput .= '<div style="border:2px solid #1ef102;float:left;width:100px;height:50px;color:'.$troopcolorfont.';background-color:'.$troopcolor.';"><a href="javascript:void(0);" onclick="change_troopteams_volunteer2(\''.$oTroop->troop_id.'\',\''.'troop'.'\',\''.$linetroop.'\');" ><b style="color:'.$troopcolorfont.';">'.$oTroop->troop_name.'</b></a><br/>'.calculateTeam('troop',$oTroop->troop_id).' Member(s)</div><div style="float:left;width:10px;">&nbsp;</div>';
+	} else{
+	$comtroop = $coltroop + 1;
+	$sOutput .= '<div style="border:1px solid #b3b3b3;float:left;width:100px;height:50px;color:'.$troopcolorfont.';background-color:'.$troopcolor.';"><a href="javascript:void(0);" onclick="change_troopteams_volunteer2(\''.$oTroop->troop_id.'\',\''.'troop'.'\',\''.$comtroop.'\');" ><b style="color:'.$troopcolorfont.';">'.$oTroop->troop_name.'</b></a><br/>'.calculateTeam('troop',$oTroop->troop_id).' Member(s)</div><div style="float:left;width:10px;">&nbsp;</div>';
+	}
+	$arr_troopname = '';
+	$coltroop++;
+	}
+	mysqli_free_result($oTroopResult);
+	$sOutput .= '</div>';
+
+	if(isset($_GET['teamid'])){
+	$sOutput .= '<script>
+						change_troopteams_volunteer2("'.$_GET["teamid"].'", "team", "1");
+					</script>';
+	}
+
+	$sOutput .= '<div style="clear:both;" id="teams_lines">
+					<div><img src="'.$theme_imgpath.'z_level3line'.$linetroop.'.gif" /></div>
+					<div><img src="'.$theme_imgpath.'z_level3line.png" /></div>
+				</div>';
+
+	$sOutput .= '<div id="teams_div"><div align="center" style="padding-left:130px;">';
+
+	$sqlTeam = "SELECT A.kickappsteam_id, A.team_name, A.team_color, A.team_type, A.troop_id
+					FROM hope_team A
+					WHERE troop_id = %d";
+	//$oTeamResult = db_query($sqlTeam, $troop_id);
+	$oTeamResult = db_query($sqlTeam, 12);
+
+	$colteam = 0;
+	$lineteam = '';
+	while ($oTeam = db_fetch_object($oTeamResult)){
+	$arr_teamname = explode(' ', $oTeam->team_name);
+	$teamcolor = strtolower($arr_teamname[0]);
+	$teamcolorfont = $teamcolor == 'blue' ? 'white': 'black';
+		if($oTeam->kickappsteam_id == $kickappsteam_id){
+			$sOutput .= '<div style="border:2px solid #1ef102;float:left;width:100px;height:60px;color:'.$teamcolorfont.';background-color:'.$teamcolor.';"><a href="/community/volunteerteamdashboard?teamid='.$oTeam->kickappsteam_id.'"><b style="color:'.$teamcolorfont.';">'.$oTeam->team_name.'</b></a><br/>'.calculateTeam('team',$oTeam->kickappsteam_id).' Member(s)<br/></div><div style="float:left;width:10px;">&nbsp;</div>';
+			$lineteam = $colteam;
+		} else{
+			$sOutput .= '<div style="border:1px solid #b3b3b3;float:left;width:100px;height:60px;color:'.$teamcolorfont.';background-color:'.$teamcolor.';"><a href="/community/volunteerteamdashboard?teamid='.$oTeam->kickappsteam_id.'"><b style="color:'.$teamcolorfont.';">'.$oTeam->team_name.'</b></a><br/>'.calculateTeam('team',$oTeam->kickappsteam_id).' Member(s)</div><div style="float:left;width:10px;">&nbsp;</div>';
+		}
+	$colteam++;
+	}
+	mysqli_free_result($oTeamResult);
+
+	$sOutput .= '</div>';
+
+	$sOutput .= '<div align="center" style="padding-left:130px;clear:both;">';
+	$colyourteam = 0;
+	while($colyourteam <= 4){
+		if($colyourteam == $lineteam){
+			$sOutput .= '<div style="float:left;width:100px;height:60px;">
+							<img src="'.$theme_imgpath.'balloon_thisisyourteam.gif" />
+						</div>
+						<div style="float:left;width:10px;">
+							&nbsp;
+						</div>';
+		} else{
+			$sOutput .= '<div style="float:left;width:100px;height:60px;">
+							&nbsp;
+						</div>
+						<div style="float:left;width:10px;">
+							&nbsp;
+						</div>';
+		}
+	$colyourteam++;
+	}
+	$sOutput .= '</div>
+				</div><!--end teamdiv-->';
+
+	$sOutput .= '<div style="clear:both;">&nbsp;</div>';
+
+	$sOutput .= '</div>';
+	$sOutput .= '</div>';
+
+	if(isset($_GET['teamid'])){
+	$kickappsteam_id = $_GET['teamid'];
+	}
+
+	$sOutput .= '<div style="padding-left:15px;"><div style="width:700px;border:1px solid #b3b3b3;"><div style="background-color:#cecece;margin: 0; height:30px;">&nbsp;<b>Announcement and News</b></div>
+															<div class="jboxbody">
+																<div class="jboxcontent">
+																	<table style="background-color:#ffffff;" width="100%" height="200" border="0" cellspacing="0" cellpadding="0">
+																		<tr>
+																			<td width="350" valign="top" style="padding-top:5px;">';
+
+									$sOutput .= '<div style="width: 600px;height:198px;overflow: auto;padding:8px;">';
+
+									$sqlAnnounce = "SELECT teamnews_id, team_id, announce_text, announce_date
+													FROM hope_team_news
+													WHERE team_id = %d
+													ORDER BY teamnews_id DESC
+													";
+
+										$oAnnounceResult = db_query($sqlAnnounce, $kickappsteam_id);
+
+										$sOutput .= '';
+										$Annoucnecount = 0;
+										while ($oAnnounce = db_fetch_object($oAnnounceResult)){
+											$sOutput .= $oAnnounce->announce_text.' <span style="font-size:10px;"><b>'.date("F j, Y, g:i a", $oAnnounce->announce_date).'</b></span><br/><br/>';
+										$Annoucnecount++;
+										}
+										mysqli_free_result($oAnnounceResult);
+										if($Annoucnecount == 0){
+											$sOutput .= "There are no message post yet.";
+										}
+
+										$sOutput .= '</div>';
+
+
+															$sOutput .= '</td>
+																		</tr>
+																	</table>
+																</div>
+															</div></div></div><div>&nbsp;</div>';
+
+	$sOutput .= '<link rel="stylesheet" type="text/css" href="'.$base_url.'/themes/theme2010/style.css" />';
+
+	$sqlSelectedTeamDetails = "SELECT B.kickappsteam_id, B.team_name, C.troop_id, C.troop_name, D.wing_id, D.wing_name, E.group_id, E.group_name
+					    FROM hope_team B
+						LEFT JOIN hope_troop C ON C.troop_id = B.troop_id
+						LEFT JOIN hope_wing D ON D.wing_id = C.wing_id
+						LEFT JOIN hope_group E ON E.group_id = D.group_id
+						WHERE B.kickappsteam_id = '{$kickappsteam_id}'";
+
+	$oSelectedTeamResult = db_query($sqlSelectedTeamDetails);
+	$oSelected = db_fetch_object($oSelectedTeamResult);
+	mysqli_free_result($oSelectedTeamResult);
+	$skickappsteam_id = $oSelected->kickappsteam_id;
+	$steam_name = $oSelected->team_name;
+	$arrsteam_name = explode(' ', $steam_name);
+	$strteam_colr = strtolower($arrsteam_name[0]);
+	$strteam_fontcolr = $strteam_colr == 'blue' ? 'white' : 'black';
+	$stroop_id = $oSelected->troop_id;
+	$stroop_name = $oSelected->troop_name;
+	$swing_id = $oSelected->wing_id;
+	$swing_name = $oSelected->wing_name;
+	$sgroup_id = $oSelected->group_id;
+	$sgroup_name = $oSelected->group_name;
+
+	switch($strteam_colr){
+	case 'red': $meetallbutton = 'meet_allredteamvolunteers.gif'; break;
+	case 'blue': $meetallbutton = 'meet_allblueteamvolunteers.gif'; break;
+	case 'white': $meetallbutton = 'meet_allwhiteteamvolunteers.gif'; break;
+	case 'gold': $meetallbutton = 'meet_allgoldteamvolunteers.gif'; break;
+	}
+
+	$sOutput .= '<div style="padding-left:15px;"><div style="width:700px;border:1px solid #b3b3b3;"><div style="background-color:#cecece;margin: 0; height:30px;">&nbsp;<b>'.$steam_name.' > '.$stroop_name.' > '.$swing_name.' > '.$sgroup_name.' - <b id="incybrary_block_title">Welcome!</b></div>
+															<div class="jboxbody">
+																<div class="jboxcontent">
+																	<table width="100%" border="0" cellspacing="0" cellpadding="0" class="meet_info">
+																		<tr>
+																			<td width="350" valign="top" style="padding-top:5px;">
+																				<div style="float:left;"><div style="border:1px solid #b3b3b3;float:left;width:180px;height:50px;font-size:26px;padding-top:20px;background-color:'.$strteam_colr.';"><center><b style="color:'.$strteam_fontcolr.'">'.$steam_name.'</b></center></div></div>
+																				<div style="float:left;">&nbsp;</div>
+																				<div style="float:left;" style="font-size:12px;width:150px;"><b>'.$steam_name.'</b><br/><b style="font-size:12px;">Kindness Hours: <span id="kindnesstotaltext" style="font-size:12px;"></span></b> <br/> <b style="font-size:12px;">Team Members: <span id="teammemberstotaltext" style="font-size:12px;"></span></b></div>
+																			</td>
+																			<td style="padding-top:5px;">
+																				<div style="float:left;"><img id="incybrary_avatar" src="" style="cursor:pointer;"/></div>
+																				<div style="float:left;">&nbsp;</div>
+																			    <div style="float:left;">
+																				<div id="incybrary_hopeful_details"></div>
+																				</div>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td colspan="2"><hr style="padding-top:20px; width:100%" class="divider" /></td>
+																		</tr>
+																		<tr>
+																			<td colspan="2">
+																				<table width="100%" border="0" cellspacing="0" cellpadding="2" style="float: left;padding: 5px;text-align: center;">
+																				  <tr>
+																					<td style="width:160px;padding-left:5px;">
+																						<a id="button_children_online_volunteer" href="javascript:void(0);"><img src="'.$theme_imgpath.'meet_inthecybrarynow.gif" border="0" /></a><br />
+																						<a id="button_children_24_volunteer" href="javascript:void(0);"><img src="'.$theme_imgpath.'meet_inthelast24.gif" border="0" /></a><br />
+																						<a id="button_children_all_volunteer" href="javascript:void(0);"><img src="'.$theme_imgpath.$meetallbutton.'" border="0" /></a><br />
+																					</td>
+																					<td align="center">
+																						<div id="incybrary_hopeful_list"></div>
+																					</td>
+																				  </tr>
+																				</table>
+																			</td>
+																		</tr>
+																		<tr>
+																			<td colspan="2"><hr style="width:100%" class="divider" /></td>
+																		</tr>
+																		<tr>
+																			<td colspan="2" align="right" class="pager">
+																				<!--Pages : <a href="#">1</a> | <a href="#">2</a> | <a href="#">3</a> | -->
+																				<div id="incybrary_hopeful_nav"></div>
+																				<input type="hidden" id="teamid" name="teamid" value="'.$kickappsteam_id.'" />
+																				<!--incybrary_hopeful_nav-->
+																			</td>
+																		</tr>
+																	</table>
+																</div>
+															</div></div></div>';
+
+	$sOutput .= '</div>'; // end
+
+	$sFooter .= '<iframe id="communityiframe" scrolling="yes" marginwidth="0" marginheight="0" frameborder="0" vspace="0" hspace="0" style="overflow-x: hidden;overflow-y: hidden;overflow:hidden; width:726px; height: 1200px;" src="http://affiliate.kickapps.com/_Hope-Team/group/'.$kickappsteam_id.'/158175.html?css=kickapps_theme2010&invite=yes"></iframe>';
+	return $sHeader.$sOutput.$sFooter;
+}
+
+
+function teams_offlinevolunteerunit(){
+ global $user;
+
+	$sHeader = drupal_eval(load_teams_template('page-team-volunteer'));
+
+	$sOutput = '<div><center><h3>Offline Volunteer Unit</h3></center></div>';
+
+	$sOutput .= '<div style="background-color:#ffffff;">
+						<div align="center">
+						<img src="' . base_path() . 'themes/theme2010/images/gi_offline_volunteer_unit_big.jpg" />
+						</div>
+						<div style="padding-top:12px;padding-left:12px;width:95%;">
+						<b>Offline Volunteering Opportunites</b><br/>
+						There are several opportunites available to volunteers who wish to provide direct supprt to the Hopefuls
+						through the Hope Cybraries located in the elementary schools.
+						<br/><br/>
+						To learn more about the specific volunteering opportunites you go the the "Get Involved" section by
+						clicking <a href="' . base_path() . '/mystudies/getinvolved/selectcybrarian">here</a><br/><br/>
+						<b>Volunteer Unit Organization</b><br/>
+						The Offline Volunteer teams are formed into units that are similar in structure to the Hopefuls team
+						organization. The basic building block unit of the Volunteer Corps is the team. The volunteer teams are
+						organized by city and school. Each school has a number of teams dependent upon the size of the school
+						that they need to support.<br/><br/>
+						Each school volunteeer team is manned by 12 volunteers. The teams are part of a unit called the "Volunteer Troop."
+						There are up to four teams per troop and they are listed as the Red - Team, Blue - Team, White - Team, and Gold - Team.
+						If more than 4 teams are required to support a school then an additional troop is created.
+						</div>
+						<div style="padding-top:12px;padding-left:12px;width:95%;">';
+
+				$sOutput .= '<div style="width:900px;">'._volunteer_cybrarian_heirarchy(true).'</div>';
+
+				$sOutput .= '</div>
+						<div style="clear:both;padding-top:12px;padding-left:12px;width:100%;">
+						Before you can join a team you must first enroll as an Offline Volunteer. To enroll just click on this
+						"<a href="' . base_path() . '/mystudies/getinvolved/selectcybrarian">Get Involved</a>" link.<br/><br/>';
+
+						$checkActivate = db_result(db_query("SELECT count(uid) as count FROM cybrarian_optin where uid = '{$user->uid}' AND activate = 1"));
+						$disable = $checkActivate > 0 ? 'style="cursor:pointer"' : 'style="background: none repeat scroll 0 0 #e5e5e5;border: 1px solid #CCCCCC;color: #161616;margin: 0 0 12px;padding: 4px;"';
+						$redirect = $checkActivate > 0 ? 'onclick=window.location='."'/community/volunteerteamdashboard';" : '';
+
+				$sOutput .= '<input type="button" id="gotomyteam" name="gotomyteam" value="Go to My Team" '.$disable.' '.$redirect.'>';
+
+				$sOutput .= '</div>
+					</div>
+				</div>
+			  ';
+
+	$sFooter = '
+		</div><div style="height:50px;">&nbsp;</div>
+	</div></body></html>';
+
+	return $sHeader.$sOutput.$sFooter;
+}
+
+
+function teams_manage_group(){
+	$sHtml = '<link type="text/css" rel="stylesheet" media="all" href="http://jquery.bassistance.de/treeview/jquery.treeview.css" />';
+
+
+	drupal_add_js(drupal_get_path("module", "mystudies")."/jquery.treeview.async.js");
+	drupal_add_js(drupal_get_path("module", "mystudies")."/jquery.treeview.js");
+	drupal_add_js(drupal_get_path("module", "kickapps")."/kickapps.admin.js");
+
+	drupal_add_css(drupal_get_path("module", "mystudies")."/jquery-ui-custom.css");
+
+	$sHtml .= '
+	<div class="demo">
+	<div id="userKickappstabs">
+	    <ul>
+			<li><a href="#tabs-1">Heirarchy</a></li>
+
+			<li><a href="#tabs-2">Users</a></li>
+
+			<!--<li><a href="#tabs-2">Request</a></li>-->
+		</ul>
+		<div id="tabs-1">
+			<input type="button" id="adddivision" name="adddivision" value="add new division" onclick="openDivisionDialog();" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" /> <input type="button" id="refreshpage" name="refreshpage" value="refresh" onclick="window.location='."'http://www.hopecybary.org/admin/kickapps/manage';".'" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only" />
+			<br/><br/><b>Root</b>';
+
+		$sqlDiv = "SELECT A.div_id, A.div_name
+					FROM hope_division A";
+		$oDivResult = db_query($sqlDiv);
+
+	    $sHtml .= '<ul id="division_CatList">';
+		$divCount = 1;
+		while ($oDiv= db_fetch_object($oDivResult)){
+
+		$sHtml .= '<li class="closed"><span>'.$divCount.'.) '.$oDiv->div_name.'</span> <sup><a href="javascript:void(0);" onclick="manageContents(\''."div".'\',\''.$oDiv->div_id.'\');"><i>Manage</i></a></sup>';
+
+			$sqlGroup = "SELECT A.group_id, A.group_name
+					FROM hope_group A
+					WHERE div_id = %d";
+
+			$oGroupResult = db_query($sqlGroup, array($oDiv->div_id));
+
+			$sHtml .= '<ul>';
+			$divGroup = 1;
+			while ($oGroup = db_fetch_object($oGroupResult)){
+
+				$sHtml .= '<li class="closed"><span>'.$divCount.'.'.$divGroup.'.) '.$oGroup->group_name.'</span> <sup><a href="javascript:void(0);" onclick="manageContents(\''."group".'\',\''.$oGroup->group_id.'\');"><i>Manage</i></a></sup>';
+					$sqlWing = "SELECT A.wing_id, A.wing_name
+						FROM hope_wing A
+						WHERE group_id = %d";
+
+					$oWingResult = db_query($sqlWing, array($oGroup->group_id));
+					$sHtml .= '<ul>';
+					$divWing = 1;
+					while ($oWing = db_fetch_object($oWingResult)){
+						$sHtml .= '<li class="closed"><span>'.$divCount.'.'.$divGroup.'.'.$divWing.'.) '.$oWing->wing_name.'</span> <sup><a href="javascript:void(0);" onclick="manageContents(\''."wing".'\',\''.$oWing->wing_id.'\');"><i>Manage</i></a></sup>';
+
+						$sqlTroop = "SELECT A.troop_id, A.troop_name
+										FROM hope_troop A
+										WHERE wing_id = %d";
+						$oTroopResult = db_query($sqlTroop, array($oWing->wing_id));
+						$sHtml .= '<ul>';
+						$divTroop = 1;
+							while ($oTroop = db_fetch_object($oTroopResult)){
+								$sHtml .= '<li class="closed"><span>'.$divCount.'.'.$divGroup.'.'.$divWing.'.'.$divTroop.'.) '.$oTroop->troop_name.'</span> <sup><a href="javascript:void(0);" onclick="manageContents(\''."troop".'\',\''.$oTroop->troop_id.'\');"><i>Manage</i></a></sup>';
+									$sqlTeam = "SELECT A.team_id, A.team_name
+										FROM hope_team A
+										WHERE troop_id = %d";
+									$oTeamResult = db_query($sqlTeam, array($oTroop->troop_id));
+									$sHtml .= '<ul>';
+									$divTeam = 1;
+									while ($oTeam = db_fetch_object($oTeamResult)){
+										$sHtml .= '<li><span>'.$divCount.'.'.$divGroup.'.'.$divWing.'.'.$divTroop.'.'.$divTeam.'.) '.$oTeam->team_name.'</span> <sup><a href="javascript:void(0);" onclick="manageTeamContents(\''.$oTeam->team_id.'\');"><i>Manage</i></a></sup></li>';
+									$divTeam++;
+									}
+									mysqli_free_result($oTeamResult);
+									$sHtml .= '</ul>';
+								$sHtml .= '</li>';
+							$divTroop++;
+							}
+							mysqli_free_result($oTroopResult);
+						$sHtml .= '</ul>';
+
+						$sHtml .= '</li>';
+					$divWing++;
+					}
+					mysqli_free_result($oWingResult);
+					$sHtml .= '</ul>';
+				$sHtml .= '</li>';
+			$divGroup++;
+			}
+			mysqli_free_result($oGroupResult);
+			$sHtml .= '</ul>';
+
+		$sHtml .= '</li>';
+		$divCount++;
+		}
+		mysqli_free_result($oDivResult);
+		$sHtml .= '</ul>';
+
+		$sHtml .= '</div>
+		<div id="tabs-2">
+			<h3>Users</h3>';
+
+		$sHtml .= teams_loadusertable();
+
+		$sHtml .= '</div>
+	</div>
+		<div id="manage_Dialog" title="Manage Hierarchy" style="display:none;"><div id="manageContent">&nbsp;</div></div>
+		<div id="manageTeam_Dialog" title="Manage Team" style="display:none;"><div id="manageTeamContent">&nbsp;</div></div>
+		<div id="division_Dialog" title="Add New Division" style="display:none;"><div><span id="statusMsg">&nbsp;</span></div><div>Title: <input type="text" id="atitleName" name="atitleName" value="'.$name.'"/> <input type="button" value="Add" onclick="addNewCategoryDiv(\''.'div'.'\');" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-text-only"></div></div>';
+
+	return $sHtml;
+}
+
+
+function teams_loadusertable(){
+
+	if($_GET['page']){
+	$sJavaScript = '$(document).ready(
+								function(){
+									$("#userKickappstabs").tabs("select", "2");
+								}
+							)';
+
+	drupal_add_js($sJavaScript, "inline");
+	}
+
+	$sqlUsers = "SELECT B.name, A.uid
+					FROM hope_assign_users A
+					INNER JOIN users B ON B.uid = A.uid";
+	$sqlCount = "SELECT COUNT(B.name)
+					FROM hope_assign_users A
+					INNER JOIN users B ON B.uid = A.uid";
+
+
+	$sTableContent .= '<table style="width:680px;"><tr style="font-size:0.8em;">
+								<th class="select-all" style="padding:5px;"><!--<input type="checkbox" id="kindness_master_admin_bCheckAll" name="kindness_master_admin_bCheckAll" title="Select all rows in this table" />-->&nbsp;</th>
+								<th style="width:20%;">Username</th>
+								<th style="width:10%;">Status</th>
+								<th style="width:15%;text-align:center;">Division</th>
+								<th style="width:15%;text-align:center;">Group</th>
+								<th style="width:15%;text-align:center;">Wing</th>
+								<th style="width:10%;text-align:center;">Troop</th>
+								<th style="width:15%;text-align:center;">Team</th>
+							</tr>';
+
+	$sqlUsers = sprintf($sqlUsers);
+	$sqlCount = sprintf($sqlCount);
+	$iMaxRec = 25;
+	$oUsersResult = pager_query($sqlUsers, $iMaxRec, 0, $sqlCount);
+	$bg_colors = array(0 => '#f0f0f0', 1 => '#d0d0d0');
+	$c = 0;
+	while ($oUsers = db_fetch_object($oUsersResult)){
+		$iUserId = $oUsers->uid;
+		$sName = $oUsers->name;
+		$array_status = teams_kickapps_status($iUserId);
+		$status = $array_status[0];
+		$division = $array_status[1];
+		$group = $array_status[2];
+		$wing = $array_status[3];
+		$troop = $array_status[4];
+		$team = $array_status[5];
+
+		$sTableContent .= '<tr style="background-color:'.$bg_colors[$c].'" style="font-size:0.8em;">
+								<td style="padding-top:3px; vertical-align:top;text-align:center;"><!--<input type="checkbox" />-->&nbsp;</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:left;">'.$sName.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:center;font-size:10px;">'.$status.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:center;font-size:10px;">'.$division.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:center;font-size:10px;">'.$group.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:center;font-size:10px;">'.$wing.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:center;font-size:10px;">'.$troop.'</td>
+								<td style="padding-top:3px; vertical-align:top;text-align:center;font-size:10px;">'.$team.'</td>
+							</tr>';
+		if($c == 0){
+		$c = 1;
+		}else{
+		$c = 0;
+		}
+	$Count++;
+	$iCount++;
+	}
+	mysqli_free_result($oUsersResult);
+	$sTableContent .= '</table>';
+
+	if($Count == 1){
+	$sTableContent .= 'No users have selected a team yet.';
+	}
+
+	//$sPagerHTML = ($sTableContent != "No users have selected a team yet.") ? '<br/><br/>'.theme("pager", null, $iMaxRec):'';
+	$sPagerHTML = '<br/><br/>'.theme("pager", null, $iMaxRec);
+
+	return $sTableContent.$sPagerHTML;
+}
+
+
+function teams_kickapps_status($userID){
+
+	$sqlUsers = "SELECT count(team_userid) as userscount
+					FROM hope_teamusers
+				WHERE uid = %d";
+
+	$oTeamResult = db_query($sqlUsers,  array($userID));
+	$oTeam = db_fetch_object($oTeamResult);
+	mysqli_free_result($oTeamResult);
+	$array_res = array();
+
+	if($oTeam->userscount == 0){
+	array_push($array_res, 'Unassigned', '-', '-', '-', '-', '-');
+	} else{
+		$sqlTeam = "SELECT B.team_id, B.team_name, B.troop_id
+					FROM hope_teamusers A
+					INNER JOIN hope_team B ON B.kickappsteam_id = A.team_id
+					WHERE A.uid = %d";
+
+		$aTeamResult = db_query($sqlTeam,  array($userID));
+		$aTeam = db_fetch_object($aTeamResult);
+		mysqli_free_result($aTeamResult);
+		$sqlTroop = "SELECT A.wing_id, A.troop_name
+					FROM hope_troop A
+					WHERE A.troop_id = %d";
+
+		$aTroopResult = db_query($sqlTroop,  array($aTeam->troop_id));
+		$aTroop = db_fetch_object($aTroopResult);
+		mysqli_free_result($aTroopResult);
+
+		$sqlWing = "SELECT A.group_id, A.wing_name
+					FROM hope_wing A
+					WHERE A.wing_id = %d";
+
+		$aWingResult = db_query($sqlWing,  array($aTroop->wing_id));
+		$aWing = db_fetch_object($aWingResult);
+		mysqli_free_result($aWingResult);
+
+		$sqlGroup = "SELECT div_id, group_name
+					FROM hope_group
+					WHERE group_id = %d";
+
+		$aGroupResult = db_query($sqlGroup,  array($aWing->group_id));
+		$aGroup = db_fetch_object($aGroupResult);
+		mysqli_free_result($aGroupResult);
+
+		$sqlDiv = "SELECT div_name
+					FROM hope_division
+					WHERE div_id = %d";
+
+		$aDivResult = db_query($sqlDiv,  array($aGroup->div_id));
+		$aDiv = db_fetch_object($aDivResult);
+		mysqli_free_result($aDivResult);
+
+	array_push($array_res, 'Member', $aDiv->div_name, $aGroup->group_name, $aWing->wing_name, $aTroop->troop_name, $aTeam->team_name);
+	}
+
+return $array_res;
+}
+
+/*
+function kickapps_teams(){
+global $user;
+
+	$csS = 'kickapps_theme2010';
+	
+	if($_GET['css'] == $csS){
+	$sHeader = drupal_eval(load_teams_template('page-team-volunteer'));
+    } else{
+	$sHeader = drupal_eval(load_teams_template('page-team-hopefuls'));
+	}
+	
+	$sOutput = '<div><center><h3>HopeNet Teams</h3></center></div>';
+
+	$sOutput .= '<div style="background-color:#ffffff;">
+					<center>
+					<img src="' . base_path() . 'themes/theme2010/images/gi_teams_1.jpg" />
+					</center>
+					<div style="width:400px;padding-left:170px;">Teamwork is crucial to the success of HopeNet and because of this HopeNet has organized both the Hopefuls and its volunteers into teams.</div>
+				  
+					<div style="clear:both;background-color:#ffffff;">&nbsp;</div>
+					<div style="background-color:#ffffff;padding-left:30px;">
+						<div style="float:left;"><img src="' . base_path() . 'themes/theme2010/images/gi_teams_2.jpg" />
+						<center>To learn more about the Volunteer Teams <br/> <a href="/community/">Please Click Here</a></center>
+						</div>
+						<div style="float:left;width:100px;">&nbsp;</div>
+						<div style="float:left;"><img src="' . base_path() . 'themes/theme2010/images/gi_teams_3.jpg" />
+						<center>To learn more about the Hopeful Teams <br/> <a href="#">Please Click Here</a></center>
+						</div>
+					</div>
+			  </div>
+			  '; 
+	
+	$sFooter = '
+	</div><div style="height:50px;">&nbsp;</div>
+</div></body></html>';
+
+	return $sHeader.$sOutput.$sFooter;
+}
+ */
+
+function load_teams_template($sPage){
+	ob_start();
+	include drupal_get_path('module', 'teams') . '/templates/' . $sPage . '.tpl.php';
+	$sOutput = ob_get_contents();
+	ob_end_clean();
+	return $sOutput;
+}
+
+function teams_volunteercorps(){
+
+	echo 'test';
+}
+
+function teams_volunteerjointeam(){
+
+	echo 'test';
+}
+
+function teams_volunteermyteam(){
+
+	echo 'test';
+}
+?>

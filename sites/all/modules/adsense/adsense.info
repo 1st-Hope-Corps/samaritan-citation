@@ -1,0 +1,7 @@
+; $Id$
+name = Google AdSense Module
+description = A module that lets users use their own Google AdSense Ads on their pages.
+version = 6.x-1.0
+package = HopeNet
+core = 6.x
+dependencies[] = profile

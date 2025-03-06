@@ -1,0 +1,190 @@
+<?php
+/**
+ * @file
+ *
+ * This module provides extends the Drupal for Facebook module.
+ *
+ */
+
+$fb_ext_is_iframe = false;
+
+/**
+ * Ensure fb.module is loaded
+ *
+ * @todo  Is this necessary?
+ */
+module_load_include( 'module', 'fb' );
+
+
+$fb_ext_is_iframe = false;
+
+/**
+ * Implements HOOK_init
+ * 
+ * Check if we're running in a Facebook iframe
+ * 
+ * signed_request is received only on the first page load, so we store a flag
+ * in the user's session for subsequent use. We'll use some JS to unset the flag
+ * if the user is not in an iframe
+ *
+ * Force a theme change if requested in the URL
+ */
+function fb_ext_init () {
+  global $fb_ext_is_iframe;
+  global $custom_theme;
+  global $base_url;
+
+  $fb_theme = 'zen_hopegames_fb';
+
+  if ( isset($_REQUEST['forcefb']) ) {
+    $_SESSION['fb_iframe'] = true;
+    $fb_ext_is_iframe = true;
+    $custom_theme = $fb_theme;
+  } else {
+    if ( isset($_REQUEST['clearfb']) ) {
+      unset($_SESSION['fb_iframe']);
+      $fb_ext_is_iframe = false;
+    } else {
+      if ( isset($_POST['signed_request']) ) {
+        $_SESSION['fb_iframe'] = true;
+        $fb_ext_is_iframe = true;
+        $custom_theme = $fb_theme;
+      } else if ( $_SESSION['fb_iframe'] ) {
+        $fb_ext_is_iframe = true;
+        $custom_theme = $fb_theme;
+      } else {
+        $fb_ext_is_iframe = false;
+      }
+    }
+
+    // Build the redirect URL with our clearfb flag
+    $current_path = isset($_GET['q']) ? $_GET['q'] : '<front>';
+    $current_url = url($current_path, array('absolute' => TRUE));
+
+    $parts = parse_url( $current_url );
+
+    parse_str($parts['query'], $query);
+
+    $query['clearfb'] .= '1';
+
+    $redirect = sprintf(
+      '%s://%s%s?%s'
+        , $parts['scheme']
+        , $parts['host']
+        , $parts['path']
+        , http_build_query($query)
+    );
+
+    // Add JS to do a redirect
+    $js = 'var $fb_ext_is_iframe = ' . ( $fb_ext_is_iframe ? '1' : '0' ) . ';' . "\n";
+    $js .= 'if ( window.location == top.location && $fb_ext_is_iframe ) {' . "\n";
+    $js .= '  window.location="' . $redirect . '";' . "\n";
+    $js .= '}' . "\n";
+
+    drupal_add_js( $js , 'inline' );
+  }
+
+}
+
+
+
+/**
+ * Implements hook_fb()
+ */
+function fb_ext_fb ( $op, $data, &$return ) {
+
+  switch ( $op ) {
+
+    // Figuring out which app the current request is for.
+    case FB_OP_CURRENT_APP :
+      break;
+
+    // An app is configured
+    // Facebook API has been initialized
+    case FB_OP_INITIALIZE :
+      // fb_ext_clear_session();
+      break;
+
+    // We know that the user has authorized our app
+    case FB_OP_APP_IS_AUTHORIZED :
+      if ( fb_canvas_is_iframe() ) {
+        if ( fb_ext_load_drupal_user( $data['fbu'] ) ) {
+          fb_ext_maybe_redirect_pending_user( $data );
+        } else {
+          fb_ext_unmapped_user( $data );
+        }
+      }
+      break;
+
+    default:
+      break;
+  }
+  // error_log( 'fb_ext_fb(' . $op . ', ' . print_r($data,1) . ')' );
+}
+
+
+function fb_ext_clear_session () {
+    global $user;
+
+    // Destroy the current session:
+    session_destroy();
+
+    // Only variables can be passed by reference workaround.
+    $null = NULL;
+    user_module_invoke('logout', $null, $user);
+
+    // Load the anonymous user
+    $user = drupal_anonymous_user();
+    
+}
+
+
+function fb_ext_load_drupal_user ( $fbu ) {
+  global $user;
+  // error_log( 'fb_ext_load_user' );
+  
+  // Using fboath module
+  module_load_include( 'module', 'fboath' );
+
+  // Check for a match in the fboath_users table
+  if ( $drupal_id = fboauth_uid_load( $fbu ) ) {
+    // Found a match
+    // error_log( 'Loading up $user' );
+    $user = user_load( $drupal_id );
+    // error_log( '$user matched fb_ext_load_drupal_user: ' . print_r($user,1));
+    return true;
+  } else {
+    // Load the anonymous user
+    $user = drupal_anonymous_user();
+    // error_log( '$user unmatched fb_ext_load_drupal_user: ' . print_r($user,1));
+    return false;
+  }
+}
+
+
+function fb_ext_maybe_redirect_pending_user ( $data ) {
+  global $user;
+
+  if ( '0' == $user->status ) {
+    // The user hasn't been approved, yet
+    fb_ext_redirect_unauthorized( $data['fb_app'] );
+  }
+}
+
+
+function fb_ext_unmapped_user ( $data ) {
+  fb_ext_redirect_unauthorized( $data['fb_app'] );
+}
+
+
+function fb_ext_redirect_unauthorized ( $fb_app ) {
+  // Get the canvas app's configuraiton settings.
+  $fb_canvas_data = _fb_canvas_get_config( $fb_app );
+
+  // Display the same page that unauthenticated users would see
+  // as configured in the canvas app's settings
+  $front = $fb_canvas_data['front_anonymous'];
+  // error_log( 'Changing current page to ' . $front );
+  menu_set_active_item( drupal_get_normal_path( $front ) );
+}
+?>

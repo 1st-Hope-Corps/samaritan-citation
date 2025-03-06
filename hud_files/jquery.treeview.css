@@ -1,0 +1,51 @@
+.jtreeview, .jtreeview ul { 
+	padding: 0;
+	margin: 0;
+	list-style: none;
+	font-size:12px;
+	color:#FFFF00;
+}
+
+.jtreeview ul {
+	background-color: none;
+	margin-top: 4px;
+}
+
+.jtreeview .hitarea {
+	background: url(images/treeview-default.gif) -64px -25px no-repeat;
+	height: 16px;
+	width: 16px;
+	margin-left: -16px;
+	float: left;
+	cursor: pointer;
+}
+/* fix for IE6 */
+* html .hitarea {
+	display: inline;
+	float:none;
+}
+
+.jtreeview li { 
+	margin: 0;
+	padding: 3px 0pt 3px 16px;
+	cursor:pointer;
+}
+
+.jtreeview a.selected {
+	background-color: #eee;
+}
+
+.jtreeview .hover { color: red; cursor: pointer; }
+
+.jtreeview li { background: url(images/treeview-default-line.gif) 0 0 no-repeat; }
+.jtreeview li.collapsable, .jtreeview li.expandable { background-position: 0 -176px; }
+
+.jtreeview .expandable-hitarea { background-position: -80px -3px; }
+
+.jtreeview li.last { background-position: 0 -1766px }
+.jtreeview li.lastCollapsable, .jtreeview li.lastExpandable { background-image: url(images/treeview-default.gif); }  
+.jtreeview li.lastCollapsable { background-position: 0 -111px }
+.jtreeview li.lastExpandable { background-position: -32px -67px }
+
+.jtreeview div.lastCollapsable-hitarea, .jtreeview div.lastExpandable-hitarea { background-position: 0; }
+
